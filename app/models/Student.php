@@ -20,28 +20,17 @@ class Student {
   
   public static function create($name, $email, $password) {
     $pdo = Database::connect();
-    $stmt = $pdo->prepare("
-			  INSERT INTO users (name, email, password, role)
-			  VALUES (?, ?, ?, 'student')
-			  ");
+    $stmt = $pdo->prepare("INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, 'student')");
     $stmt->execute([$name, $email, password_hash($password, PASSWORD_DEFAULT)]);
   }
   
   public static function update($id, $name, $email, $password = null) {
     $pdo = Database::connect();
     if ($password) {
-      $stmt = $pdo->prepare("
-			    UPDATE users
-			    SET name = ?, email = ?, password = ?, updated_at = CURRENT_TIMESTAMP
-			    WHERE id = ? AND role = 'student'
-			    ");
+      $stmt = $pdo->prepare("UPDATE users SET name = ?, email = ?, password = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND role = 'student'");
       $stmt->execute([$name, $email, password_hash($password, PASSWORD_DEFAULT), $id]);
     } else {
-      $stmt = $pdo->prepare("
-			    UPDATE users
-			    SET name = ?, email = ?, updated_at = CURRENT_TIMESTAMP
-			    WHERE id = ? AND role = 'student'
-			    ");
+      $stmt = $pdo->prepare("UPDATE users SET name = ?, email = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND role = 'student'");
       $stmt->execute([$name, $email, $id]);
     }
   }
@@ -52,5 +41,4 @@ class Student {
     $stmt->execute([$id]);
   }
 }
-    
 ?>

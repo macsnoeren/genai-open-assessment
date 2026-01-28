@@ -168,7 +168,7 @@ def submit_ai_feedback(
     requests.post(
         f"{BASE_URL}?action=submit_ai_feedback",
         json=payload,
-        timeout=180,
+        timeout=600,
         params={
             "api_key": API_KEY,
         }

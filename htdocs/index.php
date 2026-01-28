@@ -6,6 +6,7 @@ require_once __DIR__ . '/../app/controllers/StudentController.php';
 require_once __DIR__ . '/../app/controllers/DocentController.php';
 require_once __DIR__ . '/../app/controllers/StudentExamController.php';
 require_once __DIR__ . '/../app/controllers/ApiKeyController.php';
+require_once __DIR__ . '/../app/controllers/ApiController.php';
 
 $action = $_GET['action'] ?? 'login';
 
@@ -14,6 +15,7 @@ $docent = new DocentController();
 $studentController = new StudentController();
 $studentExamController = new StudentExamController();
 $apiKeyController = new ApiKeyController();
+$apiController = new ApiController();
 
 switch ($action) {
  case 'login':
@@ -124,6 +126,10 @@ switch ($action) {
    $studentExamController->myExams();
    break;
 
+ case 'student_view_results':
+   $studentExamController->viewResults();
+   break;
+
  case 'exam_results':
    $docent->viewExamResults($_GET['exam_id']);
    break;
@@ -146,6 +152,14 @@ switch ($action) {
 
  case 'api_key_delete':
    $apiKeyController->delete();
+   break;
+
+ case 'open_student_answers':
+   $apiController->getOpenAnswers();
+   break;
+
+ case 'submit_ai_feedback':
+   $apiController->submitAiFeedback();
    break;
    
  default:

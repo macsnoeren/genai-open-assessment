@@ -82,5 +82,34 @@ class StudentExamController {
 
     require __DIR__ . '/../views/student/dashboard.php';
   }
+
+  public function viewResults() {
+    requireLogin();
+    requireRole('student');
+    
+    $studentExamId = $_GET['student_exam_id'] ?? null;
+    
+    if (!$studentExamId) {
+      header("Location: /?action=student_dashboard");
+      exit;
+    }
+    
+    $studentExam = StudentExam::find($studentExamId);
+    
+    if (!$studentExam || $studentExam['student_id'] != $_SESSION['user_id']) {
+      die("Geen toegang.");
+    }
+    
+    $exam = Exam::find($studentExam['exam_id']);
+    $questions = Question::allByExam($studentExam['exam_id']);
+    $answersRaw = StudentAnswer::allByStudentExam($studentExamId);
+    
+    $answers = [];
+    foreach ($answersRaw as $a) {
+      $answers[$a['question_id']] = $a;
+    }
+    
+    require __DIR__ . '/../views/student/view_results.php';
+  }
 }
 ?>

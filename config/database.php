@@ -1,57 +1,26 @@
 <?php
 
 class Database {
-  private static $pdo;
-  
-  public static function connect() {
-    if (!self::$pdo) {
-      self::$pdo = new PDO("sqlite:" . __DIR__ . "/../database/database.sqlite");
-      self::$pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-      
-      self::initialize();
+    private static $pdo;
+
+    public static function connect() {
+        if (!isset(self::$pdo)) {
+            // Configuration should ideally come from environment variables
+            $host = 'localhost';
+            $db   = 'genai_assessment';
+            $user = 'root';
+            $pass = '';
+            $charset = 'utf8mb4';
+
+            $dsn = "mysql:host=$host;dbname=$db;charset=$charset";
+            $options = [
+                PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                PDO::ATTR_EMULATE_PREPARES   => false,
+            ];
+
+            self::$pdo = new PDO($dsn, $user, $pass, $options);
+        }
+        return self::$pdo;
     }
-    return self::$pdo;
-  }
-  
-  private static function initialize() {
-    $pdo = self::$pdo;
-    
-    // check of users tabel bestaat
-    $pdo->exec("
-	       CREATE TABLE IF NOT EXISTS users (
-						 id INTEGER PRIMARY KEY AUTOINCREMENT,
-	       name TEXT NOT NULL,
-	       email TEXT UNIQUE NOT NULL,
-	       password TEXT NOT NULL,
-	       role TEXT CHECK(role IN ('student','docent')) NOT NULL,
-	       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-	       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-	       )
-	       ");
-	       
-    // check of er users zijn
-    $count = $pdo->query("SELECT COUNT(*) FROM users")->fetchColumn();
-	       
-    if ($count == 0) {
-      self::createDefaultUser();
-    }
-  }
-  
-    private static function createDefaultUser() {
-      $pdo = self::$pdo;
-      
-      $stmt = $pdo->prepare("
-			    INSERT INTO users (name, email, password, role)
-			    VALUES (?, ?, ?, ?)
-			    ");
-			    
-      $stmt->execute([
-		      'Default Docent',
-		      'docent@school.nl',
-		      password_hash('admin123', PASSWORD_DEFAULT),
-		      'docent'
-		      ]);
-    }
-  }
-    
-?>
+}
