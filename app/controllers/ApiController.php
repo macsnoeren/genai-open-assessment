@@ -29,14 +29,7 @@ class ApiController {
         $this->verifyApiKey();
 
         $pingFile = __DIR__ . '/../../database/last_api_ping.txt';
-
         $result = file_put_contents($pingFile, time());
-
-        if ($result === false) {
-            error_log('❌ Kan last_api_ping.txt niet schrijven naar: ' . $pingFile);
-        } else {
-            error_log('✅ last_api_ping.txt geschreven: ' . $pingFile);
-        }
         
         try {
             $answers = StudentAnswer::getPendingAiGrading();
