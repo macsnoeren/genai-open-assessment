@@ -159,6 +159,12 @@ switch ($action) {
  case 'audit_log':
    $docent->auditLog();
    break;
+
+  case 'clear_audit_log':
+    require_once __DIR__ . '/../app/controllers/DocentController.php';
+    $controller = new DocentController();
+    $controller->clearAuditLog();
+    break;
    
  default:
    echo "404";

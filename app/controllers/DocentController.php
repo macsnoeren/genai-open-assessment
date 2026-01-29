@@ -240,7 +240,7 @@ public function viewStudentAnswers($studentExamId) {
     require __DIR__ . '/../views/docent/audit_log.php';
   }
 
-  public function auditLogClear() {
+  public function clearAuditLog() {
     requireLogin();
     requireRole('docent');
 
