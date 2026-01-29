@@ -124,6 +124,10 @@ switch ($action) {
    $studentExamController->myExams();
    break;
 
+ case 'student_view_results':
+   $studentExamController->viewResults();
+   break;
+
  case 'exam_results':
    $docent->viewExamResults($_GET['exam_id']);
    break;
