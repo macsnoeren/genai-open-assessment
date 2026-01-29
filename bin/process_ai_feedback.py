@@ -107,7 +107,7 @@ STUDENTANTWOORD:
     }
 
     try:
-        response = requests.post(OLLAMA_URL, json=payload, timeout=180)
+        response = requests.post(OLLAMA_URL, json=payload, timeout=600)
         data = response.json()
         raw = data.get("response", "")
         parsed = extract_json(raw)
