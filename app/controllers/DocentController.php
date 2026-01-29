@@ -34,7 +34,10 @@ class DocentController {
 		 $_POST['description'],
 		 $_SESSION['user_id']
 		 );
-    AuditLog::log('exam_create', ['title' => $_POST['title']]);
+    AuditLog::log('exam_create', [
+        'title' => $_POST['title'],
+        'description' => $_POST['description']
+    ]);
     
     header('Location: /?action=docent_dashboard');
     exit;
@@ -59,7 +62,11 @@ class DocentController {
 		 $_POST['title'],
 		 $_POST['description']
 		 );
-    AuditLog::log('exam_update', ['id' => $_POST['id'], 'title' => $_POST['title']]);
+    AuditLog::log('exam_update', [
+        'id' => $_POST['id'], 
+        'title' => $_POST['title'],
+        'description' => $_POST['description']
+    ]);
     
     header('Location: /?action=docent_dashboard');
     exit;
@@ -106,7 +113,12 @@ class DocentController {
 		     $_POST['model_answer'],
 		     $_POST['criteria']
 		     );
-    AuditLog::log('question_create', ['exam_id' => $_POST['exam_id'], 'text' => $_POST['question_text']]);
+    AuditLog::log('question_create', [
+        'exam_id' => $_POST['exam_id'], 
+        'question_text' => $_POST['question_text'],
+        'model_answer' => $_POST['model_answer'],
+        'criteria' => $_POST['criteria']
+    ]);
     
     header('Location: /?action=questions&exam_id=' . $_POST['exam_id']);
     exit;
@@ -133,7 +145,12 @@ class DocentController {
 		     $_POST['model_answer'],
 		     $_POST['criteria']
 		     );
-    AuditLog::log('question_update', ['id' => $_POST['id']]);
+    AuditLog::log('question_update', [
+        'id' => $_POST['id'],
+        'question_text' => $_POST['question_text'],
+        'model_answer' => $_POST['model_answer'],
+        'criteria' => $_POST['criteria']
+    ]);
     
     header('Location: /?action=questions&exam_id=' . $_POST['exam_id']);
     exit;
@@ -145,7 +162,10 @@ class DocentController {
     
     $question = Question::find($_GET['id']);
     $examId = $question['exam_id'];
-    AuditLog::log('question_delete', ['id' => $_GET['id']]);
+    AuditLog::log('question_delete', [
+        'id' => $_GET['id'],
+        'question_text' => $question['question_text']
+    ]);
     Question::delete($_GET['id']);
     
     header('Location: /?action=questions&exam_id=' . $examId);
