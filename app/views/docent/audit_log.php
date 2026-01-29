@@ -5,7 +5,7 @@
 
 <table style="width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 0.9em;">
     <thead>
-        <tr style="background: #f8f9fa; text-align: left;">
+        <tr style="text-align: left;">
             <th style="padding: 8px; border-bottom: 2px solid #ddd;">Tijdstip</th>
             <th style="padding: 8px; border-bottom: 2px solid #ddd;">Gebruiker</th>
             <th style="padding: 8px; border-bottom: 2px solid #ddd;">Actie</th>
