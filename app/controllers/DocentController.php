@@ -182,6 +182,23 @@ public function viewStudentAnswers($studentExamId) {
 
     require __DIR__ . '/../views/docent/student_answers.php';
     }
+
+  public function deleteStudentExam() {
+    requireLogin();
+    requireRole('docent');
+    
+    $studentExamId = $_GET['student_exam_id'] ?? null;
+    $studentExam = $studentExamId ? StudentExam::find($studentExamId) : null;
+    
+    if ($studentExam) {
+        StudentExam::delete($studentExamId);
+        header('Location: /?action=exam_results&exam_id=' . $studentExam['exam_id']);
+        exit;
+    }
+    
+    header('Location: /?action=docent_dashboard');
+    exit;
+  }
     
 }
 

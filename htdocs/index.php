@@ -132,6 +132,10 @@ switch ($action) {
    $docent->viewStudentAnswers($_GET['student_exam_id']);
    break;
 
+ case 'delete_student_exam':
+   $docent->deleteStudentExam();
+   break;
+
  case 'api_keys':
    $apiKeyController->index();
    break;
