@@ -17,7 +17,7 @@ ob_start();
   <?php foreach ($questions as $q): ?>
   <div style="margin-bottom: 25px; padding: 15px; border: 1px solid #eee; border-radius: 5px;">
     <label><strong>Vraag:</strong> <?= htmlspecialchars($q['question_text']) ?></label><br>
-    <textarea name="answers[<?= $q['id'] ?>]" required style="width: 100%; min-height: 150px; margin-top: 10px; padding: 8px; box-sizing: border-box;"><?= htmlspecialchars($answers[$q['id']]['answer'] ?? '') ?></textarea>
+    <textarea name="answers[<?= $q['id'] ?>]" style="width: 100%; min-height: 150px; margin-top: 10px; padding: 8px; box-sizing: border-box;"><?= htmlspecialchars($answers[$q['id']]['answer'] ?? '') ?></textarea>
   </div>
   <?php endforeach; ?>
   
