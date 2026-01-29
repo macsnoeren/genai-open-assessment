@@ -7,7 +7,7 @@
 <?php else: ?>
     <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
         <thead>
-            <tr style="background: #f8f9fa; text-align: left;">
+            <tr style="text-align: left;">
                 <th style="padding: 10px; border-bottom: 2px solid #ddd;">Toets</th>
                 <th style="padding: 10px; border-bottom: 2px solid #ddd;">Gestart op</th>
                 <th style="padding: 10px; border-bottom: 2px solid #ddd;">Status</th>

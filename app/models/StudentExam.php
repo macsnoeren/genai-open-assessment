@@ -26,7 +26,7 @@ class StudentExam {
     
   public static function allByStudent($studentId) {
     $pdo = Database::connect();
-    $stmt = $pdo->prepare("SELECT se.*, e.title FROM student_exams se JOIN exams e ON se.exam_id = e.id WHERE se.student_id = ?");
+    $stmt = $pdo->prepare("SELECT se.*, e.title FROM student_exams se JOIN exams e ON se.exam_id = e.id WHERE se.student_id = ? ORDER BY se.started_at DESC");
     $stmt->execute([$studentId]);
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
   }
