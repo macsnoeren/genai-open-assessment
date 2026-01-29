@@ -37,7 +37,7 @@ if (isset($_SESSION['new_api_key'])):
       <td style="font-family: monospace;"><?= htmlspecialchars(substr($key['api_key'], 0, 8)) ?>...</td>
       <td><?= $key['created_at'] ?></td>
       <td>
-        <a href="/?action=apikey_delete&id=<?= $key['id'] ?>"
+        <a href="/?action=api_key_delete&id=<?= $key['id'] ?>"
            onclick="return confirm('Weet je zeker dat je deze API-key wilt verwijderen?')" style="color: #c00;">🗑 Verwijderen</a>
       </td>
     </tr>
@@ -51,7 +51,7 @@ if (isset($_SESSION['new_api_key'])):
     <span class="close">&times;</span>
     <h2>Nieuwe API-key</h2>
     
-    <form method="POST" action="/?action=apikey_store">
+    <form method="POST" action="/?action=api_key_create">
       <label>Naam</label>
       <input type="text" name="name" placeholder="bv. AI Feedback Script" required>
       

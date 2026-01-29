@@ -257,59 +257,6 @@ public function viewStudentAnswers($studentExamId) {
     exit;
   }
 
-  public function apiKeys() {
-    requireLogin();
-    requireRole('admin');
-    $pdo = Database::connect();
-    $stmt = $pdo->query("SELECT * FROM api_keys ORDER BY created_at DESC");
-    $keys = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    require __DIR__ . '/../views/docent/api_keys.php';
-  }
-
-  public function storeApiKey() {
-    requireLogin();
-    requireRole('admin');
-    
-    $name = $_POST['name'] ?: 'Nieuwe sleutel';
-    $apiKey = bin2hex(random_bytes(32));
-
-    $pdo = Database::connect();
-    $stmt = $pdo->prepare("INSERT INTO api_keys (name, api_key) VALUES (?, ?)");
-    $stmt->execute([$name, $apiKey]);
-    $newId = $pdo->lastInsertId();
-
-    AuditLog::log('apikey_create', ['name' => $name, 'id' => $newId]);
-    
-    $_SESSION['new_api_key'] = [
-        'name' => $name,
-        'key' => $apiKey
-    ];
-    
-    header('Location: /?action=api_keys');
-    exit;
-  }
-
-  public function deleteApiKey() {
-    requireLogin();
-    requireRole('admin');
-    
-    $id = $_GET['id'];
-
-    $pdo = Database::connect();
-    $stmt = $pdo->prepare("SELECT name FROM api_keys WHERE id = ?");
-    $stmt->execute([$id]);
-    $key = $stmt->fetch(PDO::FETCH_ASSOC);
-
-    if ($key) {
-        AuditLog::log('apikey_delete', ['id' => $id, 'name' => $key['name']]);
-        $stmt = $pdo->prepare("DELETE FROM api_keys WHERE id = ?");
-        $stmt->execute([$id]);
-    }
-    
-    header('Location: /?action=api_keys');
-    exit;
-  }
-    
 }
 
 ?>
