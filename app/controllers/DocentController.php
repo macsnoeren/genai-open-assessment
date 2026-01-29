@@ -240,6 +240,20 @@ public function viewStudentAnswers($studentExamId) {
     require __DIR__ . '/../views/docent/audit_log.php';
   }
 
+  public function clearAuditLog() {
+    requireLogin();
+    requireRole('docent');
+
+    $pdo = Database::connect();
+    $pdo->exec("DELETE FROM audit_log");
+
+    // Log the clearing action itself, so there's a trace of who did it.
+    AuditLog::log('audit_log_cleared');
+
+    header('Location: /?action=audit_log');
+    exit;
+  }
+
   public function apiKeys() {
     requireLogin();
     requireRole('docent');
