@@ -161,9 +161,7 @@ switch ($action) {
    break;
 
   case 'clear_audit_log':
-    require_once __DIR__ . '/../app/controllers/DocentController.php';
-    $controller = new DocentController();
-    $controller->clearAuditLog();
+    $docent->clearAuditLog();
     break;
    
  default:
