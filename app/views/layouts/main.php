@@ -15,7 +15,9 @@
     <?php if (isset($_SESSION['role']) && ($_SESSION['role'] === 'docent' || $_SESSION['role'] === 'admin')): ?>
       <a href="index.php?action=docent_dashboard">Dashboard</a>
       <a href="/?action=students">Gebruikers beheren</a>
+      <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin'): ?>
       <a href="/?action=api_keys">API-keys beheren</a>
+      <?php endif; ?>
       <a href="/?action=audit_log">Audit Log</a>
       <a href="/?action=my_exams">Mijn Testpogingen</a>
     <?php elseif (isset($_SESSION['role']) && $_SESSION['role'] === 'student'): ?>

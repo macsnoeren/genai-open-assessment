@@ -6,13 +6,13 @@ require_once __DIR__ . '/../models/AuditLog.php';
 class ApiKeyController {
   
   public function index() {
-    requireRole('docent');
+    requireRole('admin');
     $keys = ApiKey::all();
     require __DIR__ . '/../views/docent/api_keys.php';
   }
   
   public function create() {
-    requireRole('docent');
+    requireRole('admin');
     
     $newKey = ApiKey::create($_POST['name']);
     AuditLog::log('api_key_create', ['name' => $_POST['name']]);
@@ -23,7 +23,7 @@ class ApiKeyController {
   }
   
   public function toggle() {
-    requireRole('docent');
+    requireRole('admin');
     AuditLog::log('api_key_toggle', ['id' => $_GET['id']]);
     ApiKey::toggle($_GET['id']);
     header("Location: /?action=api_keys");
@@ -31,7 +31,7 @@ class ApiKeyController {
   }
   
   public function delete() {
-    requireRole('docent');
+    requireRole('admin');
     AuditLog::log('api_key_delete', ['id' => $_GET['id']]);
     ApiKey::delete($_GET['id']);
     header("Location: /?action=api_keys");

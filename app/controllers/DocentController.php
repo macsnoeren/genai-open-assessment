@@ -259,7 +259,7 @@ public function viewStudentAnswers($studentExamId) {
 
   public function apiKeys() {
     requireLogin();
-    requireRole('docent');
+    requireRole('admin');
     $pdo = Database::connect();
     $stmt = $pdo->query("SELECT * FROM api_keys ORDER BY created_at DESC");
     $keys = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -268,7 +268,7 @@ public function viewStudentAnswers($studentExamId) {
 
   public function storeApiKey() {
     requireLogin();
-    requireRole('docent');
+    requireRole('admin');
     
     $name = $_POST['name'] ?: 'Nieuwe sleutel';
     $apiKey = bin2hex(random_bytes(32));
@@ -291,7 +291,7 @@ public function viewStudentAnswers($studentExamId) {
 
   public function deleteApiKey() {
     requireLogin();
-    requireRole('docent');
+    requireRole('admin');
     
     $id = $_GET['id'];
 
