@@ -57,7 +57,7 @@ if (is_readable($pingFile)) {
 </main>
 
 <footer>
-    &copy; <?= date('Y') ?> Openvragen kennistoetsing (proof-of-concept)
+    &copy; <?= date('Y') ?> Openvragen kennistoetsing (proof-of-concept) - powered by JMNL Innovation
 </footer>
 
 </body>
