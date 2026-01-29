@@ -12,6 +12,9 @@ ob_start();
 <a href="/?action=audit_log" class="table-btn">
   📜 Audit Log
 </a>
+<a href="/?action=my_exams" class="table-btn" title="Bekijk je eigen testpogingen">
+  🧪 Mijn Testpogingen
+</a>
    
 <!-- Studentenbeheer knop -->
 <a href="/?action=students" class="table-btn">👨‍🎓 Studenten beheren</a>
@@ -35,9 +38,10 @@ ob_start();
       <td>
 	<a href="/?action=questions&exam_id=<?= $exam['id'] ?>">📋 Vragen</a> |
 <a href="/?action=exam_results&exam_id=<?= $exam['id'] ?>">👀 Resultaten</a> |
-<a href="#" class="editExam" data-id="<?= $exam['id'] ?>" data-title="<?= htmlspecialchars($exam['title']) ?>" data-desc="<?= htmlspecialchars($exam['description']) ?>">✏ Bewerken</a>
+<a href="/?action=start_exam&exam_id=<?= $exam['id'] ?>" onclick="return confirm('U staat op het punt deze toets als test af te leggen. Uw poging zal zichtbaar zijn in de resultaten. Weet u het zeker?')" title="Toets afleggen als test">🧪 Testen</a> |
+<a href="#" class="editExam" data-id="<?= $exam['id'] ?>" data-title="<?= htmlspecialchars($exam['title']) ?>" data-desc="<?= htmlspecialchars($exam['description']) ?>">✏ Bewerken</a> |
 	<a href="/?action=exam_delete&id=<?= $exam['id'] ?>"
-	   onclick="return confirm('Weet je het zeker?')">🗑 Verwijderen</a>
+	   onclick="return confirm('Weet je zeker dat je deze toets en alle bijbehorende vragen en resultaten wilt verwijderen?')" style="color: #c00;">🗑 Verwijderen</a>
       </td>
     </tr>
     <?php endforeach; ?>

@@ -19,7 +19,6 @@ class StudentExamController {
   
   public function startExam() {
     requireLogin();
-    requireRole('student');
     
     $examId = $_GET['exam_id'];
     $studentId = $_SESSION['user_id'];
@@ -32,7 +31,6 @@ class StudentExamController {
   
   public function takeExam() {
     requireLogin();
-    requireRole('student');
     
     $studentExamId = $_GET['student_exam_id'];
     $studentExam = StudentExam::find($studentExamId);
@@ -56,7 +54,6 @@ class StudentExamController {
   
   public function submitExam() {
     requireLogin();
-    requireRole('student');
     
     $studentExamId = $_POST['student_exam_id'];
     $actionType = $_POST['action_type'] ?? 'submit'; // 'submit' is de standaard
@@ -85,7 +82,6 @@ class StudentExamController {
   
   public function myExams() {
     requireLogin();
-    requireRole('student');
     
     $studentId = $_SESSION['user_id'];
     $studentExams = StudentExam::allByStudent($studentId);
@@ -110,7 +106,6 @@ class StudentExamController {
 
   public function viewResults() {
     requireLogin();
-    requireRole('student');
     
     $studentExamId = $_GET['student_exam_id'] ?? null;
     
