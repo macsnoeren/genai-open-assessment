@@ -21,6 +21,10 @@ class ApiController {
 
     public function getOpenAnswers() {
         $this->verifyApiKey();
+
+        $pingFile = __DIR__ . '/../../database/last_api_ping.txt';
+        file_put_contents($pingFile, time());
+
         try {
             $answers = StudentAnswer::getPendingAiGrading();
             echo json_encode(['answers' => $answers]);

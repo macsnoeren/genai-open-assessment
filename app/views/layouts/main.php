@@ -1,3 +1,13 @@
+<?php
+$parserStatus = 'inactive';
+$pingFile = __DIR__ . '/../../../database/last_api_ping.txt';
+if (file_exists($pingFile)) {
+    $lastPing = (int)@file_get_contents($pingFile);
+    if ((time() - $lastPing) < 120) { // 2 minuten
+        $parserStatus = 'active';
+    }
+}
+?>
 <!DOCTYPE html>
 <html>
 <head>
@@ -7,7 +17,10 @@
 	<body>
 
 <header style="display: flex; justify-content: space-between; align-items: center;">
-    <h1 style="margin: 0;">Toetsen van kennis met openvragen (onderzoek)</h1>
+    <div style="display: flex; align-items: center; gap: 20px;">
+        <h1 style="margin: 0;">Toetsen van kennis met openvragen (onderzoek)</h1>
+        <span style="font-size: 0.9em; color: <?= $parserStatus === 'active' ? '#28a745' : '#dc3545' ?>;">● Parser actief</span>
+    </div>
     <?php if (isset($_SESSION['user_id'])): ?>
         <div style="text-align: right; font-size: 0.9em;">
             <strong><?= htmlspecialchars($_SESSION['name']) ?></strong>
