@@ -2,7 +2,7 @@
 ob_start();
 ?>
 
-<h2>Beschikbare examens</h2>
+<h2>Beschikbare toetsen</h2>
 
 <table>
   <thead>
@@ -16,7 +16,7 @@ ob_start();
     <tr>
       <td><?= htmlspecialchars($exam['title']) ?></td>
       <td>
-	<a href="/?action=start_exam&exam_id=<?= $exam['id'] ?>" class="table-btn">📝 Start examen</a>
+	<a href="/?action=start_exam&exam_id=<?= $exam['id'] ?>" class="table-btn">📝 Start toets</a>
       </td>
     </tr>
     <?php endforeach; ?>
@@ -25,6 +25,6 @@ ob_start();
 
 <?php
  $content = ob_get_clean();
- $title = "Beschikbare examens";
+ $title = "Beschikbare toetsen";
  require __DIR__ . '/../layouts/main.php';
 ?>

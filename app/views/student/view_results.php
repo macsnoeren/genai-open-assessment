@@ -3,7 +3,7 @@ ob_start();
 ?>
 
 <div style="margin-bottom: 20px;">
-    <a href="/?action=my_exams" style="text-decoration: none;">&larr; Terug naar mijn examens</a>
+    <a href="/?action=my_exams" style="text-decoration: none;">&larr; Terug naar mijn toetsen</a>
 </div>
 
 <h2>Resultaten: <?= htmlspecialchars($exam['title']) ?></h2>

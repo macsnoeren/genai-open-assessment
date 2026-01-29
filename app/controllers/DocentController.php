@@ -20,7 +20,7 @@ class DocentController {
     
     $exam = null;
     $action = 'exam_store';
-    $title = 'Nieuw examen';
+    $title = 'Nieuwe toets';
     require __DIR__ . '/../views/docent/exam_form.php';
   }
   
@@ -44,7 +44,7 @@ class DocentController {
     
     $exam = Exam::find($_GET['id']);
     $action = 'exam_update';
-    $title = 'Examen bewerken';
+    $title = 'Toets bewerken';
     require __DIR__ . '/../views/docent/exam_form.php';
   }
   

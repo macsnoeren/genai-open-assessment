@@ -2,7 +2,7 @@
 ob_start();
 ?>
 
-<h2>Examen: <?= htmlspecialchars($studentExam['unique_id']) ?></h2>
+<h2>Toets: <?= htmlspecialchars($studentExam['unique_id']) ?></h2>
 
 <form method="POST" action="/?action=submit_exam">
   <input type="hidden" name="student_exam_id" value="<?= $studentExam['id'] ?>">
@@ -14,11 +14,11 @@ ob_start();
   </div>
   <?php endforeach; ?>
   
-  <button type="submit">Examen inleveren</button>
+  <button type="submit">Toets inleveren</button>
 </form>
 
 <?php
 $content = ob_get_clean();
-$title = "Examen maken";
+$title = "Toets maken";
 require __DIR__ . '/../layouts/main.php';
 ?>

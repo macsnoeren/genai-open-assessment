@@ -2,13 +2,13 @@
  ob_start();
  ?>
 
-<h2>Resultaten examen</h2>
+<h2>Resultaten toets</h2>
 
 <table>
   <thead>
     <tr>
       <th>Student</th>
-      <th>Examen ID</th>
+      <th>Toets ID</th>
       <th>Gestart op</th>
       <th>Ingeleverd op</th>
       <th>Acties</th>
@@ -33,6 +33,6 @@
 
 <?php
  $content = ob_get_clean();
- $title = "Examen resultaten";
+ $title = "Toets resultaten";
  require __DIR__ . '/../layouts/main.php';
 ?>

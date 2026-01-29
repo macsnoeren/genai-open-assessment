@@ -6,7 +6,7 @@ class StudentExam {
   
   public static function start($studentId, $examId) {
     $pdo = Database::connect();
-    $uniqueId = "examen_" . $examId . "_" . $studentId . "_" . date('Ymd_His');
+    $uniqueId = "toets_" . $examId . "_" . $studentId . "_" . date('Ymd_His');
     
     $stmt = $pdo->prepare("
         INSERT INTO student_exams (student_id, exam_id, unique_id)

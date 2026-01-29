@@ -1,14 +1,14 @@
 <?php ob_start(); ?>
 
-<h2>Mijn Examens</h2>
+<h2>Mijn Toetsen</h2>
 
 <?php if (empty($studentExams)): ?>
-    <p>Je hebt nog geen examens gemaakt.</p>
+    <p>Je hebt nog geen toetsen gemaakt.</p>
 <?php else: ?>
     <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
         <thead>
             <tr style="background: #f8f9fa; text-align: left;">
-                <th style="padding: 10px; border-bottom: 2px solid #ddd;">Examen</th>
+                <th style="padding: 10px; border-bottom: 2px solid #ddd;">Toets</th>
                 <th style="padding: 10px; border-bottom: 2px solid #ddd;">Gestart op</th>
                 <th style="padding: 10px; border-bottom: 2px solid #ddd;">Status</th>
                 <th style="padding: 10px; border-bottom: 2px solid #ddd;">Acties</th>
@@ -37,7 +37,7 @@
 
 <?php 
 $content = ob_get_clean();
-$title = "Mijn Examens";
+$title = "Mijn Toetsen";
 if (file_exists(__DIR__ . '/../layouts/main.php')) {
     require __DIR__ . '/../layouts/main.php';
 } else {

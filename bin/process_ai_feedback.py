@@ -12,10 +12,13 @@ API_KEY = "89bfbc3d755e099cbc5d152ba8ef06c49feb50f3d36f22a5bf9e22078602c8c2"
 BASE_URL = "https://test.jmnl.nl/api/index.php"
 OLLAMA_URL = "http://localhost:11434/api/generate"
 
-# LLM-modellen die gebruikt worden
+# LLM-modellen die gebruikt worden => dubbel om ook te zien bij twee keer runnen
 LLM_MODELS = [
     "qwen3:4b",
+    "qwen3:4b",
     "gemma3:1b",
+    "gemma3:1b",
+    "gemma3:4b",
     "gemma3:4b",
 ]
 
