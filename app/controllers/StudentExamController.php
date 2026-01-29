@@ -4,6 +4,7 @@ require_once __DIR__ . '/../helpers/auth.php';
 require_once __DIR__ . '/../models/Exam.php';
 require_once __DIR__ . '/../models/Questions.php';
 require_once __DIR__ . '/../models/StudentExam.php';
+require_once __DIR__ . '/../models/AuditLog.php';
 require_once __DIR__ . '/../models/StudentAnswer.php';
 
 class StudentExamController {
@@ -24,6 +25,7 @@ class StudentExamController {
     $studentId = $_SESSION['user_id'];
     
     $studentExamId = StudentExam::start($studentId, $examId);
+    AuditLog::log('exam_start', ['exam_id' => $examId, 'student_exam_id' => $studentExamId]);
     header("Location: /?action=take_exam&student_exam_id={$studentExamId}");
     exit;
   }
@@ -66,12 +68,14 @@ class StudentExamController {
     if ($actionType === 'submit') {
         // Toets markeren als ingeleverd
         $pdo = Database::connect();
+        AuditLog::log('exam_submit_final', ['student_exam_id' => $studentExamId]);
         $stmt = $pdo->prepare("UPDATE student_exams SET completed_at = CURRENT_TIMESTAMP WHERE id = ?");
         $stmt->execute([$studentExamId]);
         
         header("Location: /?action=my_exams");
     } else {
         // Alleen opslaan en terugsturen naar de toetspagina
+        AuditLog::log('exam_save_interim', ['student_exam_id' => $studentExamId]);
         $_SESSION['success_message'] = 'Je antwoorden zijn tussentijds opgeslagen.';
         header("Location: /?action=take_exam&student_exam_id={$studentExamId}");
     }

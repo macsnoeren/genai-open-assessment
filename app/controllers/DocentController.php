@@ -2,6 +2,7 @@
 
 require_once __DIR__ . '/../models/Exam.php';
 require_once __DIR__ . '/../helpers/auth.php';
+require_once __DIR__ . '/../models/AuditLog.php';
 require_once __DIR__ . '/../models/Questions.php';
 
 class DocentController {
@@ -33,6 +34,7 @@ class DocentController {
 		 $_POST['description'],
 		 $_SESSION['user_id']
 		 );
+    AuditLog::log('exam_create', ['title' => $_POST['title']]);
     
     header('Location: /?action=docent_dashboard');
     exit;
@@ -57,6 +59,7 @@ class DocentController {
 		 $_POST['title'],
 		 $_POST['description']
 		 );
+    AuditLog::log('exam_update', ['id' => $_POST['id'], 'title' => $_POST['title']]);
     
     header('Location: /?action=docent_dashboard');
     exit;
@@ -66,6 +69,7 @@ class DocentController {
     requireLogin();
     requireRole('docent');
     
+    AuditLog::log('exam_delete', ['id' => $_GET['id']]);
     Exam::delete($_GET['id']);
     header('Location: /?action=docent_dashboard');
     exit;
@@ -102,6 +106,7 @@ class DocentController {
 		     $_POST['model_answer'],
 		     $_POST['criteria']
 		     );
+    AuditLog::log('question_create', ['exam_id' => $_POST['exam_id'], 'text' => $_POST['question_text']]);
     
     header('Location: /?action=questions&exam_id=' . $_POST['exam_id']);
     exit;
@@ -128,6 +133,7 @@ class DocentController {
 		     $_POST['model_answer'],
 		     $_POST['criteria']
 		     );
+    AuditLog::log('question_update', ['id' => $_POST['id']]);
     
     header('Location: /?action=questions&exam_id=' . $_POST['exam_id']);
     exit;
@@ -139,6 +145,7 @@ class DocentController {
     
     $question = Question::find($_GET['id']);
     $examId = $question['exam_id'];
+    AuditLog::log('question_delete', ['id' => $_GET['id']]);
     Question::delete($_GET['id']);
     
     header('Location: /?action=questions&exam_id=' . $examId);
@@ -180,6 +187,7 @@ public function viewStudentAnswers($studentExamId) {
     $studentExam = $studentExamId ? StudentExam::find($studentExamId) : null;
     
     if ($studentExam) {
+        AuditLog::log('student_exam_delete', ['id' => $studentExamId]);
         StudentExam::delete($studentExamId);
         header('Location: /?action=exam_results&exam_id=' . $studentExam['exam_id']);
         exit;
@@ -187,6 +195,13 @@ public function viewStudentAnswers($studentExamId) {
     
     header('Location: /?action=docent_dashboard');
     exit;
+  }
+
+  public function auditLog() {
+    requireLogin();
+    requireRole('docent');
+    $logs = AuditLog::all();
+    require __DIR__ . '/../views/docent/audit_log.php';
   }
     
 }

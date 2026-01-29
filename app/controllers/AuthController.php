@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/../models/User.php';
+require_once __DIR__ . '/../models/AuditLog.php';
 
 class AuthController {
   
@@ -25,6 +26,8 @@ class AuthController {
     $_SESSION['name']    = $user['name'];
     $_SESSION['role']    = $user['role'];
     
+    AuditLog::log('login_success');
+    
     // redirect op rol
     if ($user['role'] === 'docent') {
       header('Location: index.php?action=docent_dashboard');
@@ -35,6 +38,7 @@ class AuthController {
   }
   
   public function logout() {
+    AuditLog::log('logout');
     session_destroy();
     header('Location: index.php?action=login');
     exit;

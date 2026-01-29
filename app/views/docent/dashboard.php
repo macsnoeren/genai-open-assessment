@@ -9,6 +9,9 @@ ob_start();
 <a href="/?action=api_keys" class="table-btn">
   🔐 API-keys beheren
 </a>
+<a href="/?action=audit_log" class="table-btn">
+  📜 Audit Log
+</a>
    
 <!-- Studentenbeheer knop -->
 <a href="/?action=students" class="table-btn">👨‍🎓 Studenten beheren</a>

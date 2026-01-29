@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/../models/ApiKey.php';
+require_once __DIR__ . '/../models/AuditLog.php';
 
 class ApiKeyController {
   
@@ -14,6 +15,7 @@ class ApiKeyController {
     requireRole('docent');
     
     $newKey = ApiKey::create($_POST['name']);
+    AuditLog::log('api_key_create', ['name' => $_POST['name']]);
     $_SESSION['new_api_key'] = $newKey;
     
     header("Location: /?action=api_keys");
@@ -22,6 +24,7 @@ class ApiKeyController {
   
   public function toggle() {
     requireRole('docent');
+    AuditLog::log('api_key_toggle', ['id' => $_GET['id']]);
     ApiKey::toggle($_GET['id']);
     header("Location: /?action=api_keys");
     exit;
@@ -29,6 +32,7 @@ class ApiKeyController {
   
   public function delete() {
     requireRole('docent');
+    AuditLog::log('api_key_delete', ['id' => $_GET['id']]);
     ApiKey::delete($_GET['id']);
     header("Location: /?action=api_keys");
     exit;

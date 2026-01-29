@@ -156,6 +156,10 @@ switch ($action) {
    $apiKeyController->delete();
    break;
    
+ case 'audit_log':
+   $docent->auditLog();
+   break;
+   
  default:
    echo "404";
  }

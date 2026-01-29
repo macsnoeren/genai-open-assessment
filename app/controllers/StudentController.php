@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/../models/Student.php';
+require_once __DIR__ . '/../models/AuditLog.php';
 require_once __DIR__ . '/../helpers/auth.php';
 
 class StudentController {
@@ -32,6 +33,7 @@ class StudentController {
 		    $_POST['email'],
 		    $_POST['password']
 		    );
+    AuditLog::log('student_create', ['name' => $_POST['name'], 'email' => $_POST['email']]);
     
     header('Location: /?action=students');
     exit;
@@ -57,6 +59,7 @@ class StudentController {
 		    $_POST['email'],
 		    $_POST['password'] ?? null
 		    );
+    AuditLog::log('student_update', ['id' => $_POST['id'], 'name' => $_POST['name']]);
     
     header('Location: /?action=students');
     exit;
@@ -66,6 +69,7 @@ class StudentController {
             requireLogin();
 	    requireRole('docent');
 	    
+	    AuditLog::log('student_delete', ['id' => $_GET['id']]);
 	    Student::delete($_GET['id']);
 	    header('Location: /?action=students');
 	    exit;
