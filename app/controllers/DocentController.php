@@ -57,16 +57,23 @@ class DocentController {
     requireLogin();
     requireRole('docent');
     
+    $currentExam = Exam::find($_POST['id']);
+    
     Exam::update(
 		 $_POST['id'],
 		 $_POST['title'],
 		 $_POST['description']
 		 );
-    AuditLog::log('exam_update', [
-        'id' => $_POST['id'], 
-        'title' => $_POST['title'],
-        'description' => $_POST['description']
-    ]);
+
+    $changes = ['id' => $_POST['id']];
+    if ($currentExam['title'] !== $_POST['title']) {
+        $changes['title'] = ['old' => $currentExam['title'], 'new' => $_POST['title']];
+    }
+    if ($currentExam['description'] !== $_POST['description']) {
+        $changes['description'] = ['old' => $currentExam['description'], 'new' => $_POST['description']];
+    }
+
+    AuditLog::log('exam_update', $changes);
     
     header('Location: /?action=docent_dashboard');
     exit;
@@ -139,18 +146,27 @@ class DocentController {
     requireLogin();
     requireRole('docent');
     
+    $currentQuestion = Question::find($_POST['id']);
+
     Question::update(
 		     $_POST['id'],
 		     $_POST['question_text'],
 		     $_POST['model_answer'],
 		     $_POST['criteria']
 		     );
-    AuditLog::log('question_update', [
-        'id' => $_POST['id'],
-        'question_text' => $_POST['question_text'],
-        'model_answer' => $_POST['model_answer'],
-        'criteria' => $_POST['criteria']
-    ]);
+
+    $changes = ['id' => $_POST['id']];
+    if ($currentQuestion['question_text'] !== $_POST['question_text']) {
+        $changes['question_text'] = ['old' => $currentQuestion['question_text'], 'new' => $_POST['question_text']];
+    }
+    if ($currentQuestion['model_answer'] !== $_POST['model_answer']) {
+        $changes['model_answer'] = ['old' => $currentQuestion['model_answer'], 'new' => $_POST['model_answer']];
+    }
+    if ($currentQuestion['criteria'] !== $_POST['criteria']) {
+        $changes['criteria'] = ['old' => $currentQuestion['criteria'], 'new' => $_POST['criteria']];
+    }
+
+    AuditLog::log('question_update', $changes);
     
     header('Location: /?action=questions&exam_id=' . $_POST['exam_id']);
     exit;
