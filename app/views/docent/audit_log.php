@@ -17,10 +17,10 @@
         <?php foreach ($logs as $log): ?>
             <tr>
                 <td style="padding: 8px; border-bottom: 1px solid #eee; white-space: nowrap;"><?= htmlspecialchars($log['created_at']) ?></td>
-                <td style="padding: 8px; border-bottom: 1px solid #eee;"><?= htmlspecialchars($log['user_name']) ?></td>
+                <td style="padding: 8px; border-bottom: 1px solid #eee;"><?= htmlspecialchars($log['user_name'] ?? '') ?></td>
                 <td style="padding: 8px; border-bottom: 1px solid #eee;"><?= htmlspecialchars($log['action']) ?></td>
-                <td style="padding: 8px; border-bottom: 1px solid #eee; font-family: monospace; max-width: 400px; overflow-wrap: break-word;"><?= htmlspecialchars($log['details']) ?></td>
-                <td style="padding: 8px; border-bottom: 1px solid #eee;"><?= htmlspecialchars($log['ip_address']) ?></td>
+                <td style="padding: 8px; border-bottom: 1px solid #eee; font-family: monospace; max-width: 400px; overflow-wrap: break-word;"><?= htmlspecialchars($log['details'] ?? '') ?></td>
+                <td style="padding: 8px; border-bottom: 1px solid #eee;"><?= htmlspecialchars($log['ip_address'] ?? '') ?></td>
             </tr>
         <?php endforeach; ?>
     </tbody>
