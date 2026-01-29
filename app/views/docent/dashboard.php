@@ -6,19 +6,6 @@ ob_start();
 
 <p>Welkom <?= htmlspecialchars($_SESSION['name']) ?></p>
 
-<a href="/?action=api_keys" class="table-btn">
-  🔐 API-keys beheren
-</a>
-<a href="/?action=audit_log" class="table-btn">
-  📜 Audit Log
-</a>
-<a href="/?action=my_exams" class="table-btn" title="Bekijk je eigen testpogingen">
-  🧪 Mijn Testpogingen
-</a>
-   
-<!-- Studentenbeheer knop -->
-<a href="/?action=students" class="table-btn">👨‍🎓 Gebruikers beheren</a>
-
 <!-- Knop om modal te openen -->
 <button id="openModal" class="table-btn">➕ Nieuw examen</button <br><hr>
 

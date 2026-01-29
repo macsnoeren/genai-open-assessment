@@ -12,9 +12,13 @@
 
 <nav>
   <?php if (!empty($_SESSION['user_id'])): ?>
-    <?php if ($_SESSION['role'] == 'docent'): ?>
+    <?php if (isset($_SESSION['role']) && ($_SESSION['role'] === 'docent' || $_SESSION['role'] === 'admin')): ?>
       <a href="index.php?action=docent_dashboard">Dashboard</a>
-    <?php else: ?>
+      <a href="/?action=students">Gebruikers beheren</a>
+      <a href="/?action=api_keys">API-keys beheren</a>
+      <a href="/?action=audit_log">Audit Log</a>
+      <a href="/?action=my_exams">Mijn Testpogingen</a>
+    <?php elseif (isset($_SESSION['role']) && $_SESSION['role'] === 'student'): ?>
       <a href="index.php?action=student_dashboard">Dashboard</a>
     <?php endif; ?>
   <a href="index.php?action=logout">Uitloggen</a>
