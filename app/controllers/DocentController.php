@@ -147,22 +147,11 @@ class DocentController {
 
 public function viewExamResults($examId) {
     requireLogin();
-        requireRole('docent');
+    requireRole('docent');
 
-    // Haal alle studenten examens voor dit examen
-        $pdo = Database::connect();
-	    $stmt = $pdo->prepare("
-        SELECT se.id as student_exam_id, se.unique_id, u.name, se.started_at, se.completed_at
-        FROM student_exams se
-        JOIN users u ON se.student_id = u.id
-        WHERE se.exam_id = ?
-        ORDER BY se.started_at DESC
-    ");
-        $stmt->execute([$examId]);
-	    $studentExams = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
+    $studentExams = StudentExam::findWithStudentDetailsByExam($examId);
     require __DIR__ . '/../views/docent/exam_results.php';
-    }
+}
 
 public function viewStudentAnswers($studentExamId) {
     requireLogin();

@@ -41,5 +41,23 @@ class StudentExam {
     $stmt = $pdo->prepare("DELETE FROM student_exams WHERE id = ?");
     $stmt->execute([$id]);
   }
+
+  public static function findWithStudentDetailsByExam($examId) {
+    $pdo = Database::connect();
+    $stmt = $pdo->prepare("
+        SELECT 
+            se.id as student_exam_id, 
+            se.unique_id, 
+            u.name, 
+            se.started_at, 
+            se.completed_at
+        FROM student_exams se
+        JOIN users u ON se.student_id = u.id
+        WHERE se.exam_id = ?
+        ORDER BY se.started_at DESC
+    ");
+    $stmt->execute([$examId]);
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+  }
 }
 ?>
