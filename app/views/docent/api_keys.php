@@ -1,43 +1,83 @@
+<?php
+ob_start();
+
+if (isset($_SESSION['new_api_key'])): 
+    $newKeyData = $_SESSION['new_api_key'];
+    unset($_SESSION['new_api_key']);
+?>
+<div class="success-message" style="padding: 15px; background-color: #e6ffe6; border: 1px solid #006600; margin-bottom: 20px; border-radius: 5px;">
+    <strong>Nieuwe API-key succesvol aangemaakt!</strong><br>
+    Dit is de enige keer dat de volledige key wordt getoond. Kopieer hem nu en bewaar hem op een veilige plek.<br><br>
+    <strong>Naam:</strong> <?= htmlspecialchars($newKeyData['name']) ?><br>
+    <strong>Key:</strong> <input type="text" readonly onclick="this.select();" value="<?= htmlspecialchars($newKeyData['key']) ?>" style="width: 100%; font-family: monospace; margin-top: 5px; padding: 5px;">
+</div>
+<?php endif; ?>
+
 <h2>API-keys beheren</h2>
 
-<?php if (!empty($_SESSION['new_api_key'])): ?>
-<div class="alert alert-warning">
-  <strong>Nieuwe API-key:</strong><br>
-  <code><?= $_SESSION['new_api_key'] ?></code><br>
-  ⚠️ Kopieer deze sleutel nu, hij wordt niet opnieuw getoond.
-</div>
-<?php unset($_SESSION['new_api_key']); endif; ?>
+<p>Beheer hier de API-keys voor externe applicaties, zoals de AI feedback service.</p>
 
-<form method="post" action="/?action=api_key_create" class="form-wide">
-  <input type="text" name="name" placeholder="Naam (bv. Python AI)" required>
-  <button class="btn-primary">➕ Nieuwe API-key</button>
-</form>
+<!-- Knop om modal te openen -->
+<button id="openModal" class="table-btn">➕ Nieuwe API-key</button>
+<br><hr>
 
-<table class="styled-table">
-  <tr>
-    <th>Naam</th>
-    <th>Key</th>
-    <th>Status</th>
-    <th>Aangemaakt</th>
-    <th>Acties</th>
-  </tr>
-  
-  <?php foreach ($keys as $key): ?>
-  <tr>
-    <td><?= htmlspecialchars($key['name']) ?></td>
-    <td>****<?= substr($key['api_key'], -4) ?></td>
-    <td><?= $key['active'] ? 'Actief' : 'Geblokkeerd' ?></td>
-    <td><?= $key['created_at'] ?></td>
-    <td>
-      <a class="table-btn" href="/?action=api_key_toggle&id=<?= $key['id'] ?>">
-	<?= $key['active'] ? 'Blokkeer' : 'Activeer' ?>
-      </a>
-      <a class="table-btn danger"
-	 href="/?action=api_key_delete&id=<?= $key['id'] ?>"
-	 onclick="return confirm('API-key verwijderen?')">
-	Verwijder
-      </a>
-    </td>
-  </tr>
-  <?php endforeach; ?>
+<table>
+  <thead>
+    <tr>
+      <th>Naam</th>
+      <th>Key (gedeeltelijk)</th>
+      <th>Aangemaakt</th>
+      <th>Acties</th>
+    </tr>
+  </thead>
+  <tbody>
+    <?php foreach ($keys as $key): ?>
+    <tr>
+      <td><?= htmlspecialchars($key['name']) ?></td>
+      <td style="font-family: monospace;"><?= htmlspecialchars(substr($key['api_key'], 0, 8)) ?>...</td>
+      <td><?= $key['created_at'] ?></td>
+      <td>
+        <a href="/?action=apikey_delete&id=<?= $key['id'] ?>"
+           onclick="return confirm('Weet je zeker dat je deze API-key wilt verwijderen?')" style="color: #c00;">🗑 Verwijderen</a>
+      </td>
+    </tr>
+    <?php endforeach; ?>
+  </tbody>
 </table>
+
+<!-- Modal -->
+<div id="apiKeyModal" class="modal">
+  <div class="modal-content">
+    <span class="close">&times;</span>
+    <h2>Nieuwe API-key</h2>
+    
+    <form method="POST" action="/?action=apikey_store">
+      <label>Naam</label>
+      <input type="text" name="name" placeholder="bv. AI Feedback Script" required>
+      
+      <p style="font-size: 0.9em; color: #555;">Er wordt een nieuwe, unieke key gegenereerd. Deze wordt na het aanmaken niet meer getoond.</p>
+      
+      <button type="submit">Aanmaken</button>
+    </form>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var modal = document.getElementById('apiKeyModal');
+    var btn = document.getElementById('openModal');
+    var span = modal.querySelector('.close');
+
+    if(btn) btn.onclick = () => modal.style.display = 'block';
+    if(span) span.onclick = () => modal.style.display = 'none';
+    window.onclick = (event) => {
+        if (event.target == modal) modal.style.display = 'none';
+    }
+});
+</script>
+
+<?php
+$content = ob_get_clean();
+$title = "API-keys beheren";
+require __DIR__ . '/../layouts/main.php';
+?>
