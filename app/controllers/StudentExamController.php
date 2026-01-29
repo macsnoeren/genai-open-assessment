@@ -34,7 +34,20 @@ class StudentExamController {
     
     $studentExamId = $_GET['student_exam_id'];
     $studentExam = StudentExam::find($studentExamId);
+
+    // Security check: student kan alleen eigen toetsen inzien
+    if (!$studentExam || $studentExam['student_id'] != $_SESSION['user_id']) {
+        die("Geen toegang.");
+    }
+
     $questions = Question::allByExam($studentExam['exam_id']);
+
+    // Haal bestaande antwoorden op om het formulier vooraf in te vullen
+    $answersRaw = StudentAnswer::allByStudentExam($studentExamId);
+    $answers = [];
+    foreach ($answersRaw as $a) {
+        $answers[$a['question_id']] = $a;
+    }
     
     require __DIR__ . '/../views/student/take_exam.php';
   }
@@ -44,17 +57,25 @@ class StudentExamController {
     requireRole('student');
     
     $studentExamId = $_POST['student_exam_id'];
+    $actionType = $_POST['action_type'] ?? 'submit'; // 'submit' is de standaard
     
     foreach ($_POST['answers'] as $questionId => $answer) {
       StudentAnswer::save($studentExamId, $questionId, $answer);
     }
     
-    // Optioneel: exam markeren als completed
-    $pdo = Database::connect();
-    $stmt = $pdo->prepare("UPDATE student_exams SET completed_at = CURRENT_TIMESTAMP WHERE id = ?");
-    $stmt->execute([$studentExamId]);
-    
-    header("Location: /?action=my_exams");
+    if ($actionType === 'submit') {
+        // Toets markeren als ingeleverd
+        $pdo = Database::connect();
+        $stmt = $pdo->prepare("UPDATE student_exams SET completed_at = CURRENT_TIMESTAMP WHERE id = ?");
+        $stmt->execute([$studentExamId]);
+        
+        header("Location: /?action=my_exams");
+    } else {
+        // Alleen opslaan en terugsturen naar de toetspagina
+        $_SESSION['success_message'] = 'Je antwoorden zijn tussentijds opgeslagen.';
+        header("Location: /?action=take_exam&student_exam_id={$studentExamId}");
+    }
+
     exit;
   }
   

@@ -27,5 +27,25 @@ class StudentAnswer {
     $stmt->execute([$studentExamId]);
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
   }
+
+  public static function getPendingAiGrading() {
+    $pdo = Database::connect();
+    $stmt = $pdo->prepare("
+        SELECT sa.id as student_answer_id, sa.answer, q.question_text, q.criteria
+        FROM student_answers sa
+        INNER JOIN questions q ON sa.question_id = q.id
+        INNER JOIN student_exams se ON sa.student_exam_id = se.id
+        WHERE (sa.ai_feedback IS NULL OR sa.ai_feedback = '')
+        AND se.completed_at IS NOT NULL
+    ");
+    $stmt->execute();
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+  }
+
+  public static function updateAiFeedback($id, $feedback) {
+    $pdo = Database::connect();
+    $stmt = $pdo->prepare("UPDATE student_answers SET ai_feedback = ? WHERE id = ?");
+    $stmt->execute([$feedback, $id]);
+  }
 }
 ?>
