@@ -14,9 +14,13 @@ class ApiKeyController {
   public function create() {
     requireRole('admin');
     
-    $newKey = ApiKey::create($_POST['name']);
-    AuditLog::log('api_key_create', ['name' => $_POST['name']]);
-    $_SESSION['new_api_key'] = $newKey;
+    $name = $_POST['name'];
+    $newKey = ApiKey::create($name);
+    AuditLog::log('api_key_create', ['name' => $name]);
+    $_SESSION['new_api_key'] = [
+        'name' => $name,
+        'key' => $newKey
+    ];
     
     header("Location: /?action=api_keys");
     exit;
