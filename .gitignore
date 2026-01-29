@@ -1,3 +1,6 @@
+# Config file that should kept secret
+bin/config.py
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
