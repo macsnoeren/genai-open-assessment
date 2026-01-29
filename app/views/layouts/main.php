@@ -7,7 +7,7 @@
 	<body>
 
 <header>
-    <h1>Openvragen kennistoetsing (proof-of-concept) - formatief</h1>
+    <h1>Toetsen van kennis met openvragen (onderzoek)</h1>
 </header>
 
 <nav>
