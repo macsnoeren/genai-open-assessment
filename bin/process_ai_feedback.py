@@ -59,7 +59,9 @@ TAKEN:
 - 10 punten wanneer het juiste antwoord wordt gegeven.
 - 5 punten als het antwoord in de buurt komt.
 - 1 punt als er enigzins iets zinnigs in staat.
+- Onzinnige antwoorden krijgen GEEN puntenaftrek.
 - Geef korte feedback aan de student in de je-vorm.
+- Geef een korte uitleg wat het antwoord had moeten zijn met maximaal 3 zinnen.
 
 GESTELDE VRAAG AAN STUDENT:
 {q['question_text']}
@@ -76,7 +78,8 @@ REGELS:
 OUTPUTFORMAAT JSON exact (verplicht):
 {{ 
     "score": <0-10>,
-    "feedback": "<tekst>"
+    "feedback": "<tekst>",
+    "uitleg": "<tekst>"
 }}
 
 STUDENTANTWOORD:
@@ -90,7 +93,10 @@ STUDENTANTWOORD:
     }
 
     try:
+        start_time = time.time()
         response = requests.post(OLLAMA_URL, json=payload, timeout=600)
+        end_time = time.time()
+        duration = end_time - start_time
         data = response.json()
         raw = data.get("response", "")
         parsed = extract_json(raw)
@@ -99,7 +105,8 @@ STUDENTANTWOORD:
             print(f"[{model_name}] Kon geen geldige JSON vinden ({raw})")
             print("RAW OUTPUT:", raw)
             return None
-            
+        
+        parsed['duration'] = duration
         return parsed
 
     except json.JSONDecodeError:
@@ -196,8 +203,10 @@ def run():
                     if result:
                         all_feedback.append(
                             f"Model: {model}\n"
+                            f"Tijdsduur: {result['duration']:.2f}s\n"
                             f"Aantal punten: {result['score']}\n"
-                            f"Feedback: {result['feedback']}"
+                            f"Feedback: {result['feedback']}\n"
+                            f"Uitleg: {result['uitleg']}"
                         )
                     else:
                         print(f"Model {model} faalde voor antwoord {q['student_answer_id']}. Feedback wordt niet verstuurd.")
