@@ -58,23 +58,23 @@ if (!function_exists('formatLogDetails')) {
 <h2>Audit Log</h2>
 <p>Overzicht van recente acties in het systeem.</p>
 
-<table style="width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 0.9em;">
+<table>
     <thead>
-        <tr style="text-align: left;">
-            <th style="padding: 8px; border-bottom: 2px solid #ddd;">Tijdstip</th>
-            <th style="padding: 8px; border-bottom: 2px solid #ddd;">Gebruiker</th>
-            <th style="padding: 8px; border-bottom: 2px solid #ddd;">Actie</th>
-            <th style="padding: 8px; border-bottom: 2px solid #ddd;">Details</th>
-            <th style="padding: 8px; border-bottom: 2px solid #ddd;">IP Adres</th>
+        <tr>
+            <th>Tijdstip</th>
+            <th>Gebruiker</th>
+            <th>Actie</th>
+            <th>Details</th>
+            <th>IP Adres</th>
         </tr>
     </thead>
     <tbody>
         <?php foreach ($logs as $log): ?>
             <tr>
-                <td style="padding: 8px; border-bottom: 1px solid #eee; white-space: nowrap;"><?= htmlspecialchars($log['created_at']) ?></td>
-                <td style="padding: 8px; border-bottom: 1px solid #eee;"><?= htmlspecialchars($log['user_name'] ?? '') ?></td>
-                <td style="padding: 8px; border-bottom: 1px solid #eee;"><?= htmlspecialchars($log['action']) ?></td>
-                <td style="padding: 8px; border-bottom: 1px solid #eee; font-family: sans-serif; max-width: 500px; overflow-wrap: break-word;">
+                <td><?= htmlspecialchars($log['created_at']) ?></td>
+                <td><?= htmlspecialchars($log['user_name'] ?? '') ?></td>
+                <td><?= htmlspecialchars($log['action']) ?></td>
+                <td>
                     <?php 
                     $data = formatLogDetails($log['details'] ?? '');
                     if (is_array($data)): ?>
@@ -96,7 +96,7 @@ if (!function_exists('formatLogDetails')) {
                         <?= $data ?>
                     <?php endif; ?>
                 </td>
-                <td style="padding: 8px; border-bottom: 1px solid #eee;"><?= htmlspecialchars($log['ip_address'] ?? '') ?></td>
+                <td><?= htmlspecialchars($log['ip_address'] ?? '') ?></td>
             </tr>
         <?php endforeach; ?>
     </tbody>
