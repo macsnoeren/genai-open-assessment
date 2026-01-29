@@ -3,16 +3,16 @@
 <h2>Student Dashboard</h2>
 
 <div style="margin-bottom: 30px;">
-    <h3>Beschikbare examens</h3>
+    <h3>Beschikbare toetsen</h3>
     <?php if (empty($exams)): ?>
-        <p>Er zijn momenteel geen examens beschikbaar.</p>
+        <p>Er zijn momenteel geen toetsen beschikbaar.</p>
     <?php else: ?>
         <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px;">
             <?php foreach ($exams as $exam): ?>
                 <div style="border: 1px solid #ddd; padding: 15px; border-radius: 5px; background: #fff;">
                     <h4 style="margin-top: 0;"><?= htmlspecialchars($exam['title']) ?></h4>
                     <p><?= htmlspecialchars($exam['description']) ?></p>
-                    <a href="/?action=start_exam&exam_id=<?= $exam['id'] ?>" style="display: inline-block; padding: 8px 15px; background: #007bff; color: white; text-decoration: none; border-radius: 4px;">Start examen</a>
+                    <a href="/?action=start_exam&exam_id=<?= $exam['id'] ?>" style="display: inline-block; padding: 8px 15px; background: #007bff; color: white; text-decoration: none; border-radius: 4px;">Start toets</a>
                 </div>
             <?php endforeach; ?>
         </div>
@@ -20,14 +20,14 @@
 </div>
 
 <div>
-    <h3>Mijn gemaakte examens</h3>
+    <h3>Mijn gemaakte toetsen</h3>
     <?php if (empty($studentExams)): ?>
-        <p>Je hebt nog geen examens gemaakt.</p>
+        <p>Je hebt nog geen toetsen gemaakt.</p>
     <?php else: ?>
         <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
             <thead>
                 <tr style="text-align: left;">
-                    <th style="padding: 10px; border-bottom: 2px solid #ddd;">Examen</th>
+                    <th style="padding: 10px; border-bottom: 2px solid #ddd;">Toets</th>
                     <th style="padding: 10px; border-bottom: 2px solid #ddd;">Gestart op</th>
                     <th style="padding: 10px; border-bottom: 2px solid #ddd;">Status</th>
                     <th style="padding: 10px; border-bottom: 2px solid #ddd;">Acties</th>
