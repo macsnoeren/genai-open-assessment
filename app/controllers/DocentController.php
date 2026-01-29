@@ -18,7 +18,10 @@ class DocentController {
     requireLogin();
     requireRole('docent');
     
-    require __DIR__ . '/../views/docent/exam_create.php';
+    $exam = null;
+    $action = 'exam_store';
+    $title = 'Nieuw examen';
+    require __DIR__ . '/../views/docent/exam_form.php';
   }
   
   public function storeExam() {
@@ -40,7 +43,9 @@ class DocentController {
     requireRole('docent');
     
     $exam = Exam::find($_GET['id']);
-    require __DIR__ . '/../views/docent/exam_edit.php';
+    $action = 'exam_update';
+    $title = 'Examen bewerken';
+    require __DIR__ . '/../views/docent/exam_form.php';
   }
   
   public function updateExam() {
@@ -81,7 +86,10 @@ class DocentController {
     requireRole('docent');
     
     $examId = $_GET['exam_id'];
-    require __DIR__ . '/../views/docent/question_create.php';
+    $question = null;
+    $action = 'question_store';
+    $title = 'Nieuwe vraag';
+    require __DIR__ . '/../views/docent/question_form.php';
   }
   
   public function storeQuestion() {
@@ -104,7 +112,10 @@ class DocentController {
     requireRole('docent');
     
     $question = Question::find($_GET['id']);
-    require __DIR__ . '/../views/docent/question_edit.php';
+    $examId = $question['exam_id'];
+    $action = 'question_update';
+    $title = 'Vraag bewerken';
+    require __DIR__ . '/../views/docent/question_form.php';
   }
   
   public function updateQuestion() {

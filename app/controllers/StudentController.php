@@ -17,7 +17,10 @@ class StudentController {
     requireLogin();
     requireRole('docent');
     
-    require __DIR__ . '/../views/docent/student_create.php';
+    $student = null;
+    $action = 'student_store';
+    $title = 'Nieuwe student';
+    require __DIR__ . '/../views/docent/student_form.php';
   }
   
   public function store() {
@@ -39,7 +42,9 @@ class StudentController {
     requireRole('docent');
     
     $student = Student::find($_GET['id']);
-    require __DIR__ . '/../views/docent/student_edit.php';
+    $action = 'student_update';
+    $title = 'Student bewerken';
+    require __DIR__ . '/../views/docent/student_form.php';
   }
   
   public function update() {
