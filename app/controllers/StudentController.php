@@ -33,6 +33,11 @@ class StudentController {
     requireRole('docent');
     
     $role = $_POST['role'] ?? 'student';
+    // Alleen admins mogen de admin rol toewijzen.
+    if ($role === 'admin' && $_SESSION['role'] !== 'admin') {
+        die("Geen toegang: alleen admins kunnen de admin rol toewijzen.");
+    }
+
     $password = password_hash($_POST['password'], PASSWORD_DEFAULT);
 
     $pdo = Database::connect();
@@ -57,6 +62,11 @@ class StudentController {
     $stmt->execute([$_GET['id']]);
     $student = $stmt->fetch(PDO::FETCH_ASSOC);
 
+    // Alleen admins mogen andere admins bewerken.
+    if ($student && $student['role'] === 'admin' && $_SESSION['role'] !== 'admin') {
+        die("Geen toegang: docenten kunnen geen admin-gebruikers bewerken.");
+    }
+
     $action = 'student_update';
     $title = 'Gebruiker bewerken';
     require __DIR__ . '/../views/docent/student_form.php';
@@ -66,24 +76,36 @@ class StudentController {
     requireLogin();
     requireRole('docent');
     
+    $userIdToUpdate = $_POST['id'];
+    $newRole = $_POST['role'] ?? 'student';
+
+    // Alleen admins mogen de admin rol toewijzen.
+    if ($newRole === 'admin' && $_SESSION['role'] !== 'admin') {
+        die("Geen toegang: alleen admins kunnen de admin rol toewijzen.");
+    }
+
     $pdo = Database::connect();
     
+    // Alleen admins mogen andere admins bewerken.
+    $stmt = $pdo->prepare("SELECT role FROM users WHERE id = ?");
+    $stmt->execute([$userIdToUpdate]);
+    $userToUpdate = $stmt->fetch(PDO::FETCH_ASSOC);
+    if ($userToUpdate && $userToUpdate['role'] === 'admin' && $_SESSION['role'] !== 'admin') {
+        die("Geen toegang: docenten kunnen geen admin-gebruikers bewerken.");
+    }
+    
     $sql = "UPDATE users SET name = ?, email = ?, role = ? WHERE id = ?";
-    $params = [$_POST['name'], $_POST['email'], $_POST['role'], $_POST['id']];
+    $params = [$_POST['name'], $_POST['email'], $newRole, $userIdToUpdate];
 
     if (!empty($_POST['password'])) {
         $sql = "UPDATE users SET name = ?, email = ?, role = ?, password = ? WHERE id = ?";
-        $params = [$_POST['name'], $_POST['email'], $_POST['role'], password_hash($_POST['password'], PASSWORD_DEFAULT), $_POST['id']];
+        $params = [$_POST['name'], $_POST['email'], $newRole, password_hash($_POST['password'], PASSWORD_DEFAULT), $userIdToUpdate];
     }
 
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
 
-    AuditLog::log('user_update', [
-        'id' => $_POST['id'], 
-        'name' => $_POST['name'],
-        'role' => $_POST['role']
-    ]);
+    AuditLog::log('user_update', ['id' => $userIdToUpdate, 'name' => $_POST['name'], 'role' => $newRole]);
     
     header('Location: /?action=students');
     exit;

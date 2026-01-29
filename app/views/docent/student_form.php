@@ -20,9 +20,11 @@
     <div style="margin-bottom: 15px;">
         <label style="display:block; margin-bottom: 5px;">Rol:</label>
         <select name="role" style="width: 100%; padding: 8px; box-sizing: border-box;">
-            <option value="student" <?= ($student['role'] ?? '') === 'student' ? 'selected' : '' ?>>Student</option>
-            <option value="docent" <?= ($student['role'] ?? '') === 'docent' ? 'selected' : '' ?>>Docent</option>
-            <option value="admin" <?= ($student['role'] ?? '') === 'admin' ? 'selected' : '' ?>>Admin</option>
+            <option value="student" <?= ($student['role'] ?? 'student') === 'student' ? 'selected' : '' ?>>Student</option>
+            <option value="docent" <?= ($student['role'] ?? 'student') === 'docent' ? 'selected' : '' ?>>Docent</option>
+            <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin'): ?>
+                <option value="admin" <?= ($student['role'] ?? 'student') === 'admin' ? 'selected' : '' ?>>Admin</option>
+            <?php endif; ?>
         </select>
     </div>
 
