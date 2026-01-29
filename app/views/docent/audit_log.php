@@ -107,6 +107,18 @@ if (!function_exists('formatLogDetails')) {
     </tbody>
 </table>
 
+<?php if (isset($totalPages) && $totalPages > 1): ?>
+<div style="margin-top: 20px; text-align: center;">
+    <?php if ($page > 1): ?>
+        <a href="/?action=audit_log&page=<?= $page - 1 ?>" class="table-btn" style="display:inline-block; margin-right: 5px;">&laquo; Vorige</a>
+    <?php endif; ?>
+    <span style="margin: 0 10px; font-weight: bold;">Pagina <?= $page ?> van <?= $totalPages ?></span>
+    <?php if ($page < $totalPages): ?>
+        <a href="/?action=audit_log&page=<?= $page + 1 ?>" class="table-btn" style="display:inline-block; margin-left: 5px;">Volgende &raquo;</a>
+    <?php endif; ?>
+</div>
+<?php endif; ?>
+
 <?php 
 $content = ob_get_clean();
 $title = "Audit Log";

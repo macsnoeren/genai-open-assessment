@@ -236,7 +236,22 @@ public function viewStudentAnswers($studentExamId) {
   public function auditLog() {
     requireLogin();
     requireRole('docent');
-    $logs = AuditLog::all();
+    
+    $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+    if ($page < 1) $page = 1;
+    $limit = 25;
+    $offset = ($page - 1) * $limit;
+
+    $pdo = Database::connect();
+    $totalRecords = $pdo->query("SELECT COUNT(*) FROM audit_log")->fetchColumn();
+    $totalPages = ceil($totalRecords / $limit);
+
+    $stmt = $pdo->prepare("SELECT * FROM audit_log ORDER BY created_at DESC LIMIT :limit OFFSET :offset");
+    $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+    $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+    $stmt->execute();
+    $logs = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
     require __DIR__ . '/../views/docent/audit_log.php';
   }
 
