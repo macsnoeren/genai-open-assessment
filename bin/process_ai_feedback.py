@@ -59,9 +59,8 @@ TAKEN:
 - 10 punten wanneer het juiste antwoord wordt gegeven.
 - 5 punten als het antwoord in de buurt komt.
 - 1 punt als er enigzins iets zinnigs in staat.
-- Onzinnige antwoorden krijgen GEEN puntenaftrek.
 - Geef korte feedback aan de student in de je-vorm.
-- Geef een korte uitleg wat het antwoord had moeten zijn met maximaal 3 zinnen.
+- Geef een korte uitleg wat beter kan in de je-vorm.
 
 GESTELDE VRAAG AAN STUDENT:
 {q['question_text']}
@@ -139,8 +138,7 @@ def fetch_open_student_answers() -> List[Dict]:
         return data.get("answers", [])
     else:
         print("Kan geen de studentantwoorden ophalen.")
-        quit()
-        return None
+        return []
 
 # =========================
 # FEEDBACK VERSTUREN
