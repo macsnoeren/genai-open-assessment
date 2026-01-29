@@ -203,6 +203,7 @@ def run():
 
             for q in answers:
                 all_feedback = []
+                failed = False
 
                 for model in LLM_MODELS:
                     result = get_feedback_from_model(q, model)
@@ -213,8 +214,12 @@ def run():
                             f"Aantal punten: {result['score']}\n"
                             f"Feedback: {result['feedback']}"
                         )
+                    else:
+                        print(f"Model {model} faalde voor antwoord {q['student_answer_id']}. Feedback wordt niet verstuurd.")
+                        failed = True
+                        break
 
-                if not all_feedback:
+                if failed or not all_feedback:
                     continue
 
                 final_feedback = "\n\n".join(all_feedback)
