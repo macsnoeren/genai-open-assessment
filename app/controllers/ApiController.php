@@ -1,8 +1,8 @@
 <?php
 
-require_once __DIR__ . '/../models/ApiKey.php';
 require_once __DIR__ . '/../models/AuditLog.php';
 require_once __DIR__ . '/../models/StudentAnswer.php';
+require_once __DIR__ . '/../../config/database.php';
 
 class ApiController {
 
@@ -12,7 +12,13 @@ class ApiController {
 
     private function verifyApiKey() {
         $key = $_GET['api_key'] ?? null;
-        if (!$key || !ApiKey::isValid($key)) {
+
+        $pdo = Database::connect();
+        $stmt = $pdo->prepare("SELECT id FROM api_keys WHERE api_key = ? AND active = 1");
+        $stmt->execute([$key]);
+        $isValid = (bool)$stmt->fetch();
+
+        if (!$key || !$isValid) {
             http_response_code(401);
             echo json_encode(['error' => 'Unauthorized: Invalid or missing API Key']);
             exit;
