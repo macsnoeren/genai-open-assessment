@@ -19,7 +19,7 @@ if (file_exists($pingFile)) {
 <header style="display: flex; justify-content: space-between; align-items: center;">
     <div style="display: flex; align-items: center; gap: 20px;">
         <h1 style="margin: 0;">Toetsen van kennis met openvragen (onderzoek)</h1>
-        <span style="background-color: #CCC; font-size: 0.9em; color: <?= $parserStatus === 'active' ? '#28a745' : '#dc3545' ?>;">● Parser actief</span>
+        <span style="background-color: #CCC; font-size: 0.9em; color: <?= $parserStatus === 'active' ? '#28a745' : '#dc3545' ?>;">● Parser</span>
     </div>
     <?php if (isset($_SESSION['user_id'])): ?>
         <div style="text-align: right; font-size: 0.9em;">
