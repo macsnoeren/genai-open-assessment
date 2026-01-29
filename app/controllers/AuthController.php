@@ -29,7 +29,7 @@ class AuthController {
     AuditLog::log('login_success');
     
     // redirect op rol
-    if ($user['role'] === 'docent') {
+    if ($user['role'] === 'docent' || $user['role'] === 'admin') {
       header('Location: index.php?action=docent_dashboard');
     } else {
       header('Location: index.php?action=student_dashboard');
