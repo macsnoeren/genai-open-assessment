@@ -1,12 +1,15 @@
 <?php
 $parserStatus = 'inactive';
 $pingFile = __DIR__ . '/../../../database/last_api_ping.txt';
-if (file_exists($pingFile)) {
-    $lastPing = (int)@file_get_contents($pingFile);
-    if ((time() - $lastPing) < 120) { // 2 minuten
+
+// Check if the file exists, is readable, and contains a recent timestamp
+if (is_readable($pingFile)) {
+    $lastPing = file_get_contents($pingFile);
+    if ($lastPing !== false && is_numeric($lastPing) && (time() - (int)$lastPing) < 120) {
         $parserStatus = 'active';
     }
 }
+// If the file doesn't exist, is not readable, or the timestamp is old, the status remains 'inactive' (red dot).
 ?>
 <!DOCTYPE html>
 <html>
