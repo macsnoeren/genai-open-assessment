@@ -58,7 +58,7 @@ if (!function_exists('formatLogDetails')) {
 <h2>Audit Log</h2>
 <p>Overzicht van recente acties in het systeem.</p>
 
-<a href="/?action=audit_log_clear" class="table-btn" onclick="return confirm('Weet u zeker dat u de volledige audit log wilt wissen? Deze actie kan niet ongedaan worden gemaakt.');" style="background-color: #c00; color: white;">🗑️ Log leegmaken</a>
+<a href="/?action=clear_audit_log" class="table-btn" onclick="return confirm('Weet u zeker dat u de volledige audit log wilt wissen? Deze actie kan niet ongedaan worden gemaakt.');" style="background-color: #c00; color: white;">🗑️ Log leegmaken</a>
 <hr>
 
 <table>
