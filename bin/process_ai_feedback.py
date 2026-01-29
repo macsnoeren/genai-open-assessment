@@ -3,27 +3,7 @@ import json
 import time
 from typing import List, Dict, Optional
 import re
-
-# =========================
-# CONFIGURATIE
-# =========================
-
-API_KEY = "89bfbc3d755e099cbc5d152ba8ef06c49feb50f3d36f22a5bf9e22078602c8c2"
-BASE_URL = "https://test.jmnl.nl/api/index.php"
-OLLAMA_URL = "http://localhost:11434/api/generate"
-
-# LLM-modellen die gebruikt worden => dubbel om ook te zien bij twee keer runnen
-LLM_MODELS = [
-    "qwen3:4b",
-    "qwen3:4b",
-    "gemma3:1b",
-    "gemma3:1b",
-    "gemma3:4b",
-    "gemma3:4b",
-]
-
-# Interval (in seconden) voor het ophalen van nieuwe antwoorden
-POLL_INTERVAL = 30
+from config import API_KEY, BASE_URL, OLLAMA_URL, LLM_MODELS, POLL_INTERVAL
 
 # =========================
 # LLM FEEDBACK FUNCTIE
