@@ -7,7 +7,7 @@ ob_start();
 <p>Welkom <?= htmlspecialchars($_SESSION['name']) ?></p>
 
 <!-- Knop om modal te openen -->
-<button id="openModal" class="table-btn">➕ Nieuw examen</button <br><hr>
+<button id="openModal" class="table-btn">➕ Nieuw examen</button><br><hr>
 
 <table>
   <thead>
@@ -54,6 +54,8 @@ ob_start();
     </form>
   </div>
 </div>
+
+<script src="/js/modal.js"></script>
 
 <?php
 $content = ob_get_clean();

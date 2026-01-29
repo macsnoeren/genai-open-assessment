@@ -128,7 +128,12 @@ def fetch_open_student_answers() -> List[Dict]:
     )
 
     data = response.json()
-    return data.get("answers", [])
+    if "answers" in data:
+        return data.get("answers", [])
+    else:
+        print("Kan geen de studentantwoorden ophalen.")
+        quit()
+        return None
 
 # =========================
 # FEEDBACK VERSTUREN

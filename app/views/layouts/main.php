@@ -60,6 +60,5 @@ if (is_readable($pingFile)) {
     &copy; <?= date('Y') ?> Openvragen kennistoetsing (proof-of-concept)
 </footer>
 
-<script src="/js/modal.js"></script>
 </body>
 </html>

@@ -18,7 +18,7 @@ if (isset($_SESSION['new_api_key'])):
 <p>Beheer hier de API-keys voor externe applicaties, zoals de AI feedback service.</p>
 
 <!-- Knop om modal te openen -->
-<button id="openModal" class="table-btn">➕ Nieuwe API-key</button>
+<button id="openApiKeyModal" class="table-btn">➕ Nieuwe API-key</button>
 <br><hr>
 
 <table>
@@ -65,7 +65,7 @@ if (isset($_SESSION['new_api_key'])):
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     var modal = document.getElementById('apiKeyModal');
-    var btn = document.getElementById('openModal');
+    var btn = document.getElementById('openApiKeyModal');
     var span = modal.querySelector('.close');
 
     if(btn) btn.onclick = () => modal.style.display = 'block';
