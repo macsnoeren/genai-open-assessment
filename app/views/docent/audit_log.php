@@ -58,26 +58,26 @@ if (!function_exists('formatLogDetails')) {
 <h2>Audit Log</h2>
 <p>Overzicht van recente acties in het systeem.</p>
 
-<a href="/?action=clear_audit_log" class="table-btn" onclick="return confirm('Weet u zeker dat u de volledige audit log wilt wissen? Deze actie kan niet ongedaan worden gemaakt.');" style="background-color: #c00; color: white;">🗑️ Log leegmaken</a>
+<a href="/?action=audit_log_clear" class="table-btn" onclick="return confirm('Weet u zeker dat u de volledige audit log wilt wissen? Deze actie kan niet ongedaan worden gemaakt.');" style="background-color: #c00; color: white;">🗑️ Log leegmaken</a>
 <hr>
 
-<table>
+<table style="width: 100%; border-collapse: collapse;">
     <thead>
-        <tr>
-            <th>Tijdstip</th>
-            <th>Gebruiker</th>
-            <th>Actie</th>
-            <th>Details</th>
-            <th>IP Adres</th>
+        <tr style="text-align: left;">
+            <th style="padding: 10px; border-bottom: 2px solid #ddd;">Tijdstip</th>
+            <th style="padding: 10px; border-bottom: 2px solid #ddd;">Gebruiker</th>
+            <th style="padding: 10px; border-bottom: 2px solid #ddd;">Actie</th>
+            <th style="padding: 10px; border-bottom: 2px solid #ddd;">Details</th>
+            <th style="padding: 10px; border-bottom: 2px solid #ddd;">IP Adres</th>
         </tr>
     </thead>
     <tbody>
         <?php foreach ($logs as $log): ?>
             <tr>
-                <td><?= htmlspecialchars($log['created_at']) ?></td>
-                <td><?= htmlspecialchars($log['user_name'] ?? '') ?></td>
-                <td><?= htmlspecialchars($log['action']) ?></td>
-                <td>
+                <td style="padding: 10px; border-bottom: 1px solid #eee;"><?= htmlspecialchars($log['created_at']) ?></td>
+                <td style="padding: 10px; border-bottom: 1px solid #eee;"><?= htmlspecialchars($log['user_name'] ?? '') ?></td>
+                <td style="padding: 10px; border-bottom: 1px solid #eee;"><?= htmlspecialchars($log['action']) ?></td>
+                <td style="padding: 10px; border-bottom: 1px solid #eee; max-width: 500px; overflow-wrap: break-word;">
                     <?php 
                     $data = formatLogDetails($log['details'] ?? '');
                     if (is_array($data)): ?>
@@ -99,7 +99,7 @@ if (!function_exists('formatLogDetails')) {
                         <?= $data ?>
                     <?php endif; ?>
                 </td>
-                <td><?= htmlspecialchars($log['ip_address'] ?? '') ?></td>
+                <td style="padding: 10px; border-bottom: 1px solid #eee;"><?= htmlspecialchars($log['ip_address'] ?? '') ?></td>
             </tr>
         <?php endforeach; ?>
     </tbody>
