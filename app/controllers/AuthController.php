@@ -43,6 +43,37 @@ class AuthController {
     header('Location: index.php?action=login');
     exit;
   }
+
+  public function showRegister() {
+    // Check of er al gebruikers zijn
+    $pdo = Database::connect();
+    $count = $pdo->query("SELECT COUNT(*) FROM users")->fetchColumn();
+    
+    if ($count > 0) {
+        die("Registratie is gesloten. Er zijn al gebruikers in het systeem.");
+    }
+    
+    require __DIR__ . '/../views/auth/register.php';
+  }
+
+  public function registerFirstAdmin() {
+    $pdo = Database::connect();
+    $count = $pdo->query("SELECT COUNT(*) FROM users")->fetchColumn();
+    
+    if ($count > 0) {
+        die("Registratie is gesloten.");
+    }
+
+    $name = $_POST['name'];
+    $email = $_POST['email'];
+    $password = password_hash($_POST['password'], PASSWORD_DEFAULT);
+    
+    $stmt = $pdo->prepare("INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, 'admin')");
+    $stmt->execute([$name, $email, $password]);
+
+    header('Location: /?action=login');
+    exit;
+  }
 }
 
 ?>

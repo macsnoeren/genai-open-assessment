@@ -242,7 +242,10 @@ public function viewStudentAnswers($studentExamId) {
 
   public function clearAuditLog() {
     requireLogin();
-    requireRole('docent');
+    
+    if ($_SESSION['role'] !== 'admin') {
+        die("Geen toegang. Alleen admins kunnen de log wissen.");
+    }
 
     $pdo = Database::connect();
     $pdo->exec("DELETE FROM audit_log");

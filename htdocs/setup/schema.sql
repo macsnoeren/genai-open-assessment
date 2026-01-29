@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS users (
     name TEXT NOT NULL,
     email TEXT UNIQUE NOT NULL,
     password TEXT NOT NULL,
-    role TEXT CHECK(role IN ('student', 'docent')) NOT NULL,
+    role TEXT CHECK(role IN ('student', 'docent', 'admin')) NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );

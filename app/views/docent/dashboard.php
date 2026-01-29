@@ -17,7 +17,7 @@ ob_start();
 </a>
    
 <!-- Studentenbeheer knop -->
-<a href="/?action=students" class="table-btn">👨‍🎓 Studenten beheren</a>
+<a href="/?action=students" class="table-btn">👨‍🎓 Gebruikers beheren</a>
 
 <!-- Knop om modal te openen -->
 <button id="openModal" class="table-btn">➕ Nieuw examen</button <br><hr>

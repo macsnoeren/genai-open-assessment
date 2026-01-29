@@ -18,6 +18,15 @@
     </div>
 
     <div style="margin-bottom: 15px;">
+        <label style="display:block; margin-bottom: 5px;">Rol:</label>
+        <select name="role" style="width: 100%; padding: 8px; box-sizing: border-box;">
+            <option value="student" <?= ($student['role'] ?? '') === 'student' ? 'selected' : '' ?>>Student</option>
+            <option value="docent" <?= ($student['role'] ?? '') === 'docent' ? 'selected' : '' ?>>Docent</option>
+            <option value="admin" <?= ($student['role'] ?? '') === 'admin' ? 'selected' : '' ?>>Admin</option>
+        </select>
+    </div>
+
+    <div style="margin-bottom: 15px;">
         <label style="display:block; margin-bottom: 5px;">Wachtwoord <?= $student ? '(laat leeg om niet te wijzigen)' : '' ?>:</label>
         <input type="password" name="password" <?= $student ? '' : 'required' ?> style="width: 100%; padding: 8px; box-sizing: border-box;">
     </div>

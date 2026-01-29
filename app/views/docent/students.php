@@ -2,15 +2,16 @@
 ob_start();
 ?>
 
-<h2>Studenten beheren</h2>
+<h2>Gebruikers beheren</h2>
 
-<a href="/?action=student_create" class="table-btn">➕ Nieuwe student</a>
+<a href="/?action=student_create" class="table-btn">➕ Nieuwe gebruiker</a>
 
 <table>
   <thead>
     <tr>
       <th>Naam</th>
       <th>Email</th>
+      <th>Rol</th>
       <th>Aangemaakt</th>
       <th>Acties</th>
     </tr>
@@ -20,6 +21,11 @@ ob_start();
     <tr>
       <td><?= htmlspecialchars($s['name']) ?></td>
       <td><?= htmlspecialchars($s['email']) ?></td>
+      <td>
+          <span style="padding: 2px 6px; border-radius: 4px; background: <?= $s['role'] == 'admin' ? '#d63384' : ($s['role'] == 'docent' ? '#0d6efd' : '#6c757d') ?>; color: white; font-size: 0.8em;">
+            <?= htmlspecialchars($s['role']) ?>
+          </span>
+      </td>
       <td><?= $s['created_at'] ?></td>
       <td>
 	<a href="/?action=student_edit&id=<?= $s['id'] ?>">✏ Bewerken</a> |

@@ -27,6 +27,14 @@ switch ($action) {
  case 'logout':
    $auth->logout();
    break;
+
+ case 'register':
+   $auth->showRegister();
+   break;
+
+ case 'do_register':
+   $auth->registerFirstAdmin();
+   break;
     
  case 'docent_dashboard':
    $docent->dashboard();
