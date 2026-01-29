@@ -1,4 +1,5 @@
-CREATE TABLE users (	
+-- Gebruikerstabel: bevat zowel studenten als docenten.
+CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
     email TEXT UNIQUE NOT NULL,
@@ -8,17 +9,20 @@ CREATE TABLE users (
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE exams (
+-- Toetsen (voorheen exams): hoofd-entiteit voor een toets.
+CREATE TABLE IF NOT EXISTS exams (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     title TEXT NOT NULL,
     description TEXT,
     docent_id INTEGER NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (docent_id) REFERENCES users(id)
+    -- Voorkom dat een docent wordt verwijderd als er nog toetsen aan gekoppeld zijn.
+    FOREIGN KEY (docent_id) REFERENCES users(id) ON DELETE RESTRICT
 );
 
-CREATE TABLE questions (
+-- Vragen per toets.
+CREATE TABLE IF NOT EXISTS questions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     exam_id INTEGER NOT NULL,
     question_text TEXT NOT NULL,
@@ -26,47 +30,40 @@ CREATE TABLE questions (
     criteria TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (exam_id) REFERENCES exams(id)
-);
-				
-CREATE TABLE answers (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    student_id INTEGER NOT NULL,
-    question_id INTEGER NOT NULL,
-    answer_text TEXT NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (student_id) REFERENCES users(id),
-    FOREIGN KEY (question_id) REFERENCES questions(id)
-		      );
--- Houdt bij welke examens een student heeft gestart
-CREATE TABLE student_exams (   
-    id INTEGER PRIMARY KEY AUTO	INCREMENT,
-    student_id INTEGER NOT NULL,
-    exam_id INTEGER NOT NULL,
-    unique_id TEXT NOT NULL,       -- bijv. examen_kans_20260127_1430
-    started_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    completed_at DATETIME,
-    FOREIGN KEY(student_id) REFERENCES users(id),
-    FOREIGN KEY(exam_id) REFERENCES exams(id)
+    -- Als een toets wordt verwijderd, worden alle bijbehorende vragen ook verwijderd.
+    FOREIGN KEY (exam_id) REFERENCES exams(id) ON DELETE CASCADE
 );
 
--- Houdt de antwoorden van studenten bij
-CREATE TABLE student_answers (
+-- Toetspogingen: koppelt een student aan een specifieke gestarte toets.
+CREATE TABLE IF NOT EXISTS student_exams (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    student_id INTEGER NOT NULL,
+    exam_id INTEGER NOT NULL,
+    unique_id TEXT NOT NULL,
+    started_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    completed_at DATETIME,
+    -- Als een student of toets wordt verwijderd, worden de pogingen ook verwijderd.
+    FOREIGN KEY(student_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY(exam_id) REFERENCES exams(id) ON DELETE CASCADE
+);
+
+-- Studentantwoorden: de daadwerkelijke antwoorden van een student op vragen per toetspoging.
+CREATE TABLE IF NOT EXISTS student_answers (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     student_exam_id INTEGER NOT NULL,
     question_id INTEGER NOT NULL,
     answer TEXT,
-    created_at DATETIME DE	FAULT CURRENT_TIMESTAMP,
+    ai_feedback TEXT,
+    ai_updated_at DATETIME,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY(student_exam_id) REFERENCES student_exams(id),
-    FOREIGN KEY(question_id) REFERENCES questions(id)
- );
-				
-ALTER TABLE student_answers ADD COLUMN ai_feedback TEXT;
-ALTER TABLE student_answers ADD COLUMN ai_updated_at DATETIME;
+    -- Als een toetspoging of vraag wordt verwijderd, worden de antwoorden ook verwijderd.
+    FOREIGN KEY(student_exam_id) REFERENCES student_exams(id) ON DELETE CASCADE,
+    FOREIGN KEY(question_id) REFERENCES questions(id) ON DELETE CASCADE
+);
 
-CREATE TABLE api_keys (
+-- API sleutels voor externe services (zoals de AI feedback script).
+CREATE TABLE IF NOT EXISTS api_keys (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT,
     api_key TEXT UNIQUE NOT NULL,
@@ -74,15 +71,15 @@ CREATE TABLE api_keys (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE `audit_log` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `user_id` int(11) DEFAULT NULL,
-  `user_name` varchar(255) DEFAULT NULL,
-  `action` varchar(255) NOT NULL,
-  `details` text DEFAULT NULL,
-  `ip_address` varchar(45) DEFAULT NULL,
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
-  PRIMARY KEY (`id`),
-  KEY `user_id` (`user_id`),
-  CONSTRAINT `audit_log_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
-)
+-- Audit log voor het bijhouden van acties in het systeem.
+CREATE TABLE IF NOT EXISTS audit_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER,
+    user_name TEXT,
+    action TEXT NOT NULL,
+    details TEXT,
+    ip_address TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    -- Als een gebruiker wordt verwijderd, blijft de log bestaan maar wordt de user_id op NULL gezet.
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE
+);
