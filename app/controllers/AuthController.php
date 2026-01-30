@@ -18,6 +18,17 @@ require_once __DIR__ . '/../models/AuditLog.php';
 class AuthController {
   
   public function showLogin() {
+    if (isset($_SESSION['user_id'])) {
+        $role = $_SESSION['role'] ?? 'student';
+        if ($role === 'docent' || $role === 'admin') {
+            header('Location: index.php?action=docent_dashboard');
+        } elseif ($role === 'beoordelaar') {
+            header('Location: index.php?action=pending_assessments');
+        } else {
+            header('Location: index.php?action=student_dashboard');
+        }
+        exit;
+    }
     require __DIR__ . '/../views/auth/login.php';
   }
   
