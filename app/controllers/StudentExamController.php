@@ -100,8 +100,6 @@ class StudentExamController {
    * Displays the exam form for taking the exam.
    */
   public function takeExam() {
-    requireLogin();
-    
     // Check login of gast-sessie
     $isGuest = false;
     if (!isset($_SESSION['user_id'])) {
