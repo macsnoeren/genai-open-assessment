@@ -39,6 +39,7 @@ ob_start();
                     <div class="btn-group btn-group-sm">
                         <a href="/?action=questions&exam_id=<?= $exam['id'] ?>" class="btn btn-outline-secondary">Vragen</a>
                         <a href="/?action=exam_results&exam_id=<?= $exam['id'] ?>" class="btn btn-outline-secondary">Resultaten</a>
+                        <a href="/?action=exam_comparison&exam_id=<?= $exam['id'] ?>" class="btn btn-outline-secondary" title="Vergelijk AI met Docent">Vergelijk AI</a>
                         <a href="/?action=start_exam&exam_id=<?= $exam['id'] ?>" class="btn btn-outline-secondary" onclick="return confirm('Weet je zeker dat je deze toets wilt testen?')" title="Testen">Testen</a>
                         <a href="/?action=exam_edit&id=<?= $exam['id'] ?>" class="btn btn-outline-primary">Bewerken</a>
                         <a href="/?action=exam_delete&id=<?= $exam['id'] ?>" class="btn btn-outline-danger" onclick="return confirm('Weet je zeker dat je deze toets wilt verwijderen?')">Verwijderen</a>

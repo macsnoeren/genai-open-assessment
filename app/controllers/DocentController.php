@@ -416,6 +416,123 @@ public function viewStudentAnswers($studentExamId) {
     exit;
   }
 
+  /**
+   * Compares teacher grading vs AI models.
+   * @param int $examId
+   */
+  public function compareExamResults($examId) {
+    requireLogin();
+    requireRole('docent');
+
+    $exam = Exam::find($examId);
+    
+    $pdo = Database::connect();
+    // Haal antwoorden op die zowel door docent als AI zijn beoordeeld
+    $stmt = $pdo->prepare("
+        SELECT sa.id, u.name as student_name, q.question_text, sa.teacher_score, sa.ai_feedback
+        FROM student_answers sa
+        JOIN student_exams se ON sa.student_exam_id = se.id
+        JOIN users u ON se.student_id = u.id
+        JOIN questions q ON sa.question_id = q.id
+        WHERE se.exam_id = ? 
+        AND sa.teacher_score IS NOT NULL 
+        AND sa.ai_feedback IS NOT NULL
+    ");
+    $stmt->execute([$examId]);
+    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    $comparisonData = [];
+    $modelsFound = [];
+    $stats = [
+        'Docent' => ['scores' => []]
+    ];
+
+    foreach ($rows as $row) {
+        $entry = [
+            'student' => $row['student_name'],
+            'question' => $row['question_text'],
+            'teacher_score' => (int)$row['teacher_score'],
+            'models' => []
+        ];
+
+        $stats['Docent']['scores'][] = (int)$row['teacher_score'];
+
+        // Parse AI feedback string
+        // Verwacht formaat uit Python script: "Model: [naam] ... Aantal punten: [score]"
+        preg_match_all('/Model:\s+(.+?)\s+.*?Aantal punten:\s+(\d+)/is', $row['ai_feedback'], $matches, PREG_SET_ORDER);
+
+        foreach ($matches as $match) {
+            $modelName = trim($match[1]);
+            $score = (int)$match[2];
+
+            $entry['models'][$modelName] = $score;
+            $modelsFound[$modelName] = true;
+
+            if (!isset($stats[$modelName])) {
+                $stats[$modelName] = ['scores' => []];
+            }
+            $stats[$modelName]['scores'][] = $score;
+        }
+
+        $comparisonData[] = $entry;
+    }
+
+    // Bereken statistieken
+    foreach ($stats as $name => &$data) {
+        $scores = $data['scores'];
+        $count = count($scores);
+        
+        if ($count > 0) {
+            // Gemiddelde
+            $mean = array_sum($scores) / $count;
+            $data['mean'] = $mean;
+
+            // Standaarddeviatie (Sample)
+            $variance = 0;
+            foreach ($scores as $s) {
+                $variance += pow($s - $mean, 2);
+            }
+            $data['std_dev'] = ($count > 1) ? sqrt($variance / ($count - 1)) : 0;
+
+            // Vergelijking met docent (als dit geen docent is)
+            if ($name !== 'Docent') {
+                $maeSum = 0; // Mean Absolute Error
+                $docentScores = $stats['Docent']['scores'];
+                
+                // Correlatie berekening variabelen
+                $sumX = 0; $sumY = 0; $sumXY = 0; $sumX2 = 0; $sumY2 = 0;
+                $n = 0;
+
+                // We moeten itereren over de originele rijen om paren te matchen
+                foreach ($comparisonData as $row) {
+                    if (isset($row['models'][$name])) {
+                        $x = $row['teacher_score'];
+                        $y = $row['models'][$name];
+                        
+                        $maeSum += abs($x - $y);
+
+                        $sumX += $x;
+                        $sumY += $y;
+                        $sumXY += ($x * $y);
+                        $sumX2 += ($x * $x);
+                        $sumY2 += ($y * $y);
+                        $n++;
+                    }
+                }
+
+                $data['mae'] = ($n > 0) ? $maeSum / $n : 0;
+                
+                // Pearson Correlatie
+                $numerator = $n * $sumXY - $sumX * $sumY;
+                $denominator = sqrt(($n * $sumX2 - $sumX * $sumX) * ($n * $sumY2 - $sumY * $sumY));
+                $data['correlation'] = ($denominator != 0) ? $numerator / $denominator : 0;
+            }
+        }
+    }
+
+    require __DIR__ . '/../views/docent/exam_comparison.php';
+  }
+
 }
 
 ?>

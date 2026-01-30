@@ -148,6 +148,10 @@ switch ($action) {
    $docent->viewExamResults($_GET['exam_id']);
    break;
 
+ case 'exam_comparison':
+   $docent->compareExamResults($_GET['exam_id']);
+   break;
+
  case 'view_student_answers':
    $docent->viewStudentAnswers($_GET['student_exam_id']);
    break;
