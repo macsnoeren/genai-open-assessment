@@ -206,6 +206,7 @@ def run():
                     print(f"Feedback opvragen voor student_answer_id {q['student_answer_id']} met model {model}")
                     
                     result = get_feedback_from_model(q, model)
+                    fetch_open_student_answers() # Do nothing, just for show that the parser is active.
 
                     if result:
                         all_feedback.append(
