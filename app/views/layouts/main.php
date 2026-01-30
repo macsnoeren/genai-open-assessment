@@ -73,7 +73,9 @@ if (file_exists($pingFile) && is_readable($pingFile)) {
             </div>
             <a href="index.php?action=logout" class="btn btn-sm btn-outline-light ms-2">Uitloggen</a>
         <?php else: ?>
-            <a href="index.php?action=login" class="btn btn-sm btn-light">Login</a>
+            <?php if (empty($isGuest)): ?>
+                <a href="index.php?action=login" class="btn btn-sm btn-light">Login</a>
+            <?php endif; ?>
         <?php endif; ?>
       </div>
     </div>

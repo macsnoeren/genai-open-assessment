@@ -50,9 +50,13 @@ ob_start();
 <?php
 $content = ob_get_clean();
 $title = "Toets maken";
-$breadcrumbs = [
-    'Dashboard' => '/?action=student_dashboard',
-    'Toets maken' => ''
-];
+if (isset($isGuest) && $isGuest) {
+    $breadcrumbs = [];
+} else {
+    $breadcrumbs = [
+        'Dashboard' => '/?action=student_dashboard',
+        'Toets maken' => ''
+    ];
+}
 require __DIR__ . '/../layouts/main.php';
 ?>
