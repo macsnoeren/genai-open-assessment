@@ -343,11 +343,11 @@ public function viewStudentAnswers($studentExamId) {
     $pdo = Database::connect();
     // Haal toetsen op die ingeleverd zijn, gekoppeld aan deze docent, en nog niet volledig beoordeeld zijn.
     $sql = "
-        SELECT se.id, se.completed_at, u.name as student_name, e.title as exam_title,
+        SELECT se.id, se.completed_at, COALESCE(u.name, se.guest_name, 'Gast') as student_name, e.title as exam_title,
                COUNT(sa.id) as total_answers,
                COUNT(sa.teacher_score) as graded_answers
         FROM student_exams se
-        JOIN users u ON se.student_id = u.id
+        LEFT JOIN users u ON se.student_id = u.id
         JOIN exams e ON se.exam_id = e.id
         LEFT JOIN student_answers sa ON se.id = sa.student_exam_id
         WHERE se.completed_at IS NOT NULL
@@ -429,10 +429,10 @@ public function viewStudentAnswers($studentExamId) {
     $pdo = Database::connect();
     // Haal antwoorden op die zowel door docent als AI zijn beoordeeld
     $stmt = $pdo->prepare("
-        SELECT sa.id, u.name as student_name, q.question_text, sa.teacher_score, sa.ai_feedback
+        SELECT sa.id, COALESCE(u.name, se.guest_name, 'Gast') as student_name, q.question_text, sa.teacher_score, sa.ai_feedback
         FROM student_answers sa
         JOIN student_exams se ON sa.student_exam_id = se.id
-        JOIN users u ON se.student_id = u.id
+        LEFT JOIN users u ON se.student_id = u.id
         JOIN questions q ON sa.question_id = q.id
         WHERE se.exam_id = ? 
         AND sa.teacher_score IS NOT NULL 
@@ -546,10 +546,10 @@ public function viewStudentAnswers($studentExamId) {
     $pdo = Database::connect();
     // Haal antwoorden op die zowel door docent als AI zijn beoordeeld
     $stmt = $pdo->prepare("
-        SELECT sa.id, u.name as student_name, q.question_text, sa.teacher_score, sa.ai_feedback
+        SELECT sa.id, COALESCE(u.name, se.guest_name, 'Gast') as student_name, q.question_text, sa.teacher_score, sa.ai_feedback
         FROM student_answers sa
         JOIN student_exams se ON sa.student_exam_id = se.id
-        JOIN users u ON se.student_id = u.id
+        LEFT JOIN users u ON se.student_id = u.id
         JOIN questions q ON sa.question_id = q.id
         WHERE se.exam_id = ? 
         AND sa.teacher_score IS NOT NULL 
