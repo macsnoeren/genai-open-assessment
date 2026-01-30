@@ -34,7 +34,7 @@ ob_start();
       <h5 class="mb-3">Docent Beoordeling</h5>
       <div class="mb-3">
           <label class="form-label">Score (0-10)</label>
-          <input type="number" name="teacher_score" class="form-control" min="0" max="10" value="<?= htmlspecialchars($a['teacher_score'] ?? '') ?>" style="max-width: 100px;">
+          <input type="number" name="teacher_score" class="form-control" min="0" max="10" value="<?= htmlspecialchars($a['teacher_score'] ?? '') ?>">
       </div>
       <div class="mb-3">
           <label class="form-label">Feedback</label>
