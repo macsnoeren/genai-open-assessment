@@ -9,26 +9,31 @@
  */
 ob_start(); ?>
 
-<h2><?= htmlspecialchars($title) ?></h2>
+<div class="row justify-content-center">
+<div class="col-md-6">
 
-<form action="/?action=<?= $action ?>" method="post" style="max-width: 600px;">
+<h2 class="mb-4"><?= htmlspecialchars($title) ?></h2>
+
+<div class="card">
+<div class="card-body">
+<form action="/?action=<?= $action ?>" method="post">
     <?php if ($student): ?>
         <input type="hidden" name="id" value="<?= $student['id'] ?>">
     <?php endif; ?>
 
-    <div style="margin-bottom: 15px;">
-        <label style="display:block; margin-bottom: 5px;">Naam:</label>
-        <input type="text" name="name" value="<?= htmlspecialchars($student['name'] ?? '') ?>" required style="width: 100%; padding: 8px; box-sizing: border-box;">
+    <div class="mb-3">
+        <label class="form-label">Naam</label>
+        <input type="text" name="name" class="form-control" value="<?= htmlspecialchars($student['name'] ?? '') ?>" required>
     </div>
 
-    <div style="margin-bottom: 15px;">
-        <label style="display:block; margin-bottom: 5px;">Email:</label>
-        <input type="email" name="email" value="<?= htmlspecialchars($student['email'] ?? '') ?>" required style="width: 100%; padding: 8px; box-sizing: border-box;">
+    <div class="mb-3">
+        <label class="form-label">Email</label>
+        <input type="email" name="email" class="form-control" value="<?= htmlspecialchars($student['email'] ?? '') ?>" required>
     </div>
 
-    <div style="margin-bottom: 15px;">
-        <label style="display:block; margin-bottom: 5px;">Rol:</label>
-        <select name="role" style="width: 100%; padding: 8px; box-sizing: border-box;">
+    <div class="mb-3">
+        <label class="form-label">Rol</label>
+        <select name="role" class="form-select">
             <option value="student" <?= ($student['role'] ?? 'student') === 'student' ? 'selected' : '' ?>>Student</option>
             <option value="docent" <?= ($student['role'] ?? 'student') === 'docent' ? 'selected' : '' ?>>Docent</option>
             <option value="beoordelaar" <?= ($student['role'] ?? 'student') === 'beoordelaar' ? 'selected' : '' ?>>Beoordelaar</option>
@@ -38,16 +43,21 @@ ob_start(); ?>
         </select>
     </div>
 
-    <div style="margin-bottom: 15px;">
-        <label style="display:block; margin-bottom: 5px;">Wachtwoord <?= $student ? '(laat leeg om niet te wijzigen)' : '' ?>:</label>
-        <input type="password" name="password" <?= $student ? '' : 'required' ?> style="width: 100%; padding: 8px; box-sizing: border-box;">
+    <div class="mb-4">
+        <label class="form-label">Wachtwoord <?= $student ? '<span class="text-muted fw-normal">(laat leeg om niet te wijzigen)</span>' : '' ?></label>
+        <input type="password" name="password" class="form-control" <?= $student ? '' : 'required' ?>>
     </div>
 
-    <div style="margin-top: 20px;">
-        <button type="submit" style="padding: 10px 20px; background: #007bff; color: white; border: none; cursor: pointer; border-radius: 4px;">Opslaan</button>
-        <a href="/?action=students" style="margin-left: 15px; color: #666; text-decoration: none;">Annuleren</a>
+    <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary">Opslaan</button>
+        <a href="/?action=students" class="btn btn-outline-secondary">Annuleren</a>
     </div>
 </form>
+</div>
+</div>
+
+</div>
+</div>
 
 <?php 
 $content = ob_get_clean();

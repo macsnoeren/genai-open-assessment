@@ -10,35 +10,43 @@
 ob_start();
 ?>
 
-<h2>Vragen voor examen: <?= htmlspecialchars($exam['title']) ?></h2>
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="mb-0">Vragen: <?= htmlspecialchars($exam['title']) ?></h2>
+    <div>
+        <a href="index.php?action=docent_dashboard" class="btn btn-outline-secondary me-2">Terug</a>
+        <a href="index.php?action=question_create&exam_id=<?= $exam['id'] ?>" class="btn btn-primary">Nieuwe vraag</a>
+    </div>
+</div>
 
-<a href="index.php?action=docent_dashboard">Terug naar examens</a> |
-<a href="index.php?action=question_create&exam_id=<?= $exam['id'] ?>">Nieuwe vraag</a><hr>
-
-<table>
-  <thead>
-    <tr>
-      <th>Vraag</th>
-      <th>Modelantwoord</th>
-      <th>Criteria</th>
-      <th>Acties</th>
-    </tr>
-  </thead>
-  <tbody>
-    <?php foreach ($questions as $q): ?>
-    <tr>
-      <td><?= htmlspecialchars($q['question_text']) ?></td>
-      <td><?= htmlspecialchars($q['model_answer']) ?></td>
-      <td><?= htmlspecialchars($q['criteria']) ?></td>
-      <td>
-	<a href="index.php?action=question_edit&id=<?= $q['id'] ?>">Bewerken</a> |
-	<a href="index.php?action=question_delete&id=<?= $q['id'] ?>"
-	   onclick="return confirm('Weet je het zeker?')">Verwijderen</a>
-      </td>
-    </tr>
-    <?php endforeach; ?>
-  </tbody>
-</table>
+<div class="card">
+    <div class="table-responsive">
+        <table class="table table-striped table-hover mb-0">
+          <thead class="table-light">
+            <tr>
+              <th style="width: 30%">Vraag</th>
+              <th style="width: 30%">Modelantwoord</th>
+              <th style="width: 25%">Criteria</th>
+              <th style="width: 15%" class="text-end">Acties</th>
+            </tr>
+          </thead>
+          <tbody>
+            <?php foreach ($questions as $q): ?>
+            <tr>
+              <td><?= htmlspecialchars($q['question_text']) ?></td>
+              <td><small class="text-muted"><?= htmlspecialchars($q['model_answer']) ?></small></td>
+              <td><small class="text-muted"><?= htmlspecialchars($q['criteria']) ?></small></td>
+              <td class="text-end">
+                <div class="btn-group btn-group-sm">
+                    <a href="index.php?action=question_edit&id=<?= $q['id'] ?>" class="btn btn-outline-primary">Bewerken</a>
+                    <a href="index.php?action=question_delete&id=<?= $q['id'] ?>" class="btn btn-outline-danger" onclick="return confirm('Weet je het zeker?')">Verwijderen</a>
+                </div>
+              </td>
+            </tr>
+            <?php endforeach; ?>
+          </tbody>
+        </table>
+    </div>
+</div>
 
 <?php
 $content = ob_get_clean();

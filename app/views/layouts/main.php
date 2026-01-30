@@ -25,53 +25,71 @@ if (file_exists($pingFile) && is_readable($pingFile)) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= $title ?? 'Openvragen kennistoetsing' ?></title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Custom CSS -->
     <link rel="stylesheet" href="style.css">
 </head>
-<body>
+<body class="d-flex flex-column min-vh-100">
 
-<header>
-    <div class="header-left">
-        <h1>Toetsen van kennis met openvragen (onderzoek)</h1>
-        <span class="status-badge <?= $parserStatus === 'active' ? 'status-active' : 'status-inactive' ?>">parser <?= $parserStatus === 'active' ? '' : 'niet ' ?>actief</span>
+<nav class="navbar navbar-expand-lg navbar-dark navbar-custom shadow-sm">
+  <div class="container">
+    <a class="navbar-brand fw-bold" href="/">
+        Openvragen Toetsing
+    </a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    
+    <div class="collapse navbar-collapse" id="navbarNav">
+      <ul class="navbar-nav me-auto">
+        <?php if (!empty($_SESSION['user_id'])): ?>
+            <?php if (isset($_SESSION['role']) && ($_SESSION['role'] === 'docent' || $_SESSION['role'] === 'admin')): ?>
+                <li class="nav-item"><a class="nav-link" href="index.php?action=docent_dashboard">Dashboard</a></li>
+                <li class="nav-item"><a class="nav-link" href="/?action=pending_assessments">Beoordelen</a></li>
+                <li class="nav-item"><a class="nav-link" href="/?action=students">Gebruikers</a></li>
+                <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin'): ?>
+                    <li class="nav-item"><a class="nav-link" href="/?action=api_keys">API Keys</a></li>
+                <?php endif; ?>
+                <li class="nav-item"><a class="nav-link" href="/?action=audit_log">Audit Log</a></li>
+            <?php elseif (isset($_SESSION['role']) && $_SESSION['role'] === 'beoordelaar'): ?>
+                <li class="nav-item"><a class="nav-link" href="/?action=pending_assessments">Beoordelen</a></li>
+            <?php elseif (isset($_SESSION['role']) && $_SESSION['role'] === 'student'): ?>
+                <li class="nav-item"><a class="nav-link" href="index.php?action=student_dashboard">Dashboard</a></li>
+                <li class="nav-item"><a class="nav-link" href="/?action=my_exams">Mijn Toetsen</a></li>
+            <?php endif; ?>
+        <?php endif; ?>
+      </ul>
+      
+      <div class="d-flex align-items-center gap-3">
+        <span class="badge <?= $parserStatus === 'active' ? 'badge-status-active' : 'badge-status-inactive' ?>">
+            Parser <?= $parserStatus === 'active' ? 'Actief' : 'Inactief' ?>
+        </span>
+        <?php if (isset($_SESSION['user_id'])): ?>
+            <div class="text-white text-end lh-1 d-none d-lg-block">
+                <small class="d-block fw-bold"><?= htmlspecialchars($_SESSION['name']) ?></small>
+                <small class="opacity-75" style="font-size: 0.75rem;"><?= htmlspecialchars(ucfirst($_SESSION['role'])) ?></small>
+            </div>
+            <a href="index.php?action=logout" class="btn btn-sm btn-outline-light ms-2">Uitloggen</a>
+        <?php else: ?>
+            <a href="index.php?action=login" class="btn btn-sm btn-light">Login</a>
+        <?php endif; ?>
+      </div>
     </div>
-    <?php if (isset($_SESSION['user_id'])): ?>
-        <div class="user-info">
-            <strong><?= htmlspecialchars($_SESSION['name']) ?></strong>
-            <br>
-            <span class="user-role"><?= htmlspecialchars(ucfirst($_SESSION['role'])) ?></span>
-        </div>
-    <?php endif; ?>
-</header>
-
-<nav>
-  <?php if (!empty($_SESSION['user_id'])): ?>
-    <?php if (isset($_SESSION['role']) && ($_SESSION['role'] === 'docent' || $_SESSION['role'] === 'admin')): ?>
-      <a href="index.php?action=docent_dashboard">Dashboard</a>
-      <a href="/?action=pending_assessments">Docent beoordelingen</a>
-      <a href="/?action=students">Gebruikers beheren</a>
-      <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin'): ?>
-      <a href="/?action=api_keys">API-keys beheren</a>
-      <?php endif; ?>
-      <a href="/?action=audit_log">Audit Log</a>
-      <a href="/?action=my_exams">Mijn Testpogingen</a>
-    <?php elseif (isset($_SESSION['role']) && $_SESSION['role'] === 'beoordelaar'): ?>
-      <a href="/?action=pending_assessments">Docent beoordelingen</a>
-    <?php elseif (isset($_SESSION['role']) && $_SESSION['role'] === 'student'): ?>
-      <a href="index.php?action=student_dashboard">Dashboard</a>
-    <?php endif; ?>
-  <a href="index.php?action=logout">Uitloggen</a>
-  <?php else: ?>
-  <a href="index.php?action=login">Login</a>
-  <?php endif; ?>
+  </div>
 </nav>
 
-<main>
+<main class="container my-4 flex-grow-1">
 <?= $content ?? '' ?>
 </main>
 
-<footer>
+<footer class="bg-light py-4 mt-auto border-top">
+    <div class="container text-center text-muted">
     &copy; <?= date('Y') ?> Openvragen kennistoetsing (proof-of-concept) - powered by JMNL Innovation
+    </div>
 </footer>
 
+<!-- Bootstrap JS Bundle -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

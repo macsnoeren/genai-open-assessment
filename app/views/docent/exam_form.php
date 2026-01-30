@@ -9,28 +9,38 @@
  */
 ob_start(); ?>
 
-<h2><?= htmlspecialchars($title) ?></h2>
+<div class="row justify-content-center">
+<div class="col-md-8">
 
-<form action="/?action=<?= $action ?>" method="post" style="max-width: 600px;">
+<h2 class="mb-4"><?= htmlspecialchars($title) ?></h2>
+
+<div class="card">
+<div class="card-body">
+<form action="/?action=<?= $action ?>" method="post">
     <?php if ($exam): ?>
         <input type="hidden" name="id" value="<?= $exam['id'] ?>">
     <?php endif; ?>
 
-    <div style="margin-bottom: 15px;">
-        <label style="display:block; margin-bottom: 5px;">Titel:</label>
-        <input type="text" name="title" value="<?= htmlspecialchars($exam['title'] ?? '') ?>" required style="width: 100%; padding: 8px; box-sizing: border-box;">
+    <div class="mb-3">
+        <label class="form-label">Titel</label>
+        <input type="text" name="title" class="form-control" value="<?= htmlspecialchars($exam['title'] ?? '') ?>" required>
     </div>
 
-    <div style="margin-bottom: 15px;">
-        <label style="display:block; margin-bottom: 5px;">Omschrijving:</label>
-        <textarea name="description" rows="4" style="width: 100%; padding: 8px; box-sizing: border-box;"><?= htmlspecialchars($exam['description'] ?? '') ?></textarea>
+    <div class="mb-3">
+        <label class="form-label">Omschrijving</label>
+        <textarea name="description" class="form-control" rows="4"><?= htmlspecialchars($exam['description'] ?? '') ?></textarea>
     </div>
 
-    <div style="margin-top: 20px;">
-        <button type="submit" style="padding: 10px 20px; background: #007bff; color: white; border: none; cursor: pointer; border-radius: 4px;">Opslaan</button>
-        <a href="/?action=docent_dashboard" style="margin-left: 15px; color: #666; text-decoration: none;">Annuleren</a>
+    <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary">Opslaan</button>
+        <a href="/?action=docent_dashboard" class="btn btn-outline-secondary">Annuleren</a>
     </div>
 </form>
+</div>
+</div>
+
+</div>
+</div>
 
 <?php 
 $content = ob_get_clean();

@@ -10,33 +10,57 @@
 ob_start();
 ?>
 
-<a href="/?action=exam_results&exam_id=<?= $studentExam['exam_id'] ?>">Terug naar resultaten</a>
+<div class="mb-3">
+    <a href="/?action=exam_results&exam_id=<?= $studentExam['exam_id'] ?>" class="btn btn-outline-secondary btn-sm">&larr; Terug naar resultaten</a>
+</div>
 
-<h2>Student antwoorden</h2>
+<h2 class="mb-4">Student antwoorden</h2>
 
 <?php foreach ($answers as $a): ?>
-<div class="card" id="answer-<?= $a['id'] ?>">
-  <p><strong>Vraag:</strong> <?= htmlspecialchars($a['question_text']) ?></p>
-  <p><strong>Student antwoord:</strong> <?= nl2br(htmlspecialchars($a['answer'])) ?></p>
-  <p><strong>Model antwoord:</strong> <?= nl2br(htmlspecialchars($a['model_answer'])) ?></p>
-  <p><strong>Criteria:</strong> <?= nl2br(htmlspecialchars($a['criteria'])) ?></p>
-  <?php if ($a['ai_feedback']): ?>
-  <p><strong>AI feedback:</strong><br>
-    <?= nl2br(htmlspecialchars($a['ai_feedback'])) ?>
-  </p>
-  <?php endif; ?>
+<div class="card mb-4" id="answer-<?= $a['id'] ?>">
+  <div class="card-header bg-light">
+      <strong>Vraag:</strong> <?= htmlspecialchars($a['question_text']) ?>
+  </div>
+  <div class="card-body">
+      <div class="mb-3">
+          <h6 class="text-muted">Student antwoord:</h6>
+          <div class="p-3 bg-white border rounded"><?= nl2br(htmlspecialchars($a['answer'])) ?></div>
+      </div>
+      
+      <div class="row g-3 mb-3">
+          <div class="col-md-6">
+              <small class="text-muted d-block">Model antwoord:</small>
+              <div class="small text-secondary"><?= nl2br(htmlspecialchars($a['model_answer'])) ?></div>
+          </div>
+          <div class="col-md-6">
+              <small class="text-muted d-block">Criteria:</small>
+              <div class="small text-secondary"><?= nl2br(htmlspecialchars($a['criteria'])) ?></div>
+          </div>
+      </div>
 
-  <hr style="margin: 15px 0; border: 0; border-top: 1px solid #eee;">
-  
-  <p><strong>Docent score:</strong> <?= isset($a['teacher_score']) ? htmlspecialchars($a['teacher_score']) : '-' ?></p>
-  
-  <p><strong>Docent feedback:</strong><br>
-    <?php if (!empty($a['teacher_feedback'])): ?>
-        <?= nl2br(htmlspecialchars($a['teacher_feedback'])) ?>
-    <?php else: ?>
-        <em>Nog geen feedback gegeven.</em>
-    <?php endif; ?>
-  </p>
+      <?php if ($a['ai_feedback']): ?>
+      <div class="alert alert-info">
+          <strong>AI feedback:</strong><br>
+          <?= nl2br(htmlspecialchars($a['ai_feedback'])) ?>
+      </div>
+      <?php endif; ?>
+
+      <div class="mt-3 pt-3 border-top">
+          <div class="d-flex justify-content-between align-items-start">
+              <div>
+                  <strong>Docent feedback:</strong><br>
+                  <?php if (!empty($a['teacher_feedback'])): ?>
+                      <?= nl2br(htmlspecialchars($a['teacher_feedback'])) ?>
+                  <?php else: ?>
+                      <em class="text-muted">Nog geen feedback gegeven.</em>
+                  <?php endif; ?>
+              </div>
+              <div class="text-end">
+                  <span class="badge bg-primary fs-6">Score: <?= isset($a['teacher_score']) ? htmlspecialchars($a['teacher_score']) : '-' ?></span>
+              </div>
+          </div>
+      </div>
+  </div>
 </div>
 <?php endforeach; ?>
 

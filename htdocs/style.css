@@ -1,255 +1,57 @@
 :root {
-    --primary-color: #b71c1c; /* Dark Red */
-    --primary-hover: #d32f2f;
-    --secondary-color: #455a64;
-    --background-color: #f5f5f5;
-    --surface-color: #ffffff;
-    --text-color: #333333;
-    --text-light: #757575;
-    --border-color: #e0e0e0;
-    --success-color: #2e7d32;
-    --danger-color: #c62828;
-    --warning-color: #f9a825;
-    --font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    /* Overriding Bootstrap variables where supported or using custom vars */
+    --brand-primary: #b71c1c;
+    --brand-primary-hover: #d32f2f;
+    --brand-bg: #f8f9fa;
 }
 
 body {
-    font-family: var(--font-family);
-    background-color: var(--background-color);
-    color: var(--text-color);
-    margin: 0;
-    padding: 0;
-    line-height: 1.6;
+    background-color: var(--brand-bg);
 }
 
-header {
-    background-color: var(--surface-color);
-    border-bottom: 1px solid var(--border-color);
-    padding: 1rem 2rem;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+/* Navbar customization */
+.navbar-custom {
+    background-color: var(--brand-primary);
 }
 
-header h1 {
-    margin: 0;
-    font-size: 1.25rem;
-    color: var(--primary-color);
-    font-weight: 600;
-}
-
-.header-left {
-    display: flex;
-    align-items: center;
-    gap: 20px;
-}
-
-.status-badge {
-    padding: 0.25rem 0.5rem;
-    border-radius: 4px;
-    font-size: 0.75rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    color: white;
-}
-
-.status-active {
-    background-color: var(--success-color);
-}
-
-.status-inactive {
-    background-color: var(--danger-color);
-}
-
-.user-info {
-    text-align: right;
-    font-size: 0.9em;
-}
-
-.user-role {
-    font-size: 0.85em;
-    opacity: 0.9;
-    color: var(--text-light);
-}
-
-nav {
-    background-color: var(--primary-color);
-    padding: 0 2rem;
-    display: flex;
-    gap: 1px;
-    overflow-x: auto;
-}
-
-nav a {
+.navbar-custom .navbar-brand,
+.navbar-custom .nav-link {
     color: rgba(255, 255, 255, 0.9);
-    text-decoration: none;
-    padding: 1rem 1.5rem;
-    font-size: 0.9rem;
-    font-weight: 500;
-    transition: background-color 0.2s, color 0.2s;
 }
 
-nav a:hover {
-    background-color: rgba(255, 255, 255, 0.1);
-    color: white;
+.navbar-custom .nav-link:hover {
+    color: #fff;
 }
 
-main {
-    max-width: 1200px;
-    margin: 2rem auto;
-    padding: 0 2rem;
+/* Button overrides */
+.btn-primary {
+    background-color: var(--brand-primary);
+    border-color: var(--brand-primary);
 }
 
-h2 {
-    color: var(--text-color);
-    border-bottom: 2px solid var(--primary-color);
-    padding-bottom: 0.5rem;
-    margin-bottom: 1.5rem;
-    font-weight: 400;
+.btn-primary:hover {
+    background-color: var(--brand-primary-hover);
+    border-color: var(--brand-primary-hover);
 }
 
-/* Cards */
+.btn-outline-primary {
+    color: var(--brand-primary);
+    border-color: var(--brand-primary);
+}
+
+.btn-outline-primary:hover {
+    background-color: var(--brand-primary);
+    color: #fff;
+}
+
+/* Card tweaks */
 .card {
-    background-color: var(--surface-color);
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    padding: 1.5rem;
-    margin-bottom: 1.5rem;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-}
-
-/* Tables */
-table {
-    width: 100%;
-    border-collapse: collapse;
-    background-color: var(--surface-color);
-    border-radius: 8px;
-    overflow: hidden;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-    margin-bottom: 1.5rem;
-}
-
-th {
-    background-color: #f9fafb;
-    color: var(--text-light);
-    font-weight: 600;
-    text-align: left;
-    padding: 1rem;
-    border-bottom: 1px solid var(--border-color);
-}
-
-td {
-    padding: 1rem;
-    border-bottom: 1px solid var(--border-color);
-    vertical-align: middle;
-}
-
-tr:last-child td {
-    border-bottom: none;
-}
-
-/* Buttons */
-button, .table-btn, .btn {
-    display: inline-block;
-    background-color: var(--primary-color);
-    color: white;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
     border: none;
-    padding: 0.6rem 1.2rem;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 0.9rem;
-    font-weight: 500;
-    text-decoration: none;
-    transition: background-color 0.2s;
+    margin-bottom: 1.5rem;
 }
 
-button:hover, .table-btn:hover, .btn:hover {
-    background-color: var(--primary-hover);
-}
-
-a {
-    color: var(--primary-color);
-    text-decoration: none;
-}
-
-a:hover {
-    text-decoration: underline;
-}
-
-/* Forms */
-input[type="text"],
-input[type="email"],
-input[type="password"],
-input[type="number"],
-select,
-textarea {
-    width: 100%;
-    padding: 0.75rem;
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
-    font-family: inherit;
-    font-size: 1rem;
-    box-sizing: border-box;
-    margin-bottom: 1rem;
-    transition: border-color 0.2s;
-}
-
-input:focus, select:focus, textarea:focus {
-    outline: none;
-    border-color: var(--primary-color);
-}
-
-label {
-    display: block;
-    margin-bottom: 0.5rem;
-    font-weight: 500;
-    color: var(--text-color);
-}
-
-footer {
-    text-align: center;
-    padding: 2rem;
-    color: var(--text-light);
-    font-size: 0.85rem;
-    border-top: 1px solid var(--border-color);
-    margin-top: 4rem;
-}
-
-/* Modal */
-.modal {
-    display: none; 
-    position: fixed; 
-    z-index: 1000; 
-    left: 0;
-    top: 0;
-    width: 100%; 
-    height: 100%; 
-    overflow: auto; 
-    background-color: rgba(0,0,0,0.5); 
-    backdrop-filter: blur(2px);
-}
-
-.modal-content {
-    background-color: var(--surface-color);
-    margin: 10% auto; 
-    padding: 2rem;
-    border-radius: 8px;
-    width: 500px;
-    max-width: 90%;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
-    position: relative;
-}
-
-.close {
-    color: #aaa;
-    float: right;
-    font-size: 28px;
-    font-weight: bold;
-    cursor: pointer;
-    line-height: 1;
-}
-
-.close:hover {
-    color: black;
+/* Status badges */
+.badge-status-active { background-color: #198754; }
+.badge-status-inactive { background-color: #dc3545; }
 }

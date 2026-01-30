@@ -9,19 +9,23 @@
  */
 ob_start(); ?>
 
-<h2>Student Dashboard</h2>
+<h2 class="mb-4">Student Dashboard</h2>
 
-<div style="margin-bottom: 30px;">
-    <h3>Beschikbare toetsen</h3>
+<div class="mb-5">
+    <h3 class="h4 mb-3 border-bottom pb-2">Beschikbare toetsen</h3>
     <?php if (empty($exams)): ?>
-        <p>Er zijn momenteel geen toetsen beschikbaar.</p>
+        <div class="alert alert-info">Er zijn momenteel geen toetsen beschikbaar.</div>
     <?php else: ?>
-        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px;">
+        <div class="row g-4">
             <?php foreach ($exams as $exam): ?>
-                <div style="border: 1px solid #ddd; padding: 15px; border-radius: 5px; background: #fff;">
-                    <h4 style="margin-top: 0;"><?= htmlspecialchars($exam['title']) ?></h4>
-                    <p><?= htmlspecialchars($exam['description']) ?></p>
-                    <a href="/?action=start_exam&exam_id=<?= $exam['id'] ?>" style="display: inline-block; padding: 8px 15px; background: #007bff; color: white; text-decoration: none; border-radius: 4px;">Start toets</a>
+                <div class="col-md-6 col-lg-4">
+                    <div class="card h-100">
+                        <div class="card-body d-flex flex-column">
+                            <h5 class="card-title"><?= htmlspecialchars($exam['title']) ?></h5>
+                            <p class="card-text text-muted flex-grow-1"><?= htmlspecialchars($exam['description']) ?></p>
+                            <a href="/?action=start_exam&exam_id=<?= $exam['id'] ?>" class="btn btn-primary mt-3">Start toets</a>
+                        </div>
+                    </div>
                 </div>
             <?php endforeach; ?>
         </div>
@@ -29,38 +33,46 @@ ob_start(); ?>
 </div>
 
 <div>
-    <h3>Mijn gemaakte toetsen</h3>
+    <h3 class="h4 mb-3 border-bottom pb-2">Mijn gemaakte toetsen</h3>
     <?php if (empty($studentExams)): ?>
-        <p>Je hebt nog geen toetsen gemaakt.</p>
+        <p class="text-muted">Je hebt nog geen toetsen gemaakt.</p>
     <?php else: ?>
-        <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
-            <thead>
-                <tr style="text-align: left;">
-                    <th style="padding: 10px; border-bottom: 2px solid #ddd;">Toets</th>
-                    <th style="padding: 10px; border-bottom: 2px solid #ddd;">Gestart op</th>
-                    <th style="padding: 10px; border-bottom: 2px solid #ddd;">Status</th>
-                    <th style="padding: 10px; border-bottom: 2px solid #ddd;">Acties</th>
+        <div class="card">
+        <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Toets</th>
+                    <th>Gestart op</th>
+                    <th>Status</th>
+                    <th>Acties</th>
                 </tr>
             </thead>
             <tbody>
                 <?php foreach ($studentExams as $se): ?>
                     <tr>
-                        <td style="padding: 10px; border-bottom: 1px solid #eee;"><?= htmlspecialchars($se['title']) ?></td>
-                        <td style="padding: 10px; border-bottom: 1px solid #eee;"><?= $se['started_at'] ?></td>
-                        <td style="padding: 10px; border-bottom: 1px solid #eee;">
-                            <?= $se['completed_at'] ? 'Ingeleverd' : 'Bezig' ?>
-                        </td>
-                        <td style="padding: 10px; border-bottom: 1px solid #eee;">
-                            <?php if ($se['completed_at']): ?>
-                                <a href="/?action=student_view_results&student_exam_id=<?= $se['id'] ?>">Bekijk resultaten</a>
+                        <td><?= htmlspecialchars($se['title']) ?></td>
+                        <td><?= $se['started_at'] ?></td>
+                        <td>
+                            <?php if($se['completed_at']): ?>
+                                <span class="badge bg-success">Ingeleverd</span>
                             <?php else: ?>
-                                <a href="/?action=take_exam&student_exam_id=<?= $se['id'] ?>">Verder gaan</a>
+                                <span class="badge bg-warning text-dark">Bezig</span>
+                            <?php endif; ?>
+                        </td>
+                        <td>
+                            <?php if ($se['completed_at']): ?>
+                                <a href="/?action=student_view_results&student_exam_id=<?= $se['id'] ?>" class="btn btn-sm btn-outline-secondary">Resultaten</a>
+                            <?php else: ?>
+                                <a href="/?action=take_exam&student_exam_id=<?= $se['id'] ?>" class="btn btn-sm btn-primary">Verder gaan</a>
                             <?php endif; ?>
                         </td>
                     </tr>
                 <?php endforeach; ?>
             </tbody>
         </table>
+        </div>
+        </div>
     <?php endif; ?>
 </div>
 
