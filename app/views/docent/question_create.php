@@ -18,9 +18,6 @@ ob_start();
     <label>Vraag</label><br>
         <textarea name="question_text" required></textarea><br><br>
 
-    <label>Modelantwoord</label><br>
-        <textarea name="model_answer"></textarea><br><br>
-
     <label>Beoordelingscriteria</label><br>
         <textarea name="criteria"></textarea><br><br>
 

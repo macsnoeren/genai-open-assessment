@@ -23,15 +23,9 @@ ob_start();
           <div class="p-3 bg-white border rounded"><?= nl2br(htmlspecialchars($a['answer'])) ?></div>
       </div>
       
-      <div class="row g-3 mb-3">
-          <div class="col-md-6">
-              <small class="text-muted d-block">Model antwoord:</small>
-              <div class="small text-secondary"><?= nl2br(htmlspecialchars($a['model_answer'])) ?></div>
-          </div>
-          <div class="col-md-6">
+      <div class="mb-3">
               <small class="text-muted d-block">Criteria:</small>
               <div class="small text-secondary"><?= nl2br(htmlspecialchars($a['criteria'])) ?></div>
-          </div>
       </div>
 
       <?php if ($a['ai_feedback']): ?>

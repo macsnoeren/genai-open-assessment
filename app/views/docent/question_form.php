@@ -27,11 +27,6 @@ ob_start(); ?>
         <textarea name="question_text" class="form-control" rows="3" required><?= htmlspecialchars($question['question_text'] ?? '') ?></textarea>
     </div>
 
-    <div class="mb-3">
-        <label class="form-label">Modelantwoord <span class="text-muted fw-normal">(optioneel, voor referentie)</span></label>
-        <textarea name="model_answer" class="form-control" rows="3"><?= htmlspecialchars($question['model_answer'] ?? '') ?></textarea>
-    </div>
-
     <div class="mb-4">
         <label class="form-label">Beoordelingscriteria (voor AI)</label>
         <div class="form-text mb-2">

@@ -22,9 +22,8 @@ ob_start();
         <table class="table table-striped table-hover mb-0">
           <thead class="table-light">
             <tr>
-              <th style="width: 30%">Vraag</th>
-              <th style="width: 30%">Modelantwoord</th>
-              <th style="width: 25%">Criteria</th>
+              <th style="width: 45%">Vraag</th>
+              <th style="width: 40%">Criteria</th>
               <th style="width: 15%" class="text-end">Acties</th>
             </tr>
           </thead>
@@ -32,7 +31,6 @@ ob_start();
             <?php foreach ($questions as $q): ?>
             <tr>
               <td><?= htmlspecialchars($q['question_text']) ?></td>
-              <td><small class="text-muted"><?= htmlspecialchars($q['model_answer']) ?></small></td>
               <td><small class="text-muted"><?= htmlspecialchars($q['criteria']) ?></small></td>
               <td class="text-end">
                 <div class="btn-group btn-group-sm">

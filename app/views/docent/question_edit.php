@@ -19,9 +19,6 @@ ob_start();
     <label>Vraag</label><br>
         <textarea name="question_text" required><?= htmlspecialchars($question['question_text']) ?></textarea><br><br>
 
-    <label>Modelantwoord</label><br>
-        <textarea name="model_answer"><?= htmlspecialchars($question['model_answer']) ?></textarea><br><br>
-
     <label>Beoordelingscriteria</label><br>
         <textarea name="criteria"><?= htmlspecialchars($question['criteria']) ?></textarea><br><br>
 

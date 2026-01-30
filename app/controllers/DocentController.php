@@ -157,13 +157,11 @@ class DocentController {
     Question::create(
 		     $_POST['exam_id'],
 		     $_POST['question_text'],
-		     $_POST['model_answer'],
 		     $_POST['criteria']
 		     );
     AuditLog::log('question_create', [
         'exam_id' => $_POST['exam_id'], 
         'question_text' => $_POST['question_text'],
-        'model_answer' => $_POST['model_answer'],
         'criteria' => $_POST['criteria']
     ]);
     
@@ -197,16 +195,12 @@ class DocentController {
     Question::update(
 		     $_POST['id'],
 		     $_POST['question_text'],
-		     $_POST['model_answer'],
 		     $_POST['criteria']
 		     );
 
     $changes = ['id' => $_POST['id']];
     if ($currentQuestion['question_text'] !== $_POST['question_text']) {
         $changes['question_text'] = ['old' => $currentQuestion['question_text'], 'new' => $_POST['question_text']];
-    }
-    if ($currentQuestion['model_answer'] !== $_POST['model_answer']) {
-        $changes['model_answer'] = ['old' => $currentQuestion['model_answer'], 'new' => $_POST['model_answer']];
     }
     if ($currentQuestion['criteria'] !== $_POST['criteria']) {
         $changes['criteria'] = ['old' => $currentQuestion['criteria'], 'new' => $_POST['criteria']];
@@ -261,7 +255,7 @@ public function viewStudentAnswers($studentExamId) {
 
     $pdo = Database::connect();
         $stmt = $pdo->prepare("
-        SELECT sa.id, q.question_text, sa.answer, q.model_answer, q.criteria, sa.ai_feedback, sa.teacher_score, sa.teacher_feedback
+        SELECT sa.id, q.question_text, sa.answer, q.criteria, sa.ai_feedback, sa.teacher_score, sa.teacher_feedback
         FROM student_answers sa
         JOIN questions q ON sa.question_id = q.id
         WHERE sa.student_exam_id = ?
@@ -284,7 +278,7 @@ public function viewStudentAnswers($studentExamId) {
 
     $pdo = Database::connect();
     $stmt = $pdo->prepare("
-        SELECT sa.id, q.question_text, sa.answer, q.model_answer, q.criteria, sa.teacher_score, sa.teacher_feedback
+        SELECT sa.id, q.question_text, sa.answer, q.criteria, sa.teacher_score, sa.teacher_feedback
         FROM student_answers sa
         JOIN questions q ON sa.question_id = q.id
         WHERE sa.student_exam_id = ?
