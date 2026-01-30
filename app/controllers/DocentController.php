@@ -26,7 +26,11 @@ class DocentController {
     requireLogin();
     requireRole('docent');
     
-    $exams = Exam::allByDocent($_SESSION['user_id']);
+    if ($_SESSION['role'] === 'admin') {
+        $exams = Exam::all();
+    } else {
+        $exams = Exam::allByDocent($_SESSION['user_id']);
+    }
     require __DIR__ . '/../views/docent/dashboard.php';
   }
   
