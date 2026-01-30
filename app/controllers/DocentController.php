@@ -217,7 +217,7 @@ public function viewStudentAnswers($studentExamId) {
 
   public function gradeStudentExam($studentExamId) {
     requireLogin();
-    requireRole('docent');
+    requireRole('beoordelaar');
 
     $studentExam = StudentExam::find($studentExamId);
 
@@ -236,7 +236,7 @@ public function viewStudentAnswers($studentExamId) {
 
   public function saveTeacherFeedback() {
     requireLogin();
-    requireRole('docent');
+    requireRole('beoordelaar');
 
     $studentAnswerId = $_POST['student_answer_id'];
     $score = $_POST['teacher_score'] === '' ? null : $_POST['teacher_score'];
@@ -272,7 +272,7 @@ public function viewStudentAnswers($studentExamId) {
 
   public function pendingAssessments() {
     requireLogin();
-    requireRole('docent');
+    requireRole('beoordelaar');
 
     $pdo = Database::connect();
     // Haal toetsen op die ingeleverd zijn, gekoppeld aan deze docent, en nog niet volledig beoordeeld zijn.
@@ -285,13 +285,21 @@ public function viewStudentAnswers($studentExamId) {
         JOIN exams e ON se.exam_id = e.id
         LEFT JOIN student_answers sa ON se.id = sa.student_exam_id
         WHERE se.completed_at IS NOT NULL
-        AND e.docent_id = ?
-        GROUP BY se.id
-        HAVING graded_answers < total_answers
-        ORDER BY se.completed_at ASC
     ";
+
+    $params = [];
+    // Als het een docent is, filter op eigen examens. Beoordelaars en admins zien alles.
+    if ($_SESSION['role'] === 'docent') {
+        $sql .= " AND e.docent_id = ? ";
+        $params[] = $_SESSION['user_id'];
+    }
+
+    $sql .= " GROUP BY se.id
+        HAVING graded_answers < total_answers
+        ORDER BY se.completed_at ASC";
+
     $stmt = $pdo->prepare($sql);
-    $stmt->execute([$_SESSION['user_id']]);
+    $stmt->execute($params);
     $pendingExams = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     require __DIR__ . '/../views/docent/pending_assessments.php';

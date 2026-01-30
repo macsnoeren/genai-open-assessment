@@ -31,6 +31,8 @@ class AuthController {
     // redirect op rol
     if ($user['role'] === 'docent' || $user['role'] === 'admin') {
       header('Location: index.php?action=docent_dashboard');
+    } elseif ($user['role'] === 'beoordelaar') {
+      header('Location: index.php?action=pending_assessments');
     } else {
       header('Location: index.php?action=student_dashboard');
     }

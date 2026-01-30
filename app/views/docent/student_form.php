@@ -22,6 +22,7 @@
         <select name="role" style="width: 100%; padding: 8px; box-sizing: border-box;">
             <option value="student" <?= ($student['role'] ?? 'student') === 'student' ? 'selected' : '' ?>>Student</option>
             <option value="docent" <?= ($student['role'] ?? 'student') === 'docent' ? 'selected' : '' ?>>Docent</option>
+            <option value="beoordelaar" <?= ($student['role'] ?? 'student') === 'beoordelaar' ? 'selected' : '' ?>>Beoordelaar</option>
             <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin'): ?>
                 <option value="admin" <?= ($student['role'] ?? 'student') === 'admin' ? 'selected' : '' ?>>Admin</option>
             <?php endif; ?>

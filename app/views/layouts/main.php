@@ -44,6 +44,8 @@ if (is_readable($pingFile)) {
       <?php endif; ?>
       <a href="/?action=audit_log">Audit Log</a>
       <a href="/?action=my_exams">Mijn Testpogingen</a>
+    <?php elseif (isset($_SESSION['role']) && $_SESSION['role'] === 'beoordelaar'): ?>
+      <a href="/?action=pending_assessments">Docent beoordelingen</a>
     <?php elseif (isset($_SESSION['role']) && $_SESSION['role'] === 'student'): ?>
       <a href="index.php?action=student_dashboard">Dashboard</a>
     <?php endif; ?>

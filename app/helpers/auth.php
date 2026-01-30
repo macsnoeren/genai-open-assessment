@@ -12,13 +12,13 @@ function requireRole($requiredRole) {
     
     $userRole = $_SESSION['role'];
     
-    // Admin mag alles wat een docent mag
-    if ($requiredRole === 'docent' && $userRole === 'admin') {
+    // Admin mag alles
+    if ($userRole === 'admin') {
         return;
     }
     
-    // Admin mag alles wat een student mag (optioneel, maar voor de zekerheid)
-    if ($requiredRole === 'student' && $userRole === 'admin') {
+    // Docent mag alles wat een beoordelaar mag
+    if ($requiredRole === 'beoordelaar' && $userRole === 'docent') {
         return;
     }
 
