@@ -72,6 +72,7 @@ class StudentExamController {
       }
 
       // Geen sessie gevonden, toon naam invulscherm
+      $isGuest = true;
       require __DIR__ . '/../views/student/guest_login.php';
   }
 
