@@ -14,6 +14,8 @@
         <?= $a ? nl2br(htmlspecialchars($a['answer'])) : '<em>Geen antwoord gegeven</em>' ?>
         </p>
 
+        <hr>
+
         <?php if ($a): ?>
             <?php if (isset($a['teacher_score']) || !empty($a['teacher_feedback'])): ?>
             <div style="margin-top: 10px; padding: 10px; background-color: #fff3cd; border-left: 4px solid #ffc107;">
@@ -25,8 +27,14 @@
                     Feedback: <?= nl2br(htmlspecialchars($a['teacher_feedback'])) ?>
                 <?php endif; ?>
             </div>
+            <?php else: ?>
+                <div style="color: #666; font-style: italic; padding: 10px; background: #f5f5f5; border-radius: 4px;">
+                    Docent heeft nog geen feedback gegeven.
+                </div>
             <?php endif; ?>
+            
             <hr>
+
             <?php if ($a['ai_feedback']): ?>
                 <div style="background: #e3f2fd; padding: 15px; border-left: 4px solid #2196f3;">
                     <strong style="color: #1565c0;">AI Feedback:</strong><br>
