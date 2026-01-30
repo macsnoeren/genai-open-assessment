@@ -204,7 +204,7 @@ public function viewStudentAnswers($studentExamId) {
 
     $pdo = Database::connect();
         $stmt = $pdo->prepare("
-        SELECT q.question_text, sa.answer, q.model_answer, q.criteria, sa.ai_feedback
+        SELECT sa.id, q.question_text, sa.answer, q.model_answer, q.criteria, sa.ai_feedback, sa.teacher_score, sa.teacher_feedback
         FROM student_answers sa
         JOIN questions q ON sa.question_id = q.id
         WHERE sa.student_exam_id = ?
@@ -214,6 +214,23 @@ public function viewStudentAnswers($studentExamId) {
 
     require __DIR__ . '/../views/docent/student_answers.php';
     }
+
+  public function saveTeacherFeedback() {
+    requireLogin();
+    requireRole('docent');
+
+    $studentAnswerId = $_POST['student_answer_id'];
+    $score = $_POST['teacher_score'] === '' ? null : $_POST['teacher_score'];
+    $feedback = $_POST['teacher_feedback'];
+    $studentExamId = $_POST['student_exam_id'];
+
+    $pdo = Database::connect();
+    $stmt = $pdo->prepare("UPDATE student_answers SET teacher_score = ?, teacher_feedback = ? WHERE id = ?");
+    $stmt->execute([$score, $feedback, $studentAnswerId]);
+
+    header('Location: /?action=view_student_answers&student_exam_id=' . $studentExamId . '#answer-' . $studentAnswerId);
+    exit;
+  }
 
   public function deleteStudentExam() {
     requireLogin();

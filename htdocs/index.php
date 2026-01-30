@@ -144,6 +144,10 @@ switch ($action) {
    $docent->viewStudentAnswers($_GET['student_exam_id']);
    break;
 
+ case 'save_teacher_feedback':
+   $docent->saveTeacherFeedback();
+   break;
+
  case 'delete_student_exam':
    $docent->deleteStudentExam();
    break;

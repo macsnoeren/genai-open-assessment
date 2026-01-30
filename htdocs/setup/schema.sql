@@ -55,6 +55,8 @@ CREATE TABLE IF NOT EXISTS student_answers (
     answer TEXT,
     ai_feedback TEXT,
     ai_updated_at DATETIME,
+    teacher_score INTEGER,
+    teacher_feedback TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     -- Als een toetspoging of vraag wordt verwijderd, worden de antwoorden ook verwijderd.
