@@ -11,8 +11,6 @@ ob_start();
 <div class="card" id="answer-<?= $a['id'] ?>">
   <p><strong>Vraag:</strong> <?= htmlspecialchars($a['question_text']) ?></p>
   <p><strong>Student antwoord:</strong> <?= nl2br(htmlspecialchars($a['answer'])) ?></p>
-  <p><strong>Model antwoord:</strong> <?= nl2br(htmlspecialchars($a['model_answer'])) ?></p>
-  <p><strong>Criteria:</strong> <?= nl2br(htmlspecialchars($a['criteria'])) ?></p>
 
   <hr style="margin: 15px 0; border: 0; border-top: 1px solid #eee;">
   
