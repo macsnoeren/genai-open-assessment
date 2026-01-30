@@ -48,6 +48,7 @@ class AuthController {
     }
     
     // login succesvol
+    session_regenerate_id(true);
     $_SESSION['user_id'] = $user['id'];
     $_SESSION['name']    = $user['name'];
     $_SESSION['role']    = $user['role'];

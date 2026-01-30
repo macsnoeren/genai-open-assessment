@@ -41,7 +41,7 @@ ob_start();
                             $link = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http") . "://$_SERVER[HTTP_HOST]/?action=guest&token=" . $exam['public_token'];
                         ?>
                         <div class="input-group input-group-sm mb-2" style="max-width: 300px; margin-left: auto;">
-                            <input type="text" class="form-control" value="<?= $link ?>" readonly id="link-<?= $exam['id'] ?>">
+                            <input type="text" class="form-control" value="<?= htmlspecialchars($link) ?>" readonly id="link-<?= $exam['id'] ?>">
                             <button class="btn btn-outline-secondary" type="button" onclick="copyLink('link-<?= $exam['id'] ?>')" title="Kopieer link">📋</button>
                         </div>
                     <?php endif; ?>

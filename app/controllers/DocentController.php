@@ -71,6 +71,8 @@ class DocentController {
     requireLogin();
     requireRole('docent');
     
+    $this->checkExamOwnership($_GET['id']);
+    
     $exam = Exam::find($_GET['id']);
     $action = 'exam_update';
     $title = 'Toets bewerken';
@@ -83,6 +85,8 @@ class DocentController {
   public function updateExam() {
     requireLogin();
     requireRole('docent');
+    
+    $this->checkExamOwnership($_POST['id']);
     
     $currentExam = Exam::find($_POST['id']);
     
@@ -113,6 +117,8 @@ class DocentController {
     requireLogin();
     requireRole('docent');
     
+    $this->checkExamOwnership($_GET['id']);
+    
     AuditLog::log('exam_delete', ['id' => $_GET['id']]);
     Exam::delete($_GET['id']);
     header('Location: /?action=docent_dashboard');
@@ -127,6 +133,8 @@ class DocentController {
     requireLogin();
     requireRole('docent');
     
+    $this->checkExamOwnership($examId);
+    
     $exam = Exam::find($examId);
     $questions = Question::allByExam($examId);
     
@@ -139,6 +147,8 @@ class DocentController {
   public function createQuestion() {
     requireLogin();
     requireRole('docent');
+    
+    $this->checkExamOwnership($_GET['exam_id']);
     
     $examId = $_GET['exam_id'];
     $question = null;
@@ -153,6 +163,8 @@ class DocentController {
   public function storeQuestion() {
     requireLogin();
     requireRole('docent');
+    
+    $this->checkExamOwnership($_POST['exam_id']);
     
     Question::create(
 		     $_POST['exam_id'],
@@ -178,6 +190,7 @@ class DocentController {
     requireRole('docent');
     
     $question = Question::find($_GET['id']);
+    $this->checkExamOwnership($question['exam_id']);
     $examId = $question['exam_id'];
     $action = 'question_update';
     $title = 'Vraag bewerken';
@@ -192,6 +205,7 @@ class DocentController {
     requireRole('docent');
     
     $currentQuestion = Question::find($_POST['id']);
+    $this->checkExamOwnership($currentQuestion['exam_id']);
 
     Question::update(
 		     $_POST['id'],
@@ -222,6 +236,7 @@ class DocentController {
     requireRole('docent');
     
     $question = Question::find($_GET['id']);
+    $this->checkExamOwnership($question['exam_id']);
     $examId = $question['exam_id'];
     AuditLog::log('question_delete', [
         'id' => $_GET['id'],
@@ -240,6 +255,8 @@ class DocentController {
 public function viewExamResults($examId) {
     requireLogin();
     requireRole('docent');
+    
+    $this->checkExamOwnership($examId);
 
     $studentExams = StudentExam::findWithStudentDetailsByExam($examId);
     require __DIR__ . '/../views/docent/exam_results.php';
@@ -254,6 +271,7 @@ public function viewStudentAnswers($studentExamId) {
         requireRole('docent');
 
     $studentExam = StudentExam::find($studentExamId);
+    $this->checkExamOwnership($studentExam['exam_id']);
 
     $pdo = Database::connect();
         $stmt = $pdo->prepare("
@@ -323,6 +341,7 @@ public function viewStudentAnswers($studentExamId) {
     $studentExam = $studentExamId ? StudentExam::find($studentExamId) : null;
     
     if ($studentExam) {
+        $this->checkExamOwnership($studentExam['exam_id']);
         AuditLog::log('student_exam_delete', ['id' => $studentExamId]);
         StudentExam::delete($studentExamId);
         header('Location: /?action=exam_results&exam_id=' . $studentExam['exam_id']);
@@ -423,6 +442,8 @@ public function viewStudentAnswers($studentExamId) {
   public function compareExamResults($examId) {
     requireLogin();
     requireRole('docent');
+
+    $this->checkExamOwnership($examId);
 
     $exam = Exam::find($examId);
     
@@ -541,6 +562,8 @@ public function viewStudentAnswers($studentExamId) {
     requireLogin();
     requireRole('docent');
 
+    $this->checkExamOwnership($examId);
+
     $exam = Exam::find($examId);
     
     $pdo = Database::connect();
@@ -613,6 +636,19 @@ public function viewStudentAnswers($studentExamId) {
     
     fclose($output);
     exit;
+  }
+
+  /**
+   * Checks if the current user is the owner of the exam (or admin).
+   * @param int $examId
+   */
+  private function checkExamOwnership($examId) {
+      if ($_SESSION['role'] === 'admin') return;
+      
+      $exam = Exam::find($examId);
+      if (!$exam || $exam['docent_id'] != $_SESSION['user_id']) {
+          die("Geen toegang: U bent niet de eigenaar van deze toets.");
+      }
   }
 
 }

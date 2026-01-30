@@ -91,7 +91,8 @@ class StudentExamController {
       $result = StudentExam::startGuest($exam['id'], $name);
       
       // Zet cookie voor 30 dagen
-      setcookie('guest_access_token', $result['access_token'], time() + (86400 * 30), "/", "", false, true);
+      $secure = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on';
+      setcookie('guest_access_token', $result['access_token'], time() + (86400 * 30), "/", "", $secure, true);
 
       header("Location: /?action=take_exam&student_exam_id={$result['id']}");
       exit;
