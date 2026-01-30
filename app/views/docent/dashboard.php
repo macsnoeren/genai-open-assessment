@@ -62,6 +62,7 @@ ob_start();
       </div>
       <div class="modal-body">
     <form id="modalForm" method="POST" action="/?action=exam_store">
+      <input type="hidden" name="id" id="examId">
       <div class="mb-3">
           <label class="form-label">Titel</label>
           <input type="text" name="title" class="form-control" required>
@@ -78,6 +79,47 @@ ob_start();
     </div>
   </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var examModal = document.getElementById('examModal');
+    // Verplaats de modal naar de body om z-index problemen te voorkomen
+    document.body.appendChild(examModal);
+    
+    var modalTitle = examModal.querySelector('.modal-title');
+    var modalForm = document.getElementById('modalForm');
+    var titleInput = modalForm.querySelector('input[name="title"]');
+    var descInput = modalForm.querySelector('textarea[name="description"]');
+    var idInput = document.getElementById('examId');
+
+    // Reset formulier bij openen (voor Nieuw examen)
+    examModal.addEventListener('show.bs.modal', function (event) {
+        var button = event.relatedTarget;
+        if (button && button.getAttribute('data-bs-target') === '#examModal') {
+            modalTitle.textContent = 'Nieuw examen';
+            modalForm.action = '/?action=exam_store';
+            titleInput.value = '';
+            descInput.value = '';
+            idInput.value = '';
+        }
+    });
+
+    // Afhandeling Bewerken knoppen
+    document.querySelectorAll('.editExam').forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            modalTitle.textContent = 'Examen bewerken';
+            modalForm.action = '/?action=exam_update';
+            titleInput.value = this.getAttribute('data-title');
+            descInput.value = this.getAttribute('data-desc');
+            idInput.value = this.getAttribute('data-id');
+            
+            var bsModal = new bootstrap.Modal(examModal);
+            bsModal.show();
+        });
+    });
+});
+</script>
 
 <?php
 $content = ob_get_clean();

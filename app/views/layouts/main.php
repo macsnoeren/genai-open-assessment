@@ -52,6 +52,7 @@ if (file_exists($pingFile) && is_readable($pingFile)) {
                     <li class="nav-item"><a class="nav-link" href="/?action=api_keys">API Keys</a></li>
                 <?php endif; ?>
                 <li class="nav-item"><a class="nav-link" href="/?action=audit_log">Audit Log</a></li>
+                <li class="nav-item"><a class="nav-link" href="/?action=my_exams">Mijn Toetsen</a></li>
             <?php elseif (isset($_SESSION['role']) && $_SESSION['role'] === 'beoordelaar'): ?>
                 <li class="nav-item"><a class="nav-link" href="/?action=pending_assessments">Beoordelen</a></li>
             <?php elseif (isset($_SESSION['role']) && $_SESSION['role'] === 'student'): ?>

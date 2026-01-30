@@ -26,7 +26,7 @@ if (isset($_SESSION['new_api_key'])):
 <p>Beheer hier de API-keys voor externe applicaties, zoals de AI feedback service.</p>
 
 <div class="mb-3">
-    <button id="openApiKeyModal" class="btn btn-primary">Nieuwe API-key</button>
+    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#apiKeyModal">Nieuwe API-key</button>
 </div>
 
 <div class="card">
@@ -58,35 +58,30 @@ if (isset($_SESSION['new_api_key'])):
 </div>
 
 <!-- Modal -->
-<div id="apiKeyModal" class="modal">
-  <div class="modal-content">
-    <span class="close">&times;</span>
-    <h2>Nieuwe API-key</h2>
-    
-    <form method="POST" action="/?action=api_key_create">
-      <label>Naam</label>
-      <input type="text" name="name" placeholder="bv. AI Feedback Script" required>
-      
-      <p style="font-size: 0.9em; color: #555;">Er wordt een nieuwe, unieke key gegenereerd. Deze wordt na het aanmaken niet meer getoond.</p>
-      
-      <button type="submit">Aanmaken</button>
-    </form>
+<div class="modal fade" id="apiKeyModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Nieuwe API-key</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <form method="POST" action="/?action=api_key_create">
+          <div class="mb-3">
+              <label class="form-label">Naam</label>
+              <input type="text" name="name" class="form-control" placeholder="bv. AI Feedback Script" required>
+          </div>
+          <div class="mb-3">
+              <p class="text-muted small">Er wordt een nieuwe, unieke key gegenereerd. Deze wordt na het aanmaken niet meer getoond.</p>
+          </div>
+          <div class="d-grid">
+            <button type="submit" class="btn btn-primary">Aanmaken</button>
+          </div>
+        </form>
+      </div>
+    </div>
   </div>
 </div>
-
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    var modal = document.getElementById('apiKeyModal');
-    var btn = document.getElementById('openApiKeyModal');
-    var span = modal.querySelector('.close');
-
-    if(btn) btn.onclick = () => modal.style.display = 'block';
-    if(span) span.onclick = () => modal.style.display = 'none';
-    window.onclick = (event) => {
-        if (event.target == modal) modal.style.display = 'none';
-    }
-});
-</script>
 
 <?php
 $content = ob_get_clean();

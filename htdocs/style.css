@@ -61,6 +61,6 @@ body {
     text-decoration: none;
 }
 .breadcrumb-item a:hover {
-    color: var(--brand-primary);
+    color: #343a40;
     text-decoration: underline;
 }
