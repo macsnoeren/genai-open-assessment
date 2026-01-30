@@ -36,6 +36,15 @@ ob_start();
                   <td class="align-middle"><?= htmlspecialchars($exam['title']) ?></td>
                   <td class="align-middle"><?= $exam['created_at'] ?></td>
                   <td class="text-end">
+                    <?php if (!empty($exam['public_token'])): ?>
+                        <?php 
+                            $link = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http") . "://$_SERVER[HTTP_HOST]/?action=guest&token=" . $exam['public_token'];
+                        ?>
+                        <div class="input-group input-group-sm mb-2" style="max-width: 300px; margin-left: auto;">
+                            <span class="input-group-text">Link</span>
+                            <input type="text" class="form-control" value="<?= $link ?>" readonly onclick="this.select()">
+                        </div>
+                    <?php endif; ?>
                     <div class="btn-group btn-group-sm">
                         <a href="/?action=questions&exam_id=<?= $exam['id'] ?>" class="btn btn-outline-secondary">Vragen</a>
                         <a href="/?action=exam_results&exam_id=<?= $exam['id'] ?>" class="btn btn-outline-secondary">Resultaten</a>

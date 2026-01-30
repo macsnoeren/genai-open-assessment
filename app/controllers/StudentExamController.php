@@ -46,6 +46,55 @@ class StudentExamController {
     header("Location: /?action=take_exam&student_exam_id={$studentExamId}");
     exit;
   }
+
+  /**
+   * Handles the entry point for a guest link.
+   */
+  public function guestEntry() {
+      $token = $_GET['token'] ?? '';
+      $exam = Exam::findByPublicToken($token);
+
+      if (!$exam) {
+          die("Ongeldige link.");
+      }
+
+      // Check of er al een cookie is voor DEZE specifieke toets (of algemeen)
+      // Voor eenvoud checken we nu 1 cookie 'guest_access_token'. 
+      // Als de student meerdere toetsen tegelijk wil doen als gast, overschrijft dit elkaar.
+      // In een productieomgeving zou je een array in de cookie of meerdere cookies gebruiken.
+      if (isset($_COOKIE['guest_access_token'])) {
+          $studentExam = StudentExam::findByAccessToken($_COOKIE['guest_access_token']);
+          // Check of de cookie bij DEZE toets hoort
+          if ($studentExam && $studentExam['exam_id'] == $exam['id']) {
+              header("Location: /?action=take_exam&student_exam_id={$studentExam['id']}");
+              exit;
+          }
+      }
+
+      // Geen sessie gevonden, toon naam invulscherm
+      require __DIR__ . '/../views/student/guest_login.php';
+  }
+
+  /**
+   * Registers a guest and starts the exam.
+   */
+  public function guestStart() {
+      $token = $_POST['token'] ?? '';
+      $name = trim($_POST['name'] ?? '');
+      
+      $exam = Exam::findByPublicToken($token);
+      if (!$exam || empty($name)) {
+          die("Ongeldige aanvraag.");
+      }
+
+      $result = StudentExam::startGuest($exam['id'], $name);
+      
+      // Zet cookie voor 30 dagen
+      setcookie('guest_access_token', $result['access_token'], time() + (86400 * 30), "/", "", false, true);
+
+      header("Location: /?action=take_exam&student_exam_id={$result['id']}");
+      exit;
+  }
   
   /**
    * Displays the exam form for taking the exam.
@@ -53,12 +102,31 @@ class StudentExamController {
   public function takeExam() {
     requireLogin();
     
+    // Check login of gast-sessie
+    $isGuest = false;
+    if (!isset($_SESSION['user_id'])) {
+        // Probeer gast toegang
+        if (isset($_COOKIE['guest_access_token'])) {
+            $isGuest = true;
+        } else {
+            // Geen login en geen gast cookie
+            header('Location: /?action=login');
+            exit;
+        }
+    }
+
     $studentExamId = $_GET['student_exam_id'];
     $studentExam = StudentExam::find($studentExamId);
 
-    // Security check: student kan alleen eigen toetsen inzien
-    if (!$studentExam || $studentExam['student_id'] != $_SESSION['user_id']) {
-        die("Geen toegang.");
+    // Security check: student kan alleen eigen toetsen inzien (of gast via token)
+    if ($isGuest) {
+        if ($studentExam['access_token'] !== $_COOKIE['guest_access_token']) {
+            die("Geen toegang (ongeldig token).");
+        }
+    } else {
+        if (!$studentExam || $studentExam['student_id'] != $_SESSION['user_id']) {
+            die("Geen toegang.");
+        }
     }
 
     $questions = Question::allByExam($studentExam['exam_id']);
@@ -77,10 +145,27 @@ class StudentExamController {
    * Submits the exam answers (either interim save or final submit).
    */
   public function submitExam() {
-    requireLogin();
+    // Check login of gast-sessie
+    $isGuest = false;
+    if (!isset($_SESSION['user_id'])) {
+        if (isset($_COOKIE['guest_access_token'])) {
+            $isGuest = true;
+        } else {
+            header('Location: /?action=login');
+            exit;
+        }
+    }
     
     $studentExamId = $_POST['student_exam_id'];
     $actionType = $_POST['action_type'] ?? 'submit'; // 'submit' is de standaard
+
+    // Extra validatie voor gasten
+    if ($isGuest) {
+        $se = StudentExam::find($studentExamId);
+        if ($se['access_token'] !== $_COOKIE['guest_access_token']) {
+            die("Geen toegang.");
+        }
+    }
     
     foreach ($_POST['answers'] as $questionId => $answer) {
       StudentAnswer::save($studentExamId, $questionId, $answer);
@@ -93,7 +178,15 @@ class StudentExamController {
         $stmt = $pdo->prepare("UPDATE student_exams SET completed_at = CURRENT_TIMESTAMP WHERE id = ?");
         $stmt->execute([$studentExamId]);
         
-        header("Location: /?action=my_exams");
+        if ($isGuest) {
+             // Gasten hebben geen dashboard, toon bedankt pagina of resultaten (indien direct beschikbaar)
+             // Voor nu sturen we ze terug naar de toets pagina, die toont dan 'ingeleverd'.
+             // Of we kunnen een simpele 'bedankt' view maken.
+             // Laten we ze naar de take_exam sturen, die we kunnen aanpassen om status te tonen.
+             header("Location: /?action=take_exam&student_exam_id={$studentExamId}");
+        } else {
+            header("Location: /?action=my_exams");
+        }
     } else {
         // Alleen opslaan en terugsturen naar de toetspagina
         AuditLog::log('exam_save_interim', ['student_exam_id' => $studentExamId]);

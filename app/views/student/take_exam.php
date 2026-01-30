@@ -17,6 +17,13 @@ ob_start();
     <?php unset($_SESSION['success_message']); ?>
 <?php endif; ?>
 
+<?php if ($studentExam['completed_at']): ?>
+    <div class="alert alert-info mb-4">
+        <h4>Toets ingeleverd</h4>
+        <p>Je hebt deze toets ingeleverd op <?= $studentExam['completed_at'] ?>. Je kunt je antwoorden niet meer wijzigen.</p>
+    </div>
+<?php else: ?>
+
 <h2 class="mb-4">Toets maken</h2>
 <p class="text-muted mb-4">ID: <?= htmlspecialchars($studentExam['unique_id']) ?></p>
 
@@ -37,6 +44,8 @@ ob_start();
       <button type="submit" name="action_type" value="submit" class="btn btn-success btn-lg" onclick="return confirm('Weet je zeker dat je de toets definitief wilt inleveren? Hierna kun je geen wijzigingen meer maken.')">Definitief inleveren</button>
   </div>
 </form>
+
+<?php endif; ?>
 
 <?php
 $content = ob_get_clean();

@@ -13,11 +13,13 @@ class Exam {
   
   public static function create($title, $description, $docentId) {
     $pdo = Database::connect();
+    // Genereer een unieke publieke token
+    $publicToken = bin2hex(random_bytes(16));
     $stmt = $pdo->prepare("
-			  INSERT INTO exams (title, description, docent_id)
-			  VALUES (?, ?, ?)
+			  INSERT INTO exams (title, description, docent_id, public_token)
+			  VALUES (?, ?, ?, ?)
 			  ");
-    $stmt->execute([$title, $description, $docentId]);
+    $stmt->execute([$title, $description, $docentId, $publicToken]);
   }
 
     public static function all() {
@@ -31,6 +33,13 @@ class Exam {
       $pdo = Database::connect();
       $stmt = $pdo->prepare("SELECT * FROM exams WHERE id = ?");
       $stmt->execute([$id]);
+      return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
+    public static function findByPublicToken($token) {
+      $pdo = Database::connect();
+      $stmt = $pdo->prepare("SELECT * FROM exams WHERE public_token = ?");
+      $stmt->execute([$token]);
       return $stmt->fetch(PDO::FETCH_ASSOC);
     }
 

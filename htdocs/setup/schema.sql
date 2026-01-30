@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS exams (
     title TEXT NOT NULL,
     description TEXT,
     docent_id INTEGER NOT NULL,
+    public_token TEXT UNIQUE, -- Unieke token voor de publieke link
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     -- Voorkom dat een docent wordt verwijderd als er nog toetsen aan gekoppeld zijn.
@@ -36,9 +37,11 @@ CREATE TABLE IF NOT EXISTS questions (
 -- Toetspogingen: koppelt een student aan een specifieke gestarte toets.
 CREATE TABLE IF NOT EXISTS student_exams (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    student_id INTEGER NOT NULL,
+    student_id INTEGER, -- Mag NULL zijn voor gasten
+    guest_name TEXT,    -- Naam van de gaststudent
     exam_id INTEGER NOT NULL,
     unique_id TEXT NOT NULL,
+    access_token TEXT UNIQUE, -- Token voor de cookie om sessie te herstellen
     started_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     completed_at DATETIME,
     -- Als een student of toets wordt verwijderd, worden de pogingen ook verwijderd.

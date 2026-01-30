@@ -124,6 +124,14 @@ switch ($action) {
    $studentExamController->listExams();
    break;
 
+ case 'guest':
+   $studentExamController->guestEntry();
+   break;
+
+ case 'guest_start':
+   $studentExamController->guestStart();
+   break;
+
  case 'start_exam':
    $studentExamController->startExam();
    break;
