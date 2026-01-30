@@ -26,7 +26,7 @@
                 <?php endif; ?>
             </div>
             <?php endif; ?>
-
+            <hr>
             <?php if ($a['ai_feedback']): ?>
                 <div style="background: #e3f2fd; padding: 15px; border-left: 4px solid #2196f3;">
                     <strong style="color: #1565c0;">AI Feedback:</strong><br>
