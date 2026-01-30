@@ -44,5 +44,9 @@ ob_start(); ?>
 <?php
 $content = ob_get_clean();
 $title = "Docent beoordelingen";
+$breadcrumbs = [
+    'Dashboard' => '/?action=docent_dashboard',
+    'Openstaande beoordelingen' => ''
+];
 require __DIR__ . '/../layouts/main.php';
 ?>

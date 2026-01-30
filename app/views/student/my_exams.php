@@ -47,6 +47,10 @@ ob_start(); ?>
 <?php 
 $content = ob_get_clean();
 $title = "Mijn Toetsen";
+$breadcrumbs = [
+    'Dashboard' => '/?action=student_dashboard',
+    'Mijn Toetsen' => ''
+];
 if (file_exists(__DIR__ . '/../layouts/main.php')) {
     require __DIR__ . '/../layouts/main.php';
 } else {

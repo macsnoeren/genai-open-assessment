@@ -130,5 +130,9 @@ if (!function_exists('formatLogDetails')) {
 <?php 
 $content = ob_get_clean();
 $title = "Audit Log";
+$breadcrumbs = [
+    'Dashboard' => '/?action=docent_dashboard',
+    'Audit Log' => ''
+];
 require __DIR__ . '/../layouts/main.php';
 ?>

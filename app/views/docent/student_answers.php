@@ -10,10 +10,6 @@
 ob_start();
 ?>
 
-<div class="mb-3">
-    <a href="/?action=exam_results&exam_id=<?= $studentExam['exam_id'] ?>" class="btn btn-outline-secondary btn-sm">&larr; Terug naar resultaten</a>
-</div>
-
 <h2 class="mb-4">Student antwoorden</h2>
 
 <?php foreach ($answers as $a): ?>
@@ -67,5 +63,10 @@ ob_start();
 <?php
  $content = ob_get_clean();
  $title = "Student antwoorden";
+ $breadcrumbs = [
+    'Dashboard' => '/?action=docent_dashboard',
+    'Resultaten' => '/?action=exam_results&exam_id=' . $studentExam['exam_id'],
+    'Student antwoorden' => ''
+ ];
  require __DIR__ . '/../layouts/main.php';
 ?>

@@ -87,5 +87,9 @@ document.addEventListener('DOMContentLoaded', function() {
 <?php
 $content = ob_get_clean();
 $title = "API-keys beheren";
+$breadcrumbs = [
+    'Dashboard' => '/?action=docent_dashboard',
+    'API Keys' => ''
+];
 require __DIR__ . '/../layouts/main.php';
 ?>

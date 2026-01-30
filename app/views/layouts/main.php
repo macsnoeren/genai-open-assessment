@@ -80,6 +80,34 @@ if (file_exists($pingFile) && is_readable($pingFile)) {
 </nav>
 
 <main class="container my-4 flex-grow-1">
+<?php if (isset($breadcrumbs) && !empty($breadcrumbs)): ?>
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-0">
+            <?php foreach ($breadcrumbs as $label => $url): ?>
+                <?php if ($url): ?>
+                    <li class="breadcrumb-item"><a href="<?= $url ?>" class="text-decoration-none"><?= htmlspecialchars($label) ?></a></li>
+                <?php else: ?>
+                    <li class="breadcrumb-item active" aria-current="page"><?= htmlspecialchars($label) ?></li>
+                <?php endif; ?>
+            <?php endforeach; ?>
+        </ol>
+    </nav>
+    <?php 
+    // Zoek de laatste URL om als terug-knop te gebruiken
+    $backUrl = null;
+    $urls = array_filter(array_values($breadcrumbs));
+    if (!empty($urls)) {
+        $backUrl = end($urls);
+    }
+    ?>
+    <?php if ($backUrl): ?>
+        <a href="<?= $backUrl ?>" class="btn btn-outline-secondary btn-sm">
+            &larr; Terug
+        </a>
+    <?php endif; ?>
+</div>
+<?php endif; ?>
 <?= $content ?? '' ?>
 </main>
 

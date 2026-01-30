@@ -13,7 +13,6 @@ ob_start();
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2 class="mb-0">Vragen: <?= htmlspecialchars($exam['title']) ?></h2>
     <div>
-        <a href="index.php?action=docent_dashboard" class="btn btn-outline-secondary me-2">Terug</a>
         <a href="index.php?action=question_create&exam_id=<?= $exam['id'] ?>" class="btn btn-primary">Nieuwe vraag</a>
     </div>
 </div>
@@ -51,5 +50,9 @@ ob_start();
 <?php
 $content = ob_get_clean();
 $title = "Vragen beheren";
+$breadcrumbs = [
+    'Dashboard' => '/?action=docent_dashboard',
+    "Vragen: " . $exam['title'] => ''
+];
 require __DIR__ . '/../layouts/main.php';
 ?>

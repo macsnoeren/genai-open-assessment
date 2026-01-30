@@ -9,8 +9,6 @@
  */
 ob_start(); ?>
 
-<a href="/?action=my_exams">Terug naar mijn toetsen</a>
-
 <h2>Resultaten: <?= htmlspecialchars($exam['title']) ?></h2>
 <p><?= htmlspecialchars($exam['description']) ?></p>
 
@@ -63,5 +61,10 @@ ob_start(); ?>
 <?php
 $content = ob_get_clean();
 $title = "Resultaten - " . $exam['title'];
+$breadcrumbs = [
+    'Dashboard' => '/?action=student_dashboard',
+    'Mijn toetsen' => '/?action=my_exams',
+    'Resultaten' => ''
+];
 require __DIR__ . '/../layouts/main.php';
 ?>

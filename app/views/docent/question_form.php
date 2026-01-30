@@ -42,7 +42,6 @@ ob_start(); ?>
 
     <div class="d-flex gap-2">
         <button type="submit" class="btn btn-primary">Opslaan</button>
-        <a href="/?action=questions&exam_id=<?= $examId ?>" class="btn btn-outline-secondary">Annuleren</a>
     </div>
 </form>
 </div>
@@ -53,5 +52,10 @@ ob_start(); ?>
 
 <?php 
 $content = ob_get_clean();
+$breadcrumbs = [
+    'Dashboard' => '/?action=docent_dashboard',
+    'Vragen' => '/?action=questions&exam_id=' . $examId,
+    $title => ''
+];
 require __DIR__ . '/../layouts/main.php'; 
 ?>

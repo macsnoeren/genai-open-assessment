@@ -47,5 +47,9 @@ ob_start();
 <?php
  $content = ob_get_clean();
  $title = "Studenten beheren";
+ $breadcrumbs = [
+    'Dashboard' => '/?action=docent_dashboard',
+    'Gebruikers' => ''
+ ];
  require __DIR__ . '/../layouts/main.php';
 ?>

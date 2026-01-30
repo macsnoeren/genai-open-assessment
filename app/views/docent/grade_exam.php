@@ -10,8 +10,6 @@
 ob_start();
 ?>
 
-<a href="/?action=exam_results&exam_id=<?= $studentExam['exam_id'] ?>">Terug naar resultaten</a>
-
 <h2>Beoordelen (Blind)</h2>
 <p>Hier beoordeel je de antwoorden zonder invloed van de AI-feedback.</p>
 
@@ -41,5 +39,10 @@ ob_start();
 <?php
  $content = ob_get_clean();
  $title = "Beoordelen (Blind)";
+ $breadcrumbs = [
+    'Dashboard' => '/?action=docent_dashboard',
+    'Resultaten' => '/?action=exam_results&exam_id=' . $studentExam['exam_id'],
+    'Beoordelen' => ''
+ ];
  require __DIR__ . '/../layouts/main.php';
 ?>

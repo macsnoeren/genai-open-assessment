@@ -43,5 +43,9 @@
 <?php
  $content = ob_get_clean();
  $title = "Toets resultaten";
+ $breadcrumbs = [
+    'Dashboard' => '/?action=docent_dashboard',
+    'Resultaten' => ''
+ ];
  require __DIR__ . '/../layouts/main.php';
 ?>

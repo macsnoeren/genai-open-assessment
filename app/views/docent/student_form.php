@@ -50,7 +50,6 @@ ob_start(); ?>
 
     <div class="d-flex gap-2">
         <button type="submit" class="btn btn-primary">Opslaan</button>
-        <a href="/?action=students" class="btn btn-outline-secondary">Annuleren</a>
     </div>
 </form>
 </div>
@@ -61,5 +60,10 @@ ob_start(); ?>
 
 <?php 
 $content = ob_get_clean();
+$breadcrumbs = [
+    'Dashboard' => '/?action=docent_dashboard',
+    'Gebruikers' => '/?action=students',
+    $title => ''
+];
 require __DIR__ . '/../layouts/main.php'; 
 ?>

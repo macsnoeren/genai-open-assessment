@@ -41,5 +41,9 @@ ob_start();
 <?php
 $content = ob_get_clean();
 $title = "Toets maken";
+$breadcrumbs = [
+    'Dashboard' => '/?action=student_dashboard',
+    'Toets maken' => ''
+];
 require __DIR__ . '/../layouts/main.php';
 ?>
