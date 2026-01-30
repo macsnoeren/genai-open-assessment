@@ -1,11 +1,26 @@
 <?php
+/**
+ * Copyright (C) 2025 JMNL Innovation.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ */
 
 require_once __DIR__ . '/../models/Student.php';
 require_once __DIR__ . '/../models/AuditLog.php';
 require_once __DIR__ . '/../helpers/auth.php';
 
+/**
+ * Class StudentController
+ * Handles user management (CRUD for students/users).
+ */
 class StudentController {
   
+  /**
+   * Lists all users.
+   */
   public function index() {
     requireLogin();
     requireRole('docent');
@@ -18,6 +33,9 @@ class StudentController {
     require __DIR__ . '/../views/docent/students.php';
   }
   
+  /**
+   * Shows the form to create a new user.
+   */
   public function create() {
     requireLogin();
     requireRole('docent');
@@ -28,6 +46,9 @@ class StudentController {
     require __DIR__ . '/../views/docent/student_form.php';
   }
   
+  /**
+   * Stores a new user in the database.
+   */
   public function store() {
     requireLogin();
     requireRole('docent');
@@ -53,6 +74,9 @@ class StudentController {
     exit;
   }
   
+  /**
+   * Shows the form to edit a user.
+   */
   public function edit() {
     requireLogin();
     requireRole('docent');
@@ -72,6 +96,9 @@ class StudentController {
     require __DIR__ . '/../views/docent/student_form.php';
   }
   
+  /**
+   * Updates a user in the database.
+   */
   public function update() {
     requireLogin();
     requireRole('docent');
@@ -111,6 +138,9 @@ class StudentController {
     exit;
   }
   
+  /**
+   * Deletes a user.
+   */
   public function delete() {
             requireLogin();
 	    requireRole('docent');

@@ -1,23 +1,33 @@
 <?php
+/**
+ * Copyright (C) 2025 JMNL Innovation.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ */
+
 $parserStatus = 'inactive';
 $pingFile = __DIR__ . '/../../../database/last_api_ping.txt';
 
 // Check if the file exists, is readable, and contains a recent timestamp
-if (is_readable($pingFile)) {
+if (file_exists($pingFile) && is_readable($pingFile)) {
     $lastPing = file_get_contents($pingFile);
     if ($lastPing !== false && is_numeric($lastPing) && (time() - (int)$lastPing) < 120) {
         $parserStatus = 'active';
     }
 }
-// If the file doesn't exist, is not readable, or the timestamp is old, the status remains 'inactive' (red dot).
 ?>
 <!DOCTYPE html>
-<html>
+<html lang="nl">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= $title ?? 'Openvragen kennistoetsing' ?></title>
-        <link rel="stylesheet" href="style.css">
-	</head>
-	<body>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
 
 <header style="display: flex; justify-content: space-between; align-items: center;">
     <div style="display: flex; align-items: center; gap: 20px;">

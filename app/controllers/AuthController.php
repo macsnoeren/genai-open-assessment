@@ -1,14 +1,29 @@
 <?php
+/**
+ * Copyright (C) 2025 JMNL Innovation.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ */
 
 require_once __DIR__ . '/../models/User.php';
 require_once __DIR__ . '/../models/AuditLog.php';
 
+/**
+ * Class AuthController
+ * Handles authentication (login, logout, registration).
+ */
 class AuthController {
   
   public function showLogin() {
     require __DIR__ . '/../views/auth/login.php';
   }
   
+  /**
+   * Processes the login request.
+   */
   public function login() {
     $email = $_POST['email'] ?? '';
     $password = $_POST['password'] ?? '';
@@ -39,6 +54,9 @@ class AuthController {
     exit;
   }
   
+  /**
+   * Logs the user out and destroys the session.
+   */
   public function logout() {
     AuditLog::log('logout');
     session_destroy();
@@ -46,6 +64,9 @@ class AuthController {
     exit;
   }
 
+  /**
+   * Shows the registration form (only if no users exist).
+   */
   public function showRegister() {
     // Check of er al gebruikers zijn
     $pdo = Database::connect();
@@ -58,6 +79,9 @@ class AuthController {
     require __DIR__ . '/../views/auth/register.php';
   }
 
+  /**
+   * Registers the first admin user.
+   */
   public function registerFirstAdmin() {
     $pdo = Database::connect();
     $count = $pdo->query("SELECT COUNT(*) FROM users")->fetchColumn();

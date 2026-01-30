@@ -1,12 +1,27 @@
 <?php
+/**
+ * Copyright (C) 2025 JMNL Innovation.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ */
 
 require_once __DIR__ . '/../models/Exam.php';
 require_once __DIR__ . '/../helpers/auth.php';
 require_once __DIR__ . '/../models/AuditLog.php';
 require_once __DIR__ . '/../models/Questions.php';
 
+/**
+ * Class DocentController
+ * Handles actions related to teachers (docenten) and graders (beoordelaars).
+ */
 class DocentController {
   
+  /**
+   * Displays the dashboard for the docent.
+   */
   public function dashboard() {
     requireLogin();
     requireRole('docent');
@@ -15,6 +30,9 @@ class DocentController {
     require __DIR__ . '/../views/docent/dashboard.php';
   }
   
+  /**
+   * Shows the form to create a new exam.
+   */
   public function createExam() {
     requireLogin();
     requireRole('docent');
@@ -25,6 +43,9 @@ class DocentController {
     require __DIR__ . '/../views/docent/exam_form.php';
   }
   
+  /**
+   * Stores a newly created exam in the database.
+   */
   public function storeExam() {
     requireLogin();
     requireRole('docent');
@@ -43,6 +64,9 @@ class DocentController {
     exit;
   }
   
+  /**
+   * Shows the form to edit an existing exam.
+   */
   public function editExam() {
     requireLogin();
     requireRole('docent');
@@ -53,6 +77,9 @@ class DocentController {
     require __DIR__ . '/../views/docent/exam_form.php';
   }
   
+  /**
+   * Updates an existing exam in the database.
+   */
   public function updateExam() {
     requireLogin();
     requireRole('docent');
@@ -79,6 +106,9 @@ class DocentController {
     exit;
   }
   
+  /**
+   * Deletes an exam.
+   */
   public function deleteExam() {
     requireLogin();
     requireRole('docent');
@@ -89,6 +119,10 @@ class DocentController {
     exit;
   }
 
+  /**
+   * Lists all questions for a specific exam.
+   * @param int $examId
+   */
   public function questions($examId) {
     requireLogin();
     requireRole('docent');
@@ -99,6 +133,9 @@ class DocentController {
     require __DIR__ . '/../views/docent/questions.php';
   }
   
+  /**
+   * Shows the form to create a new question.
+   */
   public function createQuestion() {
     requireLogin();
     requireRole('docent');
@@ -110,6 +147,9 @@ class DocentController {
     require __DIR__ . '/../views/docent/question_form.php';
   }
   
+  /**
+   * Stores a newly created question.
+   */
   public function storeQuestion() {
     requireLogin();
     requireRole('docent');
@@ -131,6 +171,9 @@ class DocentController {
     exit;
   }
   
+  /**
+   * Shows the form to edit a question.
+   */
   public function editQuestion() {
     requireLogin();
     requireRole('docent');
@@ -142,6 +185,9 @@ class DocentController {
     require __DIR__ . '/../views/docent/question_form.php';
   }
   
+  /**
+   * Updates an existing question.
+   */
   public function updateQuestion() {
     requireLogin();
     requireRole('docent');
@@ -172,6 +218,9 @@ class DocentController {
     exit;
   }
   
+  /**
+   * Deletes a question.
+   */
   public function deleteQuestion() {
     requireLogin();
     requireRole('docent');
@@ -188,6 +237,10 @@ class DocentController {
     exit;
   }
 
+  /**
+   * Views the results of all students for a specific exam.
+   * @param int $examId
+   */
 public function viewExamResults($examId) {
     requireLogin();
     requireRole('docent');
@@ -196,6 +249,10 @@ public function viewExamResults($examId) {
     require __DIR__ . '/../views/docent/exam_results.php';
 }
 
+  /**
+   * Views the detailed answers of a specific student exam attempt.
+   * @param int $studentExamId
+   */
 public function viewStudentAnswers($studentExamId) {
     requireLogin();
         requireRole('docent');
@@ -215,6 +272,10 @@ public function viewStudentAnswers($studentExamId) {
     require __DIR__ . '/../views/docent/student_answers.php';
     }
 
+  /**
+   * Shows the grading interface for a student exam (blind grading).
+   * @param int $studentExamId
+   */
   public function gradeStudentExam($studentExamId) {
     requireLogin();
     requireRole('beoordelaar');
@@ -234,6 +295,9 @@ public function viewStudentAnswers($studentExamId) {
     require __DIR__ . '/../views/docent/grade_exam.php';
   }
 
+  /**
+   * Saves the teacher's feedback and score for a specific answer.
+   */
   public function saveTeacherFeedback() {
     requireLogin();
     requireRole('beoordelaar');
@@ -252,6 +316,9 @@ public function viewStudentAnswers($studentExamId) {
     exit;
   }
 
+  /**
+   * Deletes a student's exam attempt.
+   */
   public function deleteStudentExam() {
     requireLogin();
     requireRole('docent');
@@ -270,6 +337,9 @@ public function viewStudentAnswers($studentExamId) {
     exit;
   }
 
+  /**
+   * Shows a list of assessments pending grading.
+   */
   public function pendingAssessments() {
     requireLogin();
     requireRole('beoordelaar');
@@ -305,6 +375,9 @@ public function viewStudentAnswers($studentExamId) {
     require __DIR__ . '/../views/docent/pending_assessments.php';
   }
 
+  /**
+   * Displays the audit log.
+   */
   public function auditLog() {
     requireLogin();
     requireRole('docent');
@@ -327,6 +400,9 @@ public function viewStudentAnswers($studentExamId) {
     require __DIR__ . '/../views/docent/audit_log.php';
   }
 
+  /**
+   * Clears the audit log (Admin only).
+   */
   public function clearAuditLog() {
     requireLogin();
     

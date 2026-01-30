@@ -1,4 +1,12 @@
 <?php
+/**
+ * Copyright (C) 2025 JMNL Innovation.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ */
 
 require_once __DIR__ . '/../helpers/auth.php';
 require_once __DIR__ . '/../models/Exam.php';
@@ -7,8 +15,15 @@ require_once __DIR__ . '/../models/StudentExam.php';
 require_once __DIR__ . '/../models/AuditLog.php';
 require_once __DIR__ . '/../models/StudentAnswer.php';
 
+/**
+ * Class StudentExamController
+ * Handles the student's perspective of taking exams.
+ */
 class StudentExamController {
   
+  /**
+   * Lists available exams for the student.
+   */
   public function listExams() {
     requireLogin();
     requireRole('student');
@@ -17,6 +32,9 @@ class StudentExamController {
     require __DIR__ . '/../views/student/exams_list.php';
   }
   
+  /**
+   * Starts an exam attempt for a student.
+   */
   public function startExam() {
     requireLogin();
     
@@ -29,6 +47,9 @@ class StudentExamController {
     exit;
   }
   
+  /**
+   * Displays the exam form for taking the exam.
+   */
   public function takeExam() {
     requireLogin();
     
@@ -52,6 +73,9 @@ class StudentExamController {
     require __DIR__ . '/../views/student/take_exam.php';
   }
   
+  /**
+   * Submits the exam answers (either interim save or final submit).
+   */
   public function submitExam() {
     requireLogin();
     
@@ -80,6 +104,9 @@ class StudentExamController {
     exit;
   }
   
+  /**
+   * Lists exams taken by the student.
+   */
   public function myExams() {
     requireLogin();
     
@@ -89,6 +116,9 @@ class StudentExamController {
     require __DIR__ . '/../views/student/my_exams.php';
   }
 
+  /**
+   * Displays the student dashboard.
+   */
   public function dashboard() {
     requireLogin();
     requireRole('student');
@@ -104,6 +134,9 @@ class StudentExamController {
     require __DIR__ . '/../views/student/dashboard.php';
   }
 
+  /**
+   * Views the results of a specific exam attempt.
+   */
   public function viewResults() {
     requireLogin();
     

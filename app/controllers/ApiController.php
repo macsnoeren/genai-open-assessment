@@ -1,15 +1,30 @@
 <?php
+/**
+ * Copyright (C) 2025 JMNL Innovation.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ */
 
 require_once __DIR__ . '/../models/AuditLog.php';
 require_once __DIR__ . '/../models/StudentAnswer.php';
 require_once __DIR__ . '/../../config/database.php';
 
+/**
+ * Class ApiController
+ * Handles external API requests (e.g., from the AI feedback service).
+ */
 class ApiController {
 
     public function __construct() {
         header('Content-Type: application/json');
     }
 
+    /**
+     * Verifies the API key provided in the request.
+     */
     private function verifyApiKey() {
         $key = $_GET['api_key'] ?? null;
 
@@ -25,6 +40,9 @@ class ApiController {
         }
     }
 
+    /**
+     * Retrieves open answers that need AI grading.
+     */
     public function getOpenAnswers() {
         $this->verifyApiKey();
 
@@ -40,6 +58,9 @@ class ApiController {
         }
     }
 
+    /**
+     * Receives AI feedback and updates the student answer.
+     */
     public function submitAiFeedback() {
         $this->verifyApiKey();
         
