@@ -4,7 +4,8 @@ ob_start();
 
 <a href="/?action=exam_results&exam_id=<?= $studentExam['exam_id'] ?>">← Terug naar resultaten</a>
 
-<h2>Student antwoorden</h2>
+<h2>Beoordelen (Blind)</h2>
+<p>Hier beoordeel je de antwoorden zonder invloed van de AI-feedback.</p>
 
 <?php foreach ($answers as $a): ?>
 <div class="card" id="answer-<?= $a['id'] ?>">
@@ -12,18 +13,13 @@ ob_start();
   <p><strong>Student antwoord:</strong> <?= nl2br(htmlspecialchars($a['answer'])) ?></p>
   <p><strong>Model antwoord:</strong> <?= nl2br(htmlspecialchars($a['model_answer'])) ?></p>
   <p><strong>Criteria:</strong> <?= nl2br(htmlspecialchars($a['criteria'])) ?></p>
-  <?php if ($a['ai_feedback']): ?>
-  <p><strong>AI feedback:</strong><br>
-    <?= nl2br(htmlspecialchars($a['ai_feedback'])) ?>
-  </p>
-  <?php endif; ?>
 
   <hr style="margin: 15px 0; border: 0; border-top: 1px solid #eee;">
   
   <form method="POST" action="/?action=save_teacher_feedback" style="background: #f9f9f9; padding: 10px; border-radius: 5px;">
       <input type="hidden" name="student_answer_id" value="<?= $a['id'] ?>">
       <input type="hidden" name="student_exam_id" value="<?= $studentExam['id'] ?>">
-      <input type="hidden" name="redirect_action" value="view_student_answers">
+      <input type="hidden" name="redirect_action" value="grade_student_exam">
       
       <h4 style="margin-top: 0;">Docent Beoordeling</h4>
       <div style="margin-bottom: 10px;">
@@ -38,6 +34,6 @@ ob_start();
 
 <?php
  $content = ob_get_clean();
- $title = "Student antwoorden";
+ $title = "Beoordelen (Blind)";
  require __DIR__ . '/../layouts/main.php';
 ?>

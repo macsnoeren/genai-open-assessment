@@ -215,6 +215,25 @@ public function viewStudentAnswers($studentExamId) {
     require __DIR__ . '/../views/docent/student_answers.php';
     }
 
+  public function gradeStudentExam($studentExamId) {
+    requireLogin();
+    requireRole('docent');
+
+    $studentExam = StudentExam::find($studentExamId);
+
+    $pdo = Database::connect();
+    $stmt = $pdo->prepare("
+        SELECT sa.id, q.question_text, sa.answer, q.model_answer, q.criteria, sa.teacher_score, sa.teacher_feedback
+        FROM student_answers sa
+        JOIN questions q ON sa.question_id = q.id
+        WHERE sa.student_exam_id = ?
+    ");
+    $stmt->execute([$studentExamId]);
+    $answers = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    require __DIR__ . '/../views/docent/grade_exam.php';
+  }
+
   public function saveTeacherFeedback() {
     requireLogin();
     requireRole('docent');
@@ -223,12 +242,13 @@ public function viewStudentAnswers($studentExamId) {
     $score = $_POST['teacher_score'] === '' ? null : $_POST['teacher_score'];
     $feedback = $_POST['teacher_feedback'];
     $studentExamId = $_POST['student_exam_id'];
+    $redirectAction = $_POST['redirect_action'] ?? 'view_student_answers';
 
     $pdo = Database::connect();
     $stmt = $pdo->prepare("UPDATE student_answers SET teacher_score = ?, teacher_feedback = ? WHERE id = ?");
     $stmt->execute([$score, $feedback, $studentAnswerId]);
 
-    header('Location: /?action=view_student_answers&student_exam_id=' . $studentExamId . '#answer-' . $studentAnswerId);
+    header('Location: /?action=' . $redirectAction . '&student_exam_id=' . $studentExamId . '#answer-' . $studentAnswerId);
     exit;
   }
 

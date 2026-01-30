@@ -23,6 +23,7 @@
       <td><?= $se['completed_at'] ?? 'Nog niet ingeleverd' ?></td>
       <td>
 	<a href="/?action=view_student_answers&student_exam_id=<?= $se['student_exam_id'] ?>">📝 Bekijken</a> |
+    <a href="/?action=grade_student_exam&student_exam_id=<?= $se['student_exam_id'] ?>">⚖️ Beoordelen (Blind)</a> |
     <a href="/?action=delete_student_exam&student_exam_id=<?= $se['student_exam_id'] ?>" 
        onclick="return confirm('Weet je zeker dat je dit resultaat wilt verwijderen? Alle antwoorden en feedback gaan verloren.')" style="color: red;">🗑 Verwijderen</a>
       </td>
