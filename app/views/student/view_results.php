@@ -17,7 +17,7 @@
         <?php if ($a): ?>
             <?php if (isset($a['teacher_score']) || !empty($a['teacher_feedback'])): ?>
             <div style="margin-top: 10px; padding: 10px; background-color: #fff3cd; border-left: 4px solid #ffc107;">
-                <strong>👨‍🏫 Docent beoordeling:</strong><br>
+                <strong>Docent beoordeling:</strong><br>
                 <?php if (isset($a['teacher_score'])): ?>
                     Score: <strong><?= htmlspecialchars($a['teacher_score']) ?></strong><br>
                 <?php endif; ?>
@@ -27,10 +27,17 @@
             </div>
             <?php endif; ?>
 
-            <?php if (!empty($a['ai_feedback'])): ?>
-            <p><strong>AI feedback:</strong><br>
-                <?= nl2br(htmlspecialchars($a['ai_feedback'])) ?>
-            </p>
+            <?php if ($aiFeedback): ?>
+                <div style="background: #e3f2fd; padding: 15px; border-left: 4px solid #2196f3;">
+                    <strong style="color: #1565c0;">AI Feedback:</strong><br>
+                    <div style="margin-top: 5px; white-space: pre-wrap; font-family: monospace, sans-serif; font-size: 0.95em;">
+                    <?= htmlspecialchars($aiFeedback) ?>
+                    </div>
+                </div>
+            <?php else: ?>
+                <div style="color: #666; font-style: italic; padding: 10px; background: #f5f5f5; border-radius: 4px;">
+                    Nog geen feedback beschikbaar. Dit proces loopt op de achtergrond.
+                </div>
             <?php endif; ?>
         <?php endif; ?>
     </div>
