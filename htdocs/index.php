@@ -179,6 +179,10 @@ switch ($action) {
   case 'clear_audit_log':
     $docent->clearAuditLog();
     break;
+
+ case 'pending_assessments':
+    $docent->pendingAssessments();
+    break;
    
  default:
    echo "404";

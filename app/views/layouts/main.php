@@ -37,6 +37,7 @@ if (is_readable($pingFile)) {
   <?php if (!empty($_SESSION['user_id'])): ?>
     <?php if (isset($_SESSION['role']) && ($_SESSION['role'] === 'docent' || $_SESSION['role'] === 'admin')): ?>
       <a href="index.php?action=docent_dashboard">Dashboard</a>
+      <a href="/?action=pending_assessments">Docent beoordelingen</a>
       <a href="/?action=students">Gebruikers beheren</a>
       <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin'): ?>
       <a href="/?action=api_keys">API-keys beheren</a>
