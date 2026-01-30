@@ -19,6 +19,21 @@ ob_start();
     </div>
 <?php else: ?>
 
+    <!-- Chart Section -->
+    <div class="card mb-4">
+        <div class="card-header bg-light fw-bold">
+            Correlatie Visualisatie (Docent vs AI)
+        </div>
+        <div class="card-body">
+            <div style="height: 400px;">
+                <canvas id="correlationChart"></canvas>
+            </div>
+            <p class="text-muted small mt-2 text-center">
+                * Punten zijn licht verspreid (jitter) om overlap te voorkomen. De diagonale lijn geeft een perfecte overeenkomst aan.
+            </p>
+        </div>
+    </div>
+
     <!-- Statistieken Tabel -->
     <div class="card mb-4">
         <div class="card-header bg-light fw-bold">
@@ -111,6 +126,111 @@ ob_start();
             </div>
         </div>
     </div>
+
+    <!-- Chart.js Script -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const comparisonData = <?= json_encode($comparisonData) ?>;
+            const modelsFound = <?= json_encode(array_keys($modelsFound)) ?>;
+            
+            const datasets = modelsFound.map((model, index) => {
+                const colors = ['#0d6efd', '#dc3545', '#198754', '#ffc107', '#0dcaf0', '#6610f2', '#fd7e14'];
+                const color = colors[index % colors.length];
+                
+                return {
+                    label: model,
+                    data: comparisonData.map(item => {
+                        if (item.models[model] !== undefined) {
+                            // Jitter toevoegen voor zichtbaarheid
+                            const jitterX = (Math.random() - 0.5) * 0.3;
+                            const jitterY = (Math.random() - 0.5) * 0.3;
+                            return {
+                                x: item.teacher_score + jitterX,
+                                y: item.models[model] + jitterY,
+                                originalX: item.teacher_score,
+                                originalY: item.models[model]
+                            };
+                        }
+                        return null;
+                    }).filter(item => item !== null),
+                    backgroundColor: color,
+                    borderColor: color,
+                    pointRadius: 5,
+                    pointHoverRadius: 7,
+                    pointStyle: 'circle'
+                };
+            });
+
+            // Diagonale lijn (perfecte match)
+            datasets.push({
+                label: 'Perfecte match',
+                data: [{x: 0, y: 0}, {x: 10, y: 10}],
+                type: 'line',
+                borderColor: '#adb5bd',
+                borderDash: [5, 5],
+                pointRadius: 0,
+                fill: false,
+                showLine: true,
+                order: 999 // Zorg dat deze achteraan ligt
+            });
+
+            const ctx = document.getElementById('correlationChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'scatter',
+                data: { datasets: datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            type: 'linear',
+                            position: 'bottom',
+                            title: {
+                                display: true,
+                                text: 'Docent Score'
+                            },
+                            min: -0.5,
+                            max: 10.5,
+                            ticks: {
+                                stepSize: 1
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'AI Score'
+                            },
+                            min: -0.5,
+                            max: 10.5,
+                            ticks: {
+                                stepSize: 1
+                            }
+                        }
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const raw = context.raw;
+                                    // Gebruik de originele waarden zonder jitter voor de tooltip
+                                    const x = raw.originalX !== undefined ? raw.originalX : Math.round(raw.x);
+                                    const y = raw.originalY !== undefined ? raw.originalY : Math.round(raw.y);
+                                    
+                                    if (context.dataset.type === 'line') return null;
+                                    
+                                    return context.dataset.label + ': Docent ' + x + ' vs AI ' + y;
+                                }
+                            }
+                        },
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        });
+    </script>
 <?php endif; ?>
 
 <?php
