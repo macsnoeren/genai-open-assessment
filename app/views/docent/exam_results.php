@@ -12,33 +12,39 @@
 
 <h2>Resultaten toets</h2>
 
-<table>
-  <thead>
+<div class="card">
+<div class="table-responsive">
+<table class="table table-striped table-hover mb-0">
+  <thead class="table-light">
     <tr>
       <th>Student</th>
       <th>Toets ID</th>
       <th>Gestart op</th>
       <th>Ingeleverd op</th>
-      <th>Acties</th>
+      <th class="text-end">Acties</th>
     </tr>
   </thead>
   <tbody>
     <?php foreach ($studentExams as $se): ?>
     <tr>
       <td><?= htmlspecialchars($se['name']) ?></td>
-      <td><?= htmlspecialchars($se['unique_id']) ?></td>
+      <td class="font-monospace"><?= htmlspecialchars($se['unique_id']) ?></td>
       <td><?= $se['started_at'] ?></td>
       <td><?= $se['completed_at'] ?? 'Nog niet ingeleverd' ?></td>
-      <td>
-	<a href="/?action=view_student_answers&student_exam_id=<?= $se['student_exam_id'] ?>">Bekijken</a> |
-    <a href="/?action=grade_student_exam&student_exam_id=<?= $se['student_exam_id'] ?>">Beoordelen (Blind)</a> |
+      <td class="text-end">
+        <div class="btn-group btn-group-sm">
+            <a href="/?action=view_student_answers&student_exam_id=<?= $se['student_exam_id'] ?>" class="btn btn-outline-secondary">Bekijken</a>
+            <a href="/?action=grade_student_exam&student_exam_id=<?= $se['student_exam_id'] ?>" class="btn btn-outline-primary">Beoordelen (Blind)</a>
+        </div>
     <a href="/?action=delete_student_exam&student_exam_id=<?= $se['student_exam_id'] ?>" 
-       onclick="return confirm('Weet je zeker dat je dit resultaat wilt verwijderen? Alle antwoorden en feedback gaan verloren.')" style="color: red;">Verwijderen</a>
+       onclick="return confirm('Weet je zeker dat je dit resultaat wilt verwijderen? Alle antwoorden en feedback gaan verloren.')" class="btn btn-sm btn-outline-danger ms-1">Verwijderen</a>
       </td>
     </tr>
     <?php endforeach; ?>
   </tbody>
 </table>
+</div>
+</div>
 
 <?php
  $content = ob_get_clean();

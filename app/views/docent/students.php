@@ -12,16 +12,20 @@ ob_start();
 
 <h2>Gebruikers beheren</h2>
 
-<a href="/?action=student_create" class="table-btn">Nieuwe gebruiker</a>
+<div class="mb-3">
+    <a href="/?action=student_create" class="btn btn-primary">Nieuwe gebruiker</a>
+</div>
 
-<table>
-  <thead>
+<div class="card">
+<div class="table-responsive">
+<table class="table table-striped table-hover mb-0">
+  <thead class="table-light">
     <tr>
       <th>Naam</th>
       <th>Email</th>
       <th>Rol</th>
       <th>Aangemaakt</th>
-      <th>Acties</th>
+      <th class="text-end">Acties</th>
     </tr>
   </thead>
   <tbody>
@@ -30,19 +34,23 @@ ob_start();
       <td><?= htmlspecialchars($s['name']) ?></td>
       <td><?= htmlspecialchars($s['email']) ?></td>
       <td>
-          <span style="padding: 2px 6px; border-radius: 4px; background: <?= $s['role'] == 'admin' ? '#d63384' : ($s['role'] == 'docent' ? '#0d6efd' : '#6c757d') ?>; color: white; font-size: 0.8em;">
+          <span class="badge <?= $s['role'] == 'admin' ? 'bg-danger' : ($s['role'] == 'docent' ? 'bg-primary' : 'bg-secondary') ?>">
             <?= htmlspecialchars($s['role']) ?>
           </span>
       </td>
       <td><?= $s['created_at'] ?></td>
-      <td>
-	<a href="/?action=student_edit&id=<?= $s['id'] ?>">Bewerken</a> |
-	<a href="/?action=student_delete&id=<?= $s['id'] ?>" onclick="return confirm('Weet je het zeker?')">Verwijderen</a>
+      <td class="text-end">
+        <div class="btn-group btn-group-sm">
+            <a href="/?action=student_edit&id=<?= $s['id'] ?>" class="btn btn-outline-primary">Bewerken</a>
+            <a href="/?action=student_delete&id=<?= $s['id'] ?>" class="btn btn-outline-danger" onclick="return confirm('Weet je het zeker?')">Verwijderen</a>
+        </div>
       </td>
     </tr>
     <?php endforeach; ?>
   </tbody>
 </table>
+</div>
+</div>
 
 <?php
  $content = ob_get_clean();

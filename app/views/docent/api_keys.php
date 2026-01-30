@@ -13,11 +13,11 @@ if (isset($_SESSION['new_api_key'])):
     $newKeyData = $_SESSION['new_api_key'];
     unset($_SESSION['new_api_key']);
 ?>
-<div class="success-message" style="padding: 15px; background-color: #e6ffe6; border: 1px solid #006600; margin-bottom: 20px; border-radius: 5px;">
+<div class="alert alert-success mb-4">
     <strong>Nieuwe API-key succesvol aangemaakt!</strong><br>
     Dit is de enige keer dat de volledige key wordt getoond. Kopieer hem nu en bewaar hem op een veilige plek.<br><br>
     <strong>Naam:</strong> <?= htmlspecialchars($newKeyData['name']) ?><br>
-    <strong>Key:</strong> <input type="text" readonly onclick="this.select();" value="<?= htmlspecialchars($newKeyData['key']) ?>" style="width: 100%; font-family: monospace; margin-top: 5px; padding: 5px;">
+    <strong>Key:</strong> <input type="text" readonly onclick="this.select();" value="<?= htmlspecialchars($newKeyData['key']) ?>" class="form-control font-monospace mt-2">
 </div>
 <?php endif; ?>
 
@@ -25,33 +25,37 @@ if (isset($_SESSION['new_api_key'])):
 
 <p>Beheer hier de API-keys voor externe applicaties, zoals de AI feedback service.</p>
 
-<!-- Knop om modal te openen -->
-<button id="openApiKeyModal" class="table-btn">Nieuwe API-key</button>
-<br><hr>
+<div class="mb-3">
+    <button id="openApiKeyModal" class="btn btn-primary">Nieuwe API-key</button>
+</div>
 
-<table>
-  <thead>
+<div class="card">
+<div class="table-responsive">
+<table class="table table-striped table-hover mb-0">
+  <thead class="table-light">
     <tr>
       <th>Naam</th>
       <th>Key (gedeeltelijk)</th>
       <th>Aangemaakt</th>
-      <th>Acties</th>
+      <th class="text-end">Acties</th>
     </tr>
   </thead>
   <tbody>
     <?php foreach ($keys as $key): ?>
     <tr>
       <td><?= htmlspecialchars($key['name']) ?></td>
-      <td style="font-family: monospace;"><?= htmlspecialchars(substr($key['api_key'], 0, 8)) ?>...</td>
+      <td class="font-monospace"><?= htmlspecialchars(substr($key['api_key'], 0, 8)) ?>...</td>
       <td><?= $key['created_at'] ?></td>
-      <td>
+      <td class="text-end">
         <a href="/?action=api_key_delete&id=<?= $key['id'] ?>"
-           onclick="return confirm('Weet je zeker dat je deze API-key wilt verwijderen?')" style="color: #c00;">Verwijderen</a>
+           onclick="return confirm('Weet je zeker dat je deze API-key wilt verwijderen?')" class="btn btn-sm btn-outline-danger">Verwijderen</a>
       </td>
     </tr>
     <?php endforeach; ?>
   </tbody>
 </table>
+</div>
+</div>
 
 <!-- Modal -->
 <div id="apiKeyModal" class="modal">

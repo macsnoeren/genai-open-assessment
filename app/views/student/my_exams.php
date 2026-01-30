@@ -14,34 +14,42 @@ ob_start(); ?>
 <?php if (empty($studentExams)): ?>
     <p>Je hebt nog geen toetsen gemaakt.</p>
 <?php else: ?>
-    <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
-        <thead>
-            <tr style="text-align: left;">
-                <th style="padding: 10px; border-bottom: 2px solid #ddd;">Toets</th>
-                <th style="padding: 10px; border-bottom: 2px solid #ddd;">Gestart op</th>
-                <th style="padding: 10px; border-bottom: 2px solid #ddd;">Status</th>
-                <th style="padding: 10px; border-bottom: 2px solid #ddd;">Acties</th>
+    <div class="card">
+    <div class="table-responsive">
+    <table class="table table-striped table-hover mb-0">
+        <thead class="table-light">
+            <tr>
+                <th>Toets</th>
+                <th>Gestart op</th>
+                <th>Status</th>
+                <th class="text-end">Acties</th>
             </tr>
         </thead>
         <tbody>
             <?php foreach ($studentExams as $se): ?>
                 <tr>
-                    <td style="padding: 10px; border-bottom: 1px solid #eee;"><?= htmlspecialchars($se['title']) ?></td>
-                    <td style="padding: 10px; border-bottom: 1px solid #eee;"><?= $se['started_at'] ?></td>
-                    <td style="padding: 10px; border-bottom: 1px solid #eee;">
-                        <?= $se['completed_at'] ? 'Ingeleverd' : 'Bezig' ?>
-                    </td>
-                    <td style="padding: 10px; border-bottom: 1px solid #eee;">
-                        <?php if ($se['completed_at']): ?>
-                            <a href="/?action=student_view_results&student_exam_id=<?= $se['id'] ?>">Bekijk resultaten</a>
+                    <td><?= htmlspecialchars($se['title']) ?></td>
+                    <td><?= $se['started_at'] ?></td>
+                    <td>
+                        <?php if($se['completed_at']): ?>
+                            <span class="badge bg-success">Ingeleverd</span>
                         <?php else: ?>
-                            <a href="/?action=take_exam&student_exam_id=<?= $se['id'] ?>">Verder gaan</a>
+                            <span class="badge bg-warning text-dark">Bezig</span>
+                        <?php endif; ?>
+                    </td>
+                    <td class="text-end">
+                        <?php if ($se['completed_at']): ?>
+                            <a href="/?action=student_view_results&student_exam_id=<?= $se['id'] ?>" class="btn btn-sm btn-outline-secondary">Bekijk resultaten</a>
+                        <?php else: ?>
+                            <a href="/?action=take_exam&student_exam_id=<?= $se['id'] ?>" class="btn btn-sm btn-primary">Verder gaan</a>
                         <?php endif; ?>
                     </td>
                 </tr>
             <?php endforeach; ?>
         </tbody>
     </table>
+    </div>
+    </div>
 <?php endif; ?>
 
 <?php 

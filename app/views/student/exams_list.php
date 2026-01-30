@@ -12,24 +12,28 @@ ob_start();
 
 <h2>Beschikbare toetsen</h2>
 
-<table>
-  <thead>
+<div class="card">
+<div class="table-responsive">
+<table class="table table-striped table-hover mb-0">
+  <thead class="table-light">
     <tr>
       <th>Titel</th>
-      <th>Actie</th>
+      <th class="text-end">Actie</th>
     </tr>
   </thead>
   <tbody>
     <?php foreach ($exams as $exam): ?>
     <tr>
       <td><?= htmlspecialchars($exam['title']) ?></td>
-      <td>
-	<a href="/?action=start_exam&exam_id=<?= $exam['id'] ?>" class="table-btn">Start toets</a>
+      <td class="text-end">
+	<a href="/?action=start_exam&exam_id=<?= $exam['id'] ?>" class="btn btn-sm btn-primary">Start toets</a>
       </td>
     </tr>
     <?php endforeach; ?>
   </tbody>
 </table>
+</div>
+</div>
 
 <?php
  $content = ob_get_clean();

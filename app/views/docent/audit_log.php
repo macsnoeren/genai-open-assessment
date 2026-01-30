@@ -67,27 +67,30 @@ if (!function_exists('formatLogDetails')) {
 <p>Overzicht van recente acties in het systeem.</p>
 
 <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin'): ?>
-<a href="/?action=clear_audit_log" class="table-btn" onclick="return confirm('Weet u zeker dat u de volledige audit log wilt wissen? Deze actie kan niet ongedaan worden gemaakt.');" style="background-color: #c00; color: white;">Log leegmaken</a>
+<div class="mb-3">
+    <a href="/?action=clear_audit_log" class="btn btn-danger" onclick="return confirm('Weet u zeker dat u de volledige audit log wilt wissen? Deze actie kan niet ongedaan worden gemaakt.');">Log leegmaken</a>
+</div>
 <?php endif; ?>
-<hr>
 
-<table style="width: 100%; border-collapse: collapse;">
-    <thead>
-        <tr style="text-align: left;">
-            <th style="padding: 10px; border-bottom: 2px solid #ddd;">Tijdstip</th>
-            <th style="padding: 10px; border-bottom: 2px solid #ddd;">Gebruiker</th>
-            <th style="padding: 10px; border-bottom: 2px solid #ddd;">Actie</th>
-            <th style="padding: 10px; border-bottom: 2px solid #ddd;">Details</th>
-            <th style="padding: 10px; border-bottom: 2px solid #ddd;">IP Adres</th>
+<div class="card">
+<div class="table-responsive">
+<table class="table table-striped table-hover mb-0">
+    <thead class="table-light">
+        <tr>
+            <th>Tijdstip</th>
+            <th>Gebruiker</th>
+            <th>Actie</th>
+            <th>Details</th>
+            <th>IP Adres</th>
         </tr>
     </thead>
     <tbody>
         <?php foreach ($logs as $log): ?>
             <tr>
-                <td style="padding: 10px; border-bottom: 1px solid #eee;"><?= htmlspecialchars($log['created_at']) ?></td>
-                <td style="padding: 10px; border-bottom: 1px solid #eee;"><?= htmlspecialchars($log['user_name'] ?? '') ?></td>
-                <td style="padding: 10px; border-bottom: 1px solid #eee;"><?= htmlspecialchars($log['action']) ?></td>
-                <td style="padding: 10px; border-bottom: 1px solid #eee; max-width: 500px; overflow-wrap: break-word;">
+                <td class="text-nowrap"><?= htmlspecialchars($log['created_at']) ?></td>
+                <td><?= htmlspecialchars($log['user_name'] ?? '') ?></td>
+                <td><span class="badge bg-secondary"><?= htmlspecialchars($log['action']) ?></span></td>
+                <td style="max-width: 500px; overflow-wrap: break-word;">
                     <?php 
                     $data = formatLogDetails($log['details'] ?? '');
                     if (is_array($data)): ?>
@@ -109,20 +112,22 @@ if (!function_exists('formatLogDetails')) {
                         <?= $data ?>
                     <?php endif; ?>
                 </td>
-                <td style="padding: 10px; border-bottom: 1px solid #eee;"><?= htmlspecialchars($log['ip_address'] ?? '') ?></td>
+                <td class="text-muted small"><?= htmlspecialchars($log['ip_address'] ?? '') ?></td>
             </tr>
         <?php endforeach; ?>
     </tbody>
 </table>
+</div>
+</div>
 
 <?php if (isset($totalPages) && $totalPages > 1): ?>
-<div style="margin-top: 20px; text-align: center;">
+<div class="d-flex justify-content-center mt-4">
     <?php if ($page > 1): ?>
-        <a href="/?action=audit_log&page=<?= $page - 1 ?>" class="table-btn" style="display:inline-block; margin-right: 5px;">&laquo; Vorige</a>
+        <a href="/?action=audit_log&page=<?= $page - 1 ?>" class="btn btn-outline-secondary me-2">&laquo; Vorige</a>
     <?php endif; ?>
-    <span style="margin: 0 10px; font-weight: bold;">Pagina <?= $page ?> van <?= $totalPages ?></span>
+    <span class="align-self-center mx-2 fw-bold">Pagina <?= $page ?> van <?= $totalPages ?></span>
     <?php if ($page < $totalPages): ?>
-        <a href="/?action=audit_log&page=<?= $page + 1 ?>" class="table-btn" style="display:inline-block; margin-left: 5px;">Volgende &raquo;</a>
+        <a href="/?action=audit_log&page=<?= $page + 1 ?>" class="btn btn-outline-secondary ms-2">Volgende &raquo;</a>
     <?php endif; ?>
 </div>
 <?php endif; ?>

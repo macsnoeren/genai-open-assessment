@@ -54,4 +54,13 @@ body {
 /* Status badges */
 .badge-status-active { background-color: #198754; }
 .badge-status-inactive { background-color: #dc3545; }
+
+/* Breadcrumb tweaks */
+.breadcrumb-item a {
+    color: #6c757d;
+    text-decoration: none;
+}
+.breadcrumb-item a:hover {
+    color: var(--brand-primary);
+    text-decoration: underline;
 }

@@ -12,14 +12,16 @@ ob_start(); ?>
 <h2>Openstaande beoordelingen</h2>
 <p>Hieronder staan de toetsen die zijn ingeleverd maar nog niet volledig zijn beoordeeld.</p>
 
-<table>
-    <thead>
+<div class="card">
+<div class="table-responsive">
+<table class="table table-striped table-hover mb-0">
+    <thead class="table-light">
         <tr>
             <th>Student</th>
             <th>Toets</th>
             <th>Ingeleverd op</th>
             <th>Voortgang</th>
-            <th>Actie</th>
+            <th class="text-end">Actie</th>
         </tr>
     </thead>
     <tbody>
@@ -32,14 +34,16 @@ ob_start(); ?>
                 <td><?= htmlspecialchars($exam['exam_title']) ?></td>
                 <td><?= htmlspecialchars($exam['completed_at']) ?></td>
                 <td><?= $exam['graded_answers'] ?> / <?= $exam['total_answers'] ?> beoordeeld</td>
-                <td>
-                    <a href="/?action=grade_student_exam&student_exam_id=<?= $exam['id'] ?>">Beoordelen</a>
+                <td class="text-end">
+                    <a href="/?action=grade_student_exam&student_exam_id=<?= $exam['id'] ?>" class="btn btn-sm btn-primary">Beoordelen</a>
                 </td>
             </tr>
             <?php endforeach; ?>
         <?php endif; ?>
     </tbody>
 </table>
+</div>
+</div>
 
 <?php
 $content = ob_get_clean();
