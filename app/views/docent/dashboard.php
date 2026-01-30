@@ -41,8 +41,8 @@ ob_start();
                             $link = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http") . "://$_SERVER[HTTP_HOST]/?action=guest&token=" . $exam['public_token'];
                         ?>
                         <div class="input-group input-group-sm mb-2" style="max-width: 300px; margin-left: auto;">
-                            <span class="input-group-text">Link</span>
-                            <input type="text" class="form-control" value="<?= $link ?>" readonly onclick="this.select()">
+                            <input type="text" class="form-control" value="<?= $link ?>" readonly id="link-<?= $exam['id'] ?>">
+                            <button class="btn btn-outline-secondary" type="button" onclick="copyLink('link-<?= $exam['id'] ?>')" title="Kopieer link">📋</button>
                         </div>
                     <?php endif; ?>
                     <div class="btn-group btn-group-sm">
@@ -61,6 +61,20 @@ ob_start();
         </div>
     </div>
 </div>
+
+<script>
+function copyLink(elementId) {
+    var copyText = document.getElementById(elementId);
+    copyText.select();
+    copyText.setSelectionRange(0, 99999); // Voor mobiele apparaten
+    
+    if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(copyText.value);
+    } else {
+        document.execCommand('copy');
+    }
+}
+</script>
 
 <?php
 $content = ob_get_clean();
