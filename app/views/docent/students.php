@@ -12,7 +12,7 @@ ob_start();
 
 <h2>Gebruikers beheren</h2>
 
-<a href="/?action=student_create" class="table-btn">➕ Nieuwe gebruiker</a>
+<a href="/?action=student_create" class="table-btn">Nieuwe gebruiker</a>
 
 <table>
   <thead>
@@ -36,8 +36,8 @@ ob_start();
       </td>
       <td><?= $s['created_at'] ?></td>
       <td>
-	<a href="/?action=student_edit&id=<?= $s['id'] ?>">✏ Bewerken</a> |
-	<a href="/?action=student_delete&id=<?= $s['id'] ?>" onclick="return confirm('Weet je het zeker?')">🗑 Verwijderen</a>
+	<a href="/?action=student_edit&id=<?= $s['id'] ?>">Bewerken</a> |
+	<a href="/?action=student_delete&id=<?= $s['id'] ?>" onclick="return confirm('Weet je het zeker?')">Verwijderen</a>
       </td>
     </tr>
     <?php endforeach; ?>

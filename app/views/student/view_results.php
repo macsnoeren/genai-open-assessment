@@ -9,7 +9,7 @@
  */
 ob_start(); ?>
 
-<a href="/?action=my_exams">← Terug naar mijn toetsen</a>
+<a href="/?action=my_exams">Terug naar mijn toetsen</a>
 
 <h2>Resultaten: <?= htmlspecialchars($exam['title']) ?></h2>
 <p><?= htmlspecialchars($exam['description']) ?></p>

@@ -15,7 +15,7 @@ ob_start();
 <p>Welkom <?= htmlspecialchars($_SESSION['name']) ?></p>
 
 <!-- Knop om modal te openen -->
-<button id="openModal" class="table-btn">➕ Nieuw examen</button><br><hr>
+<button id="openModal" class="table-btn">Nieuw examen</button><br><hr>
 
 <table>
   <thead>
@@ -31,12 +31,12 @@ ob_start();
       <td><?= htmlspecialchars($exam['title']) ?></td>
       <td><?= $exam['created_at'] ?></td>
       <td>
-	<a href="/?action=questions&exam_id=<?= $exam['id'] ?>">📋 Vragen</a> |
-<a href="/?action=exam_results&exam_id=<?= $exam['id'] ?>">👀 Resultaten</a> |
-<a href="/?action=start_exam&exam_id=<?= $exam['id'] ?>" onclick="return confirm('U staat op het punt deze toets als test af te leggen. Uw poging zal zichtbaar zijn in de resultaten. Weet u het zeker?')" title="Toets afleggen als test">🧪 Testen</a> |
-<a href="#" class="editExam" data-id="<?= $exam['id'] ?>" data-title="<?= htmlspecialchars($exam['title']) ?>" data-desc="<?= htmlspecialchars($exam['description']) ?>">✏ Bewerken</a> |
+	<a href="/?action=questions&exam_id=<?= $exam['id'] ?>">Vragen</a> |
+<a href="/?action=exam_results&exam_id=<?= $exam['id'] ?>">Resultaten</a> |
+<a href="/?action=start_exam&exam_id=<?= $exam['id'] ?>" onclick="return confirm('U staat op het punt deze toets als test af te leggen. Uw poging zal zichtbaar zijn in de resultaten. Weet u het zeker?')" title="Toets afleggen als test">Testen</a> |
+<a href="#" class="editExam" data-id="<?= $exam['id'] ?>" data-title="<?= htmlspecialchars($exam['title']) ?>" data-desc="<?= htmlspecialchars($exam['description']) ?>">Bewerken</a> |
 	<a href="/?action=exam_delete&id=<?= $exam['id'] ?>"
-	   onclick="return confirm('Weet je zeker dat je deze toets en alle bijbehorende vragen en resultaten wilt verwijderen?')" style="color: #c00;">🗑 Verwijderen</a>
+	   onclick="return confirm('Weet je zeker dat je deze toets en alle bijbehorende vragen en resultaten wilt verwijderen?')" style="color: #c00;">Verwijderen</a>
       </td>
     </tr>
     <?php endforeach; ?>

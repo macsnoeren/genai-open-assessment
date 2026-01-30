@@ -27,7 +27,7 @@ ob_start();
     <button type="submit">Opslaan</button>
     </form>
 
-<a href="index.php?action=questions&exam_id=<?= $_GET['exam_id'] ?>">← Terug</a>
+<a href="index.php?action=questions&exam_id=<?= $_GET['exam_id'] ?>">Terug</a>
 
 <?php
 $content = ob_get_clean();

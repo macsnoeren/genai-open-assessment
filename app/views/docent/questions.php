@@ -12,8 +12,8 @@ ob_start();
 
 <h2>Vragen voor examen: <?= htmlspecialchars($exam['title']) ?></h2>
 
-<a href="index.php?action=docent_dashboard">← Terug naar examens</a> |
-<a href="index.php?action=question_create&exam_id=<?= $exam['id'] ?>">➕ Nieuwe vraag</a><hr>
+<a href="index.php?action=docent_dashboard">Terug naar examens</a> |
+<a href="index.php?action=question_create&exam_id=<?= $exam['id'] ?>">Nieuwe vraag</a><hr>
 
 <table>
   <thead>
@@ -31,9 +31,9 @@ ob_start();
       <td><?= htmlspecialchars($q['model_answer']) ?></td>
       <td><?= htmlspecialchars($q['criteria']) ?></td>
       <td>
-	<a href="index.php?action=question_edit&id=<?= $q['id'] ?>">✏ Bewerken</a> |
+	<a href="index.php?action=question_edit&id=<?= $q['id'] ?>">Bewerken</a> |
 	<a href="index.php?action=question_delete&id=<?= $q['id'] ?>"
-	   onclick="return confirm('Weet je het zeker?')">🗑 Verwijderen</a>
+	   onclick="return confirm('Weet je het zeker?')">Verwijderen</a>
       </td>
     </tr>
     <?php endforeach; ?>

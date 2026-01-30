@@ -10,7 +10,7 @@
 ob_start();
 ?>
 
-<a href="/?action=exam_results&exam_id=<?= $studentExam['exam_id'] ?>">← Terug naar resultaten</a>
+<a href="/?action=exam_results&exam_id=<?= $studentExam['exam_id'] ?>">Terug naar resultaten</a>
 
 <h2>Student antwoorden</h2>
 

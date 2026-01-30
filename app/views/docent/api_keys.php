@@ -26,7 +26,7 @@ if (isset($_SESSION['new_api_key'])):
 <p>Beheer hier de API-keys voor externe applicaties, zoals de AI feedback service.</p>
 
 <!-- Knop om modal te openen -->
-<button id="openApiKeyModal" class="table-btn">➕ Nieuwe API-key</button>
+<button id="openApiKeyModal" class="table-btn">Nieuwe API-key</button>
 <br><hr>
 
 <table>
@@ -46,7 +46,7 @@ if (isset($_SESSION['new_api_key'])):
       <td><?= $key['created_at'] ?></td>
       <td>
         <a href="/?action=api_key_delete&id=<?= $key['id'] ?>"
-           onclick="return confirm('Weet je zeker dat je deze API-key wilt verwijderen?')" style="color: #c00;">🗑 Verwijderen</a>
+           onclick="return confirm('Weet je zeker dat je deze API-key wilt verwijderen?')" style="color: #c00;">Verwijderen</a>
       </td>
     </tr>
     <?php endforeach; ?>

@@ -24,7 +24,7 @@ ob_start(); ?>
     </thead>
     <tbody>
         <?php if (empty($pendingExams)): ?>
-            <tr><td colspan="5">Geen openstaande beoordelingen. U bent helemaal bij! 🎉</td></tr>
+            <tr><td colspan="5">Geen openstaande beoordelingen. U bent helemaal bij!</td></tr>
         <?php else: ?>
             <?php foreach ($pendingExams as $exam): ?>
             <tr>
@@ -33,7 +33,7 @@ ob_start(); ?>
                 <td><?= htmlspecialchars($exam['completed_at']) ?></td>
                 <td><?= $exam['graded_answers'] ?> / <?= $exam['total_answers'] ?> beoordeeld</td>
                 <td>
-                    <a href="/?action=grade_student_exam&student_exam_id=<?= $exam['id'] ?>">⚖️ Beoordelen</a>
+                    <a href="/?action=grade_student_exam&student_exam_id=<?= $exam['id'] ?>">Beoordelen</a>
                 </td>
             </tr>
             <?php endforeach; ?>

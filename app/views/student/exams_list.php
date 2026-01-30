@@ -24,7 +24,7 @@ ob_start();
     <tr>
       <td><?= htmlspecialchars($exam['title']) ?></td>
       <td>
-	<a href="/?action=start_exam&exam_id=<?= $exam['id'] ?>" class="table-btn">📝 Start toets</a>
+	<a href="/?action=start_exam&exam_id=<?= $exam['id'] ?>" class="table-btn">Start toets</a>
       </td>
     </tr>
     <?php endforeach; ?>

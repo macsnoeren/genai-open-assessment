@@ -29,16 +29,16 @@ if (file_exists($pingFile) && is_readable($pingFile)) {
 </head>
 <body>
 
-<header style="display: flex; justify-content: space-between; align-items: center;">
-    <div style="display: flex; align-items: center; gap: 20px;">
-        <h1 style="margin: 0;">Toetsen van kennis met openvragen (onderzoek)</h1>
-        <span style="padding: 2px; border: solid 1px #000; background-color: <?= $parserStatus === 'active' ? '#28a745' : '#da7680' ?>; font-size: 0.9em; color: #000;">parser <?= $parserStatus === 'active' ? '' : 'niet ' ?>actief</span>
+<header>
+    <div class="header-left">
+        <h1>Toetsen van kennis met openvragen (onderzoek)</h1>
+        <span class="status-badge <?= $parserStatus === 'active' ? 'status-active' : 'status-inactive' ?>">parser <?= $parserStatus === 'active' ? '' : 'niet ' ?>actief</span>
     </div>
     <?php if (isset($_SESSION['user_id'])): ?>
-        <div style="text-align: right; font-size: 0.9em;">
+        <div class="user-info">
             <strong><?= htmlspecialchars($_SESSION['name']) ?></strong>
             <br>
-            <span style="font-size: 0.85em; opacity: 0.9;"><?= htmlspecialchars(ucfirst($_SESSION['role'])) ?></span>
+            <span class="user-role"><?= htmlspecialchars(ucfirst($_SESSION['role'])) ?></span>
         </div>
     <?php endif; ?>
 </header>
