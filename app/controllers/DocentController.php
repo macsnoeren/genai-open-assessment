@@ -533,6 +533,88 @@ public function viewStudentAnswers($studentExamId) {
     require __DIR__ . '/../views/docent/exam_comparison.php';
   }
 
+  /**
+   * Exports the comparison data to a CSV file.
+   * @param int $examId
+   */
+  public function exportExamComparison($examId) {
+    requireLogin();
+    requireRole('docent');
+
+    $exam = Exam::find($examId);
+    
+    $pdo = Database::connect();
+    // Haal antwoorden op die zowel door docent als AI zijn beoordeeld
+    $stmt = $pdo->prepare("
+        SELECT sa.id, u.name as student_name, q.question_text, sa.teacher_score, sa.ai_feedback
+        FROM student_answers sa
+        JOIN student_exams se ON sa.student_exam_id = se.id
+        JOIN users u ON se.student_id = u.id
+        JOIN questions q ON sa.question_id = q.id
+        WHERE se.exam_id = ? 
+        AND sa.teacher_score IS NOT NULL 
+        AND sa.ai_feedback IS NOT NULL
+    ");
+    $stmt->execute([$examId]);
+    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // Bepaal welke modellen er zijn
+    $modelsFound = [];
+    foreach ($rows as $row) {
+        preg_match_all('/Model:\s+(.+?)\s+.*?Aantal punten:\s+(\d+)/is', $row['ai_feedback'], $matches, PREG_SET_ORDER);
+        foreach ($matches as $match) {
+            $modelsFound[trim($match[1])] = true;
+        }
+    }
+    $modelNames = array_keys($modelsFound);
+    sort($modelNames);
+
+    // CSV Headers instellen
+    header('Content-Type: text/csv; charset=utf-8');
+    header('Content-Disposition: attachment; filename="comparison_' . preg_replace('/[^a-z0-9]/i', '_', $exam['title']) . '_' . date('Y-m-d') . '.csv"');
+    
+    $output = fopen('php://output', 'w');
+    
+    // BOM voor Excel
+    fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF));
+
+    // Header rij
+    $headers = ['Student', 'Vraag', 'Docent Score'];
+    foreach ($modelNames as $model) {
+        $headers[] = $model . ' Score';
+        $headers[] = $model . ' Verschil';
+    }
+    fputcsv($output, $headers, ';');
+
+    foreach ($rows as $row) {
+        $rowModels = [];
+        preg_match_all('/Model:\s+(.+?)\s+.*?Aantal punten:\s+(\d+)/is', $row['ai_feedback'], $matches, PREG_SET_ORDER);
+        foreach ($matches as $match) {
+            $rowModels[trim($match[1])] = (int)$match[2];
+        }
+
+        $csvRow = [
+            $row['student_name'],
+            $row['question_text'],
+            $row['teacher_score']
+        ];
+
+        foreach ($modelNames as $model) {
+            if (isset($rowModels[$model])) {
+                $csvRow[] = $rowModels[$model];
+                $csvRow[] = $rowModels[$model] - $row['teacher_score'];
+            } else {
+                $csvRow[] = '';
+                $csvRow[] = '';
+            }
+        }
+        fputcsv($output, $csvRow, ';');
+    }
+    
+    fclose($output);
+    exit;
+  }
+
 }
 
 ?>

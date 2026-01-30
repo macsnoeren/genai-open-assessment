@@ -10,7 +10,12 @@
 ob_start();
 ?>
 
-<h2 class="mb-4">AI Model Vergelijking: <?= htmlspecialchars($exam['title']) ?></h2>
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="mb-0">AI Model Vergelijking: <?= htmlspecialchars($exam['title']) ?></h2>
+    <?php if (!empty($comparisonData)): ?>
+        <a href="/?action=exam_comparison_export&exam_id=<?= $exam['id'] ?>" class="btn btn-success">Export CSV</a>
+    <?php endif; ?>
+</div>
 
 <?php if (empty($comparisonData)): ?>
     <div class="alert alert-warning">
