@@ -39,7 +39,7 @@
                 <div style="background: #e3f2fd; padding: 15px; border-left: 4px solid #2196f3;">
                     <strong style="color: #1565c0;">AI Feedback:</strong><br>
                     <div style="margin-top: 5px; white-space: pre-wrap; font-family: monospace, sans-serif; font-size: 0.95em;">
-                    <?= nl2br(htmlspecialchars($a['ai_feedback'])) ?>
+                    <?= htmlspecialchars($a['ai_feedback']) ?>
                     </div>
                 </div>
             <?php else: ?>
