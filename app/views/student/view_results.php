@@ -15,13 +15,6 @@
         </p>
 
         <?php if ($a): ?>
-            <?php if (!empty($a['ai_feedback'])): ?>
-            <div style="margin-top: 10px; padding: 10px; background-color: #f8f9fa; border-left: 4px solid #007bff;">
-                <strong>🤖 AI Feedback:</strong><br>
-                <?= nl2br(htmlspecialchars($a['ai_feedback'])) ?>
-            </div>
-            <?php endif; ?>
-
             <?php if (isset($a['teacher_score']) || !empty($a['teacher_feedback'])): ?>
             <div style="margin-top: 10px; padding: 10px; background-color: #fff3cd; border-left: 4px solid #ffc107;">
                 <strong>👨‍🏫 Docent beoordeling:</strong><br>
@@ -32,6 +25,12 @@
                     Feedback: <?= nl2br(htmlspecialchars($a['teacher_feedback'])) ?>
                 <?php endif; ?>
             </div>
+            <?php endif; ?>
+
+            <?php if (!empty($a['ai_feedback'])): ?>
+            <p><strong>AI feedback:</strong><br>
+                <?= nl2br(htmlspecialchars($a['ai_feedback'])) ?>
+            </p>
             <?php endif; ?>
         <?php endif; ?>
     </div>
