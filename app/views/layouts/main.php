@@ -83,7 +83,7 @@ if (file_exists($pingFile) && is_readable($pingFile)) {
 <main class="container my-4 flex-grow-1">
 <?php if (isset($breadcrumbs) && !empty($breadcrumbs)): ?>
 <div class="d-flex justify-content-between align-items-center mb-3">
-    <nav aria-label="breadcrumb">
+    <span aria-label="breadcrumb">
         <ol class="breadcrumb mb-0">
             <?php foreach ($breadcrumbs as $label => $url): ?>
                 <?php if ($url): ?>
@@ -93,7 +93,7 @@ if (file_exists($pingFile) && is_readable($pingFile)) {
                 <?php endif; ?>
             <?php endforeach; ?>
         </ol>
-    </nav>
+    </span>
     <?php 
     // Zoek de laatste URL om als terug-knop te gebruiken
     $backUrl = null;
