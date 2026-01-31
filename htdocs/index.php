@@ -41,7 +41,7 @@ switch ($action) {
    break;
 
  case 'do_register':
-   $auth->registerFirstAdmin();
+   $auth->register();
    break;
     
  case 'docent_dashboard':
