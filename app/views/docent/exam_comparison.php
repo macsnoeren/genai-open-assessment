@@ -32,6 +32,7 @@ ob_start();
         
     <!-- Titelblad / Info -->
     <div class="mb-5">
+        <img src="/images/logo.png" alt="Logo" style="max-height: 100px; margin-bottom: 1rem;">
         <h1 class="display-6">Rapportage Validatie AI-Beoordeling</h1>
         <p class="text-muted">Gegenereerd op: <?= date('d-m-Y H:i') ?></p>
         <p>Dit rapport geeft een statistische vergelijking weer tussen de beoordeling van de docent en diverse AI-modellen. De analyses tonen de betrouwbaarheid, correlatie en eventuele afwijkingen van de modellen ten opzichte van de menselijke beoordelaar.</p>
