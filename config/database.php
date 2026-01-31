@@ -49,7 +49,7 @@ class Database {
 		      'Default Docent',
 		      'docent@school.nl',
 		      password_hash('admin123', PASSWORD_DEFAULT),
-		      'docent'
+		      'admin'
 		      ]);
     }
   }
