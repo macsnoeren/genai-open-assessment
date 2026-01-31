@@ -28,11 +28,10 @@ ob_start();
 <?php else: ?>
 
     <!-- Container voor PDF generatie -->
-    <div id="report-content">
+    <div id="report-content" class="bg-white p-4 mx-auto" style="max-width: 800px; box-shadow: 0 0 10px rgba(0,0,0,0.1);">
         
     <!-- Titelblad / Info -->
     <div class="mb-5">
-        <img src="/images/logo.png" alt="Logo" style="max-height: 100px; margin-bottom: 1rem;">
         <h1 class="display-6">Rapportage Validatie AI-Beoordeling</h1>
         <p class="text-muted">Gegenereerd op: <?= date('d-m-Y H:i') ?></p>
         <p>Dit rapport geeft een statistische vergelijking weer tussen de beoordeling van de docent en diverse AI-modellen. De analyses tonen de betrouwbaarheid, correlatie en eventuele afwijkingen van de modellen ten opzichte van de menselijke beoordelaar.</p>
@@ -285,28 +284,17 @@ ob_start();
 
         function generatePDF() {
             const element = document.getElementById('report-content');
-            
-            // Forceer een vaste breedte die goed past op A4 (ongeveer 750px)
-            // Dit voorkomt dat grafieken en tabellen te breed worden gerenderd
-            const originalWidth = element.style.width;
-            element.style.width = '700px'; // A4 breedte in pixels (96 DPI)
-            element.style.margin = '0 auto';
-            element.classList.add('bg-white'); // Zorg voor witte achtergrond
 
             const opt = {
                 margin:       [10, 10, 10, 10], // top, left, bottom, right
                 filename:     'Rapport_AI_Vergelijking_<?= preg_replace('/[^a-z0-9]/i', '_', $exam['title']) ?>.pdf',
                 image:        { type: 'jpeg', quality: 0.98 },
                 html2canvas:  { scale: 2, useCORS: true }, 
-                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' },
+                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
                 pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] }
             };
 
-            html2pdf().set(opt).from(element).save().then(function() {
-                // Herstel de originele stijl na generatie
-                element.style.width = originalWidth;
-                element.classList.remove('bg-white');
-            });
+            html2pdf().set(opt).from(element).save();
         }
     </script>
 <?php endif; ?>
