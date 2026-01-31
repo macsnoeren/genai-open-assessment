@@ -47,5 +47,6 @@ ob_start();
 <?php
 $content = ob_get_clean();
 $title = "Login";
+$hideHeaderFooter = true;
 require __DIR__ . '/../layouts/main.php';
 ?>

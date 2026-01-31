@@ -32,6 +32,7 @@ if (file_exists($pingFile) && is_readable($pingFile)) {
 </head>
 <body class="d-flex flex-column min-vh-100">
 
+<?php if (!isset($hideHeaderFooter) || !$hideHeaderFooter): ?>
 <nav class="navbar navbar-expand-lg navbar-dark navbar-custom shadow-sm">
   <div class="container">
     <a class="navbar-brand fw-bold" href="/">
@@ -81,6 +82,7 @@ if (file_exists($pingFile) && is_readable($pingFile)) {
     </div>
   </div>
 </nav>
+<?php endif; ?>
 
 <main class="container my-4 flex-grow-1">
 <?php if (isset($breadcrumbs) && !empty($breadcrumbs)): ?>
@@ -114,11 +116,13 @@ if (file_exists($pingFile) && is_readable($pingFile)) {
 <?= $content ?? '' ?>
 </main>
 
+<?php if (!isset($hideHeaderFooter) || !$hideHeaderFooter): ?>
 <footer class="bg-light py-4 mt-auto border-top">
     <div class="container text-center text-muted">
     &copy; <?= date('Y') ?> Openvragen kennistoetsing (proof-of-concept) - powered by JMNL Innovation
     </div>
 </footer>
+<?php endif; ?>
 
 <!-- Bootstrap JS Bundle -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
