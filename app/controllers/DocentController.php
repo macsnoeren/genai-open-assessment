@@ -567,6 +567,7 @@ public function viewStudentAnswers($studentExamId) {
     $this->checkExamOwnership($examId);
 
     $exam = Exam::find($examId);
+    $questions = Question::allByExam($examId);
     
     $pdo = Database::connect();
     // Haal antwoorden op die zowel door docent als AI zijn beoordeeld

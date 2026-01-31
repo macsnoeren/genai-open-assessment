@@ -30,14 +30,41 @@ ob_start();
     <!-- Container voor PDF generatie -->
     <div id="report-content">
         
-    <div class="mb-4">
-        <p class="lead">Rapportage Validatie AI-Beoordeling</p>
-        <p>Dit rapport geeft een statistische vergelijking weer tussen de beoordeling van de docent en diverse AI-modellen. De onderstaande analyses tonen de betrouwbaarheid, correlatie en eventuele afwijkingen van de modellen ten opzichte van de menselijke beoordelaar.</p>
-        <hr>
+    <!-- Titelblad / Info -->
+    <div class="mb-5">
+        <h1 class="display-6">Rapportage Validatie AI-Beoordeling</h1>
+        <p class="text-muted">Gegenereerd op: <?= date('d-m-Y H:i') ?></p>
+        
+        <div class="card mb-4 mt-4">
+            <div class="card-body">
+                <h3 class="card-title"><?= htmlspecialchars($exam['title']) ?></h3>
+                <p class="card-text"><?= nl2br(htmlspecialchars($exam['description'])) ?></p>
+            </div>
+        </div>
+
+        <p>Dit rapport geeft een statistische vergelijking weer tussen de beoordeling van de docent en diverse AI-modellen. De analyses tonen de betrouwbaarheid, correlatie en eventuele afwijkingen van de modellen ten opzichte van de menselijke beoordelaar.</p>
+    </div>
+
+    <!-- Vragen en Criteria -->
+    <div class="mb-4 html2pdf__page-break">
+        <h4>Toetsvragen en Beoordelingscriteria</h4>
+        <p class="text-muted small">Overzicht van de vragen in deze toets en de criteria waarop de AI is geïnstrueerd te beoordelen.</p>
+        
+        <?php foreach ($questions as $index => $q): ?>
+        <div class="card mb-3" style="break-inside: avoid;">
+            <div class="card-header bg-light">
+                <strong>Vraag <?= $index + 1 ?></strong>
+            </div>
+            <div class="card-body">
+                <p class="mb-2"><strong>Vraagstelling:</strong><br><?= nl2br(htmlspecialchars($q['question_text'])) ?></p>
+                <p class="mb-0 text-muted"><small><strong>Criteria:</strong><br><?= nl2br(htmlspecialchars($q['criteria'])) ?></small></p>
+            </div>
+        </div>
+        <?php endforeach; ?>
     </div>
 
     <!-- Chart Section -->
-    <div class="card mb-4">
+    <div class="card mb-4 html2pdf__page-break">
         <div class="card-header bg-light fw-bold">
             Correlatie Visualisatie (Docent vs AI)
         </div>
@@ -99,7 +126,7 @@ ob_start();
     </div>
 
     <!-- Detail Tabel -->
-    <div class="card">
+    <div class="card html2pdf__page-break">
         <div class="card-header bg-light fw-bold">
             Detailoverzicht per Vraag
         </div>
@@ -256,7 +283,7 @@ ob_start();
             const opt = {
                 margin:       [10, 10, 10, 10], // top, left, bottom, right
                 filename:     'Rapport_AI_Vergelijking_<?= preg_replace('/[^a-z0-9]/i', '_', $exam['title']) ?>.pdf',
-                image:        { type: 'jpeg', quality: 0.98 },
+                image:        { type: 'jpeg', quality: 1 },
                 html2canvas:  { scale: 2, useCORS: true }, // Scale 2 voor betere kwaliteit grafiek
                 jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
                 pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] }
