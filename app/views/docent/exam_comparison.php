@@ -288,7 +288,7 @@ ob_start();
             // Forceer een vaste breedte die goed past op A4 (ongeveer 750px)
             // Dit voorkomt dat grafieken en tabellen te breed worden gerenderd
             const originalWidth = element.style.width;
-            element.style.width = '300px'; // A4 breedte in pixels (96 DPI)
+            element.style.width = '700px'; // A4 breedte in pixels (96 DPI)
             element.style.margin = '0 auto';
             element.classList.add('bg-white'); // Zorg voor witte achtergrond
 
@@ -297,7 +297,7 @@ ob_start();
                 filename:     'Rapport_AI_Vergelijking_<?= preg_replace('/[^a-z0-9]/i', '_', $exam['title']) ?>.pdf',
                 image:        { type: 'jpeg', quality: 0.98 },
                 html2canvas:  { scale: 2, useCORS: true }, 
-                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
+                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' },
                 pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] }
             };
 
