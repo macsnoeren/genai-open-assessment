@@ -99,35 +99,6 @@ ob_start();
         </div>
     </div>
 
-    <!-- Toets beschrijving -->
-    <div class="mb-4 html2pdf__page-break">
-        <h4>Toets beschrijving</h4>
-        <div class="card mb-4">
-            <div class="card-body">
-                <h5 class="card-title"><?= htmlspecialchars($exam['title']) ?></h5>
-                <p class="card-text"><?= nl2br(htmlspecialchars($exam['description'])) ?></p>
-            </div>
-        </div>
-    </div>
-
-    <!-- Vragen en Criteria -->
-    <div class="mb-4">
-        <h4>Toetsvragen en Beoordelingscriteria</h4>
-        <p class="text-muted small">Overzicht van de vragen in deze toets en de criteria waarop de AI is geïnstrueerd te beoordelen.</p>
-        
-        <?php foreach ($questions as $index => $q): ?>
-        <div class="card mb-3" style="break-inside: avoid;">
-            <div class="card-header bg-light">
-                <strong>Vraag <?= $index + 1 ?></strong>
-            </div>
-            <div class="card-body">
-                <p class="mb-2"><strong>Vraagstelling:</strong><br><?= nl2br(htmlspecialchars($q['question_text'])) ?></p>
-                <div class="text-muted small mt-2"><strong>Criteria:</strong><br><?= nl2br(htmlspecialchars($q['criteria'])) ?></div>
-            </div>
-        </div>
-        <?php endforeach; ?>
-    </div>
-
     <!-- Detail Tabel -->
     <div class="card html2pdf__page-break">
         <div class="card-header bg-light fw-bold">
@@ -172,6 +143,35 @@ ob_start();
                 </table>
             </div>
         </div>
+    </div>
+
+    <!-- Toets beschrijving -->
+    <div class="mb-4 html2pdf__page-break">
+        <h4>Toets beschrijving</h4>
+        <div class="card mb-4">
+            <div class="card-body">
+                <h5 class="card-title"><?= htmlspecialchars($exam['title']) ?></h5>
+                <p class="card-text"><?= nl2br(htmlspecialchars($exam['description'])) ?></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Vragen en Criteria -->
+    <div class="mb-4">
+        <h4>Toetsvragen en Beoordelingscriteria</h4>
+        <p class="text-muted small">Overzicht van de vragen in deze toets en de criteria waarop de AI is geïnstrueerd te beoordelen.</p>
+        
+        <?php foreach ($questions as $index => $q): ?>
+        <div class="card mb-3" style="break-inside: avoid;">
+            <div class="card-header bg-light">
+                <strong>Vraag <?= $index + 1 ?></strong>
+            </div>
+            <div class="card-body">
+                <p class="mb-2"><strong>Vraagstelling:</strong><br><?= nl2br(htmlspecialchars($q['question_text'])) ?></p>
+                <div class="text-muted small mt-2"><strong>Criteria:</strong><br><?= nl2br(htmlspecialchars($q['criteria'])) ?></div>
+            </div>
+        </div>
+        <?php endforeach; ?>
     </div>
     
     </div> <!-- Einde report-content -->
