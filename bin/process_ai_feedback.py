@@ -54,12 +54,18 @@ def get_feedback_from_model(
     :return: Dict met score en feedback of None bij fout
     """
 
+    # Haal waarden op en zorg dat ze strings zijn (voorkom NoneType errors)
+    question_text = str(q.get('question_text') or "")
+    criteria = str(q.get('criteria') or "")
+    answer = str(q.get('answer') or "")
+
     # Gebruik de prompt uit de database als die er is, anders de hardcoded fallback
     if q.get('prompt_text'):
+        print(f"[{model_name}] Gebruikt custom prompt uit database.")
         prompt = q['prompt_text']
-        prompt = prompt.replace('{{question_text}}', q['question_text'])
-        prompt = prompt.replace('{{criteria}}', q['criteria'])
-        prompt = prompt.replace('{{student_answer}}', q['answer'])
+        prompt = prompt.replace('{{question_text}}', question_text)
+        prompt = prompt.replace('{{criteria}}', criteria)
+        prompt = prompt.replace('{{student_answer}}', answer)
     else:
         prompt = f"""
 Negeer alle eerdere context.
@@ -77,10 +83,10 @@ TAKEN:
 - Geef een korte uitleg wat beter kan in de je-vorm.
 
 GESTELDE VRAAG AAN STUDENT:
-{q['question_text']}
+{question_text}
 
 HET JUISTE ANTWOORD EN CRITERIA:
-{q['criteria']}
+{criteria}
 
 REGELS:
 - Geef ALLEEN de onderstaande output.
@@ -96,7 +102,7 @@ OUTPUTFORMAAT JSON exact (verplicht):
 }}
 
 STUDENTANTWOORD:
-{q['answer']}
+{answer}
 """
     
     payload = {
