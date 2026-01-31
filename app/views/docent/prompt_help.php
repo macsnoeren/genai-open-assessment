@@ -45,6 +45,48 @@ ob_start();
     <strong>Tip:</strong> Zorg ervoor dat je de AI instrueert om de output in een specifiek JSON formaat te geven, zodat het systeem de score en feedback correct kan verwerken.
 </div>
 
+<div class="card mb-4">
+    <div class="card-header bg-light fw-bold">Voorbeeld Prompt</div>
+    <div class="card-body">
+        <p>Hieronder staat een voorbeeld van een effectieve prompt. Let op het gebruik van de variabelen en de strikte instructie voor JSON output.</p>
+        <pre class="bg-light p-3 border rounded" style="white-space: pre-wrap;">Negeer alle eerdere context.
+
+Je bent een automatisch beoordelingssysteem.
+Je mag GEEN uitleg, analyse of extra tekst geven.
+
+TAKEN:
+- Beoordeel het antwoord van de student.
+- Ken punten toe: 0, 1, 5 of 10.
+- 10 punten wanneer het juiste antwoord wordt gegeven.
+- 5 punten als het antwoord in de buurt komt.
+- 1 punt als er enigzins iets zinnigs in staat.
+- Geef korte feedback aan de student in de je-vorm.
+- Geef een korte uitleg wat beter kan in de je-vorm.
+
+GESTELDE VRAAG AAN STUDENT:
+{{question_text}}
+
+HET JUISTE ANTWOORD EN CRITERIA:
+{{criteria}}
+
+REGELS:
+- Geef ALLEEN de onderstaande output.
+- Gebruik exact deze labels.
+- Voeg niets toe.
+- Gebruik maximaal 4 zinnen feedback.
+
+OUTPUTFORMAAT JSON exact (verplicht):
+{ 
+    "score": <0-10>,
+    "feedback": "<tekst>",
+    "uitleg": "<tekst>"
+}
+
+STUDENTANTWOORD:
+{{student_answer}}</pre>
+    </div>
+</div>
+
 <a href="/?action=prompts" class="btn btn-primary">Terug naar Prompts</a>
 
 <?php
