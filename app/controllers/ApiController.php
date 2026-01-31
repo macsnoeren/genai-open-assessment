@@ -49,8 +49,10 @@ class ApiController {
         $pingFile = __DIR__ . '/../../database/last_api_ping.txt';
         $result = file_put_contents($pingFile, time());
         
+        $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : null;
+
         try {
-            $answers = StudentAnswer::getPendingAiGrading();
+            $answers = StudentAnswer::getPendingAiGrading($limit);
             echo json_encode(['answers' => $answers]);
         } catch (Exception $e) {
             http_response_code(500);

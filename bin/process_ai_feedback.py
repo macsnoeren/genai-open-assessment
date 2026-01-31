@@ -148,7 +148,8 @@ def fetch_open_student_answers() -> List[Dict]:
         BASE_URL,
         params={
             "action": "open_student_answers",
-            "api_key": API_KEY
+            "api_key": API_KEY,
+            "limit": 5
         },
         timeout=30
     )

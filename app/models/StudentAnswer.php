@@ -28,9 +28,9 @@ class StudentAnswer {
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
   }
 
-  public static function getPendingAiGrading() {
+  public static function getPendingAiGrading($limit = null) {
     $pdo = Database::connect();
-    $stmt = $pdo->prepare("
+    $sql = "
         SELECT sa.id as student_answer_id, sa.answer, q.question_text, q.criteria, p.prompt_text
         FROM student_answers sa
         INNER JOIN questions q ON sa.question_id = q.id
@@ -39,7 +39,14 @@ class StudentAnswer {
         LEFT JOIN prompts p ON e.prompt_id = p.id
         WHERE (sa.ai_feedback IS NULL OR sa.ai_feedback = '')
         AND se.completed_at IS NOT NULL
-    ");
+        ORDER BY sa.id ASC
+    ";
+
+    if ($limit) {
+        $sql .= " LIMIT " . (int)$limit;
+    }
+
+    $stmt = $pdo->prepare($sql);
     $stmt->execute();
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
   }
