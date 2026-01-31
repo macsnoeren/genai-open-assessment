@@ -13,7 +13,10 @@ ob_start();
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2 class="mb-0">AI Model Vergelijking: <?= htmlspecialchars($exam['title']) ?></h2>
     <?php if (!empty($comparisonData)): ?>
-        <a href="/?action=exam_comparison_export&exam_id=<?= $exam['id'] ?>" class="btn btn-success">Export CSV</a>
+        <div>
+            <button onclick="generatePDF()" class="btn btn-danger me-2">Export PDF</button>
+            <a href="/?action=exam_comparison_export&exam_id=<?= $exam['id'] ?>" class="btn btn-success">Export CSV</a>
+        </div>
     <?php endif; ?>
 </div>
 
@@ -23,6 +26,15 @@ ob_start();
         Zorg ervoor dat de AI-service heeft gedraaid en dat u handmatige beoordelingen heeft ingevoerd.
     </div>
 <?php else: ?>
+
+    <!-- Container voor PDF generatie -->
+    <div id="report-content">
+        
+    <div class="mb-4">
+        <p class="lead">Rapportage Validatie AI-Beoordeling</p>
+        <p>Dit rapport geeft een statistische vergelijking weer tussen de beoordeling van de docent en diverse AI-modellen. De onderstaande analyses tonen de betrouwbaarheid, correlatie en eventuele afwijkingen van de modellen ten opzichte van de menselijke beoordelaar.</p>
+        <hr>
+    </div>
 
     <!-- Chart Section -->
     <div class="card mb-4">
@@ -131,8 +143,11 @@ ob_start();
             </div>
         </div>
     </div>
+    
+    </div> <!-- Einde report-content -->
 
     <!-- Chart.js Script -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
@@ -235,6 +250,21 @@ ob_start();
                 }
             });
         });
+
+        function generatePDF() {
+            const element = document.getElementById('report-content');
+            const opt = {
+                margin:       [10, 10, 10, 10], // top, left, bottom, right
+                filename:     'Rapport_AI_Vergelijking_<?= preg_replace('/[^a-z0-9]/i', '_', $exam['title']) ?>.pdf',
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2, useCORS: true }, // Scale 2 voor betere kwaliteit grafiek
+                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
+                pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] }
+            };
+
+            // Gebruik html2pdf library
+            html2pdf().set(opt).from(element).save();
+        }
     </script>
 <?php endif; ?>
 
