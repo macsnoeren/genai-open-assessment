@@ -46,8 +46,8 @@ class Database {
 			    ");
 			    
       $stmt->execute([
-		      'Default Docent',
-		      'docent@school.nl',
+		      'Administrator',
+		      'admin@school.nl',
 		      password_hash('admin123', PASSWORD_DEFAULT),
 		      'admin'
 		      ]);
