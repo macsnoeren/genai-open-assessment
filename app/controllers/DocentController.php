@@ -12,6 +12,7 @@ require_once __DIR__ . '/../models/Exam.php';
 require_once __DIR__ . '/../helpers/auth.php';
 require_once __DIR__ . '/../models/AuditLog.php';
 require_once __DIR__ . '/../models/Questions.php';
+require_once __DIR__ . '/../models/Prompt.php';
 
 /**
  * Class DocentController
@@ -44,6 +45,7 @@ class DocentController {
     $exam = null;
     $action = 'exam_store';
     $title = 'Nieuwe toets';
+    $prompts = Prompt::all();
     require __DIR__ . '/../views/docent/exam_form.php';
   }
   
@@ -54,14 +56,18 @@ class DocentController {
     requireLogin();
     requireRole('docent');
     
+    $promptId = !empty($_POST['prompt_id']) ? $_POST['prompt_id'] : null;
+
     Exam::create(
 		 $_POST['title'],
 		 $_POST['description'],
-		 $_SESSION['user_id']
+		 $_SESSION['user_id'],
+         $promptId
 		 );
     AuditLog::log('exam_create', [
         'title' => $_POST['title'],
-        'description' => $_POST['description']
+        'description' => $_POST['description'],
+        'prompt_id' => $promptId
     ]);
     
     header('Location: /?action=docent_dashboard');
@@ -80,6 +86,7 @@ class DocentController {
     $exam = Exam::find($_GET['id']);
     $action = 'exam_update';
     $title = 'Toets bewerken';
+    $prompts = Prompt::all();
     require __DIR__ . '/../views/docent/exam_form.php';
   }
   
@@ -93,11 +100,13 @@ class DocentController {
     $this->checkExamOwnership($_POST['id']);
     
     $currentExam = Exam::find($_POST['id']);
+    $promptId = !empty($_POST['prompt_id']) ? $_POST['prompt_id'] : null;
     
     Exam::update(
 		 $_POST['id'],
 		 $_POST['title'],
-		 $_POST['description']
+		 $_POST['description'],
+         $promptId
 		 );
 
     $changes = ['id' => $_POST['id']];
@@ -106,6 +115,9 @@ class DocentController {
     }
     if ($currentExam['description'] !== $_POST['description']) {
         $changes['description'] = ['old' => $currentExam['description'], 'new' => $_POST['description']];
+    }
+    if ($currentExam['prompt_id'] != $promptId) {
+        $changes['prompt_id'] = ['old' => $currentExam['prompt_id'], 'new' => $promptId];
     }
 
     AuditLog::log('exam_update', $changes);

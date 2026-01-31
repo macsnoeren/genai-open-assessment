@@ -31,10 +31,12 @@ class StudentAnswer {
   public static function getPendingAiGrading() {
     $pdo = Database::connect();
     $stmt = $pdo->prepare("
-        SELECT sa.id as student_answer_id, sa.answer, q.question_text, q.criteria
+        SELECT sa.id as student_answer_id, sa.answer, q.question_text, q.criteria, p.prompt_text
         FROM student_answers sa
         INNER JOIN questions q ON sa.question_id = q.id
         INNER JOIN student_exams se ON sa.student_exam_id = se.id
+        INNER JOIN exams e ON se.exam_id = e.id
+        LEFT JOIN prompts p ON e.prompt_id = p.id
         WHERE (sa.ai_feedback IS NULL OR sa.ai_feedback = '')
         AND se.completed_at IS NOT NULL
     ");

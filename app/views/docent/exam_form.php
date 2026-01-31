@@ -31,6 +31,17 @@ ob_start(); ?>
         <textarea name="description" class="form-control" rows="4"><?= htmlspecialchars($exam['description'] ?? '') ?></textarea>
     </div>
 
+    <div class="mb-3">
+        <label class="form-label">AI Prompt</label>
+        <select name="prompt_id" class="form-select">
+            <option value="">-- Standaard prompt (indien geen geselecteerd) --</option>
+            <?php foreach ($prompts as $prompt): ?>
+                <option value="<?= $prompt['id'] ?>" <?= ($exam && $exam['prompt_id'] == $prompt['id']) ? 'selected' : '' ?>><?= htmlspecialchars($prompt['title']) ?></option>
+            <?php endforeach; ?>
+        </select>
+        <div class="form-text">Selecteer de prompt die de AI moet gebruiken om de antwoorden te beoordelen.</div>
+    </div>
+
     <div class="d-flex gap-2">
         <button type="submit" class="btn btn-primary">Opslaan</button>
     </div>

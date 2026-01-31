@@ -11,15 +11,15 @@ class Exam {
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
   }
   
-  public static function create($title, $description, $docentId) {
+  public static function create($title, $description, $docentId, $promptId = null) {
     $pdo = Database::connect();
     // Genereer een unieke publieke token
     $publicToken = bin2hex(random_bytes(16));
     $stmt = $pdo->prepare("
-			  INSERT INTO exams (title, description, docent_id, public_token)
-			  VALUES (?, ?, ?, ?)
+			  INSERT INTO exams (title, description, docent_id, public_token, prompt_id)
+			  VALUES (?, ?, ?, ?, ?)
 			  ");
-    $stmt->execute([$title, $description, $docentId, $publicToken]);
+    $stmt->execute([$title, $description, $docentId, $publicToken, $promptId]);
   }
 
     public static function all() {
@@ -43,14 +43,14 @@ class Exam {
       return $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
-    public static function update($id, $title, $description) {
+    public static function update($id, $title, $description, $promptId = null) {
       $pdo = Database::connect();
       $stmt = $pdo->prepare("
 			                UPDATE exams
-			    SET title = ?, description = ?, updated_at = CURRENT_TIMESTAMP
+			    SET title = ?, description = ?, prompt_id = ?, updated_at = CURRENT_TIMESTAMP
 			                WHERE id = ?
 			            ");
-      $stmt->execute([$title, $description, $id]);
+      $stmt->execute([$title, $description, $promptId, $id]);
     }
 
       public static function delete($id) {

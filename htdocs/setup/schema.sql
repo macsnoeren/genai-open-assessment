@@ -16,10 +16,12 @@ CREATE TABLE IF NOT EXISTS exams (
     description TEXT,
     docent_id INTEGER NOT NULL,
     public_token TEXT UNIQUE, -- Unieke token voor de publieke link
+    prompt_id INTEGER, -- Gekoppelde prompt voor AI beoordeling
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     -- Voorkom dat een docent wordt verwijderd als er nog toetsen aan gekoppeld zijn.
-    FOREIGN KEY (docent_id) REFERENCES users(id) ON DELETE RESTRICT
+    FOREIGN KEY (docent_id) REFERENCES users(id) ON DELETE RESTRICT,
+    FOREIGN KEY (prompt_id) REFERENCES prompts(id) ON DELETE SET NULL
 );
 
 -- Vragen per toets.

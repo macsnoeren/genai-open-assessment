@@ -54,7 +54,14 @@ def get_feedback_from_model(
     :return: Dict met score en feedback of None bij fout
     """
 
-    prompt = f"""
+    # Gebruik de prompt uit de database als die er is, anders de hardcoded fallback
+    if q.get('prompt_text'):
+        prompt = q['prompt_text']
+        prompt = prompt.replace('{{question_text}}', q['question_text'])
+        prompt = prompt.replace('{{criteria}}', q['criteria'])
+        prompt = prompt.replace('{{student_answer}}', q['answer'])
+    else:
+        prompt = f"""
 Negeer alle eerdere context.
 
 Je bent een automatisch beoordelingssysteem.
