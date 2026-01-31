@@ -35,10 +35,13 @@ ob_start();
         <h1 class="display-6">Rapportage Validatie AI-Beoordeling</h1>
         <p class="text-muted">Gegenereerd op: <?= date('d-m-Y H:i') ?></p>
         
-        <div class="card mb-4 mt-4">
-            <div class="card-body">
-                <h3 class="card-title"><?= htmlspecialchars($exam['title']) ?></h3>
-                <p class="card-text"><?= nl2br(htmlspecialchars($exam['description'])) ?></p>
+        <div class="mt-4">
+            <h4>Toets beschrijving</h4>
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title"><?= htmlspecialchars($exam['title']) ?></h5>
+                    <p class="card-text"><?= nl2br(htmlspecialchars($exam['description'])) ?></p>
+                </div>
             </div>
         </div>
 
@@ -57,7 +60,7 @@ ob_start();
             </div>
             <div class="card-body">
                 <p class="mb-2"><strong>Vraagstelling:</strong><br><?= nl2br(htmlspecialchars($q['question_text'])) ?></p>
-                <p class="mb-0 text-muted"><small><strong>Criteria:</strong><br><?= nl2br(htmlspecialchars($q['criteria'])) ?></small></p>
+                <div class="text-muted small mt-2"><strong>Criteria:</strong><br><?= nl2br(htmlspecialchars($q['criteria'])) ?></div>
             </div>
         </div>
         <?php endforeach; ?>
@@ -85,7 +88,7 @@ ob_start();
         </div>
         <div class="card-body p-0">
             <div class="table-responsive">
-                <table class="table table-bordered mb-0">
+                <table class="table table-bordered table-sm mb-0">
                     <thead class="table-light">
                         <tr>
                             <th>Beoordelaar</th>
@@ -132,7 +135,7 @@ ob_start();
         </div>
         <div class="card-body p-0">
             <div class="table-responsive">
-                <table class="table table-striped table-hover mb-0">
+                <table class="table table-striped table-hover table-sm mb-0">
                     <thead class="table-light">
                         <tr>
                             <th style="width: 15%;">Student</th>
@@ -227,6 +230,7 @@ ob_start();
                 type: 'scatter',
                 data: { datasets: datasets },
                 options: {
+                    animation: false,
                     responsive: true,
                     maintainAspectRatio: false,
                     scales: {
@@ -283,14 +287,15 @@ ob_start();
             
             // Forceer een vaste breedte die goed past op A4 (ongeveer 750px)
             // Dit voorkomt dat grafieken en tabellen te breed worden gerenderd
-            const originalStyle = element.getAttribute('style');
-            element.style.width = '750px';
+            const originalWidth = element.style.width;
+            element.style.width = '790px'; // A4 breedte in pixels (96 DPI)
             element.style.margin = '0 auto';
+            element.classList.add('bg-white'); // Zorg voor witte achtergrond
 
             const opt = {
                 margin:       [10, 10, 10, 10], // top, left, bottom, right
                 filename:     'Rapport_AI_Vergelijking_<?= preg_replace('/[^a-z0-9]/i', '_', $exam['title']) ?>.pdf',
-                image:        { type: 'jpeg', quality: 1 },
+                image:        { type: 'jpeg', quality: 0.98 },
                 html2canvas:  { scale: 2, useCORS: true, windowWidth: 800 }, 
                 jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
                 pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] }
@@ -298,7 +303,8 @@ ob_start();
 
             html2pdf().set(opt).from(element).save().then(function() {
                 // Herstel de originele stijl na generatie
-                element.setAttribute('style', originalStyle || '');
+                element.style.width = originalWidth;
+                element.classList.remove('bg-white');
             });
         }
     </script>
