@@ -18,10 +18,6 @@ require_once __DIR__ . '/../../config/database.php';
  */
 class ApiController {
 
-    public function __construct() {
-        header('Content-Type: application/json');
-    }
-
     /**
      * Verifies the API key provided in the request.
      */
@@ -44,6 +40,7 @@ class ApiController {
      * Retrieves open answers that need AI grading.
      */
     public function getOpenAnswers() {
+        header('Content-Type: application/json');
         $this->verifyApiKey();
 
         $pingFile = __DIR__ . '/../../database/last_api_ping.txt';
@@ -64,6 +61,7 @@ class ApiController {
      * Receives AI feedback and updates the student answer.
      */
     public function submitAiFeedback() {
+        header('Content-Type: application/json');
         $this->verifyApiKey();
         
         $input = json_decode(file_get_contents('php://input'), true);
