@@ -16,18 +16,11 @@ class Database {
   private static function initialize() {
     $pdo = self::$pdo;
     
-    // check of users tabel bestaat
-    $pdo->exec("
-	       CREATE TABLE IF NOT EXISTS users (
-						 id INTEGER PRIMARY KEY AUTOINCREMENT,
-	       name TEXT NOT NULL,
-	       email TEXT UNIQUE NOT NULL,
-	       password TEXT NOT NULL,
-	       role TEXT CHECK(role IN ('student','docent')) NOT NULL,
-	       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-	       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-	       )
-	       ");
+    // Check of de users tabel bestaat
+    $stmt = $pdo->query("SELECT name FROM sqlite_master WHERE type='table' AND name='users'");
+    if (!$stmt->fetch()) {
+        die("Database is nog niet geïnitialiseerd. Voer eerst het setup script uit.");
+    }
 	       
     // check of er users zijn
     $count = $pdo->query("SELECT COUNT(*) FROM users")->fetchColumn();
