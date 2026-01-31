@@ -69,7 +69,7 @@ ob_start();
             Correlatie Visualisatie (Docent vs AI)
         </div>
         <div class="card-body">
-            <div style="height: 400px;">
+            <div style="height: 300px;">
                 <canvas id="correlationChart"></canvas>
             </div>
             <p class="text-muted small mt-2 text-center">
@@ -280,17 +280,26 @@ ob_start();
 
         function generatePDF() {
             const element = document.getElementById('report-content');
+            
+            // Forceer een vaste breedte die goed past op A4 (ongeveer 750px)
+            // Dit voorkomt dat grafieken en tabellen te breed worden gerenderd
+            const originalStyle = element.getAttribute('style');
+            element.style.width = '750px';
+            element.style.margin = '0 auto';
+
             const opt = {
                 margin:       [10, 10, 10, 10], // top, left, bottom, right
                 filename:     'Rapport_AI_Vergelijking_<?= preg_replace('/[^a-z0-9]/i', '_', $exam['title']) ?>.pdf',
                 image:        { type: 'jpeg', quality: 1 },
-                html2canvas:  { scale: 2, useCORS: true }, // Scale 2 voor betere kwaliteit grafiek
+                html2canvas:  { scale: 2, useCORS: true, windowWidth: 800 }, 
                 jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
                 pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] }
             };
 
-            // Gebruik html2pdf library
-            html2pdf().set(opt).from(element).save();
+            html2pdf().set(opt).from(element).save().then(function() {
+                // Herstel de originele stijl na generatie
+                element.setAttribute('style', originalStyle || '');
+            });
         }
     </script>
 <?php endif; ?>
