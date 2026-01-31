@@ -51,6 +51,7 @@ if (file_exists($pingFile) && is_readable($pingFile)) {
                 <li class="nav-item"><a class="nav-link" href="/?action=students">Gebruikers</a></li>
                 <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin'): ?>
                     <li class="nav-item"><a class="nav-link" href="/?action=api_keys">API Keys</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/?action=prompts">Prompts</a></li>
                 <?php endif; ?>
                 <li class="nav-item"><a class="nav-link" href="/?action=audit_log">Audit Log</a></li>
                 <li class="nav-item"><a class="nav-link" href="/?action=my_exams">Mijn Toetsen</a></li>

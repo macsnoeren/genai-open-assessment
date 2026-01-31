@@ -14,6 +14,7 @@ require_once __DIR__ . '/../app/controllers/StudentController.php';
 require_once __DIR__ . '/../app/controllers/DocentController.php';
 require_once __DIR__ . '/../app/controllers/StudentExamController.php';
 require_once __DIR__ . '/../app/controllers/ApiKeyController.php';
+require_once __DIR__ . '/../app/controllers/PromptController.php';
 
 $action = $_GET['action'] ?? 'login';
 
@@ -22,6 +23,7 @@ $docent = new DocentController();
 $studentController = new StudentController();
 $studentExamController = new StudentExamController();
 $apiKeyController = new ApiKeyController();
+$promptController = new PromptController();
 
 switch ($action) {
  case 'login':
@@ -206,6 +208,34 @@ switch ($action) {
 
  case 'pending_assessments':
     $docent->pendingAssessments();
+    break;
+
+ case 'prompts':
+    $promptController->index();
+    break;
+
+ case 'prompt_create':
+    $promptController->create();
+    break;
+
+ case 'prompt_store':
+    $promptController->store();
+    break;
+
+ case 'prompt_edit':
+    $promptController->edit();
+    break;
+
+ case 'prompt_update':
+    $promptController->update();
+    break;
+
+ case 'prompt_delete':
+    $promptController->delete();
+    break;
+
+ case 'prompt_help':
+    $promptController->help();
     break;
    
  default:

@@ -87,3 +87,13 @@ CREATE TABLE IF NOT EXISTS audit_log (
     -- Als een gebruiker wordt verwijderd, blijft de log bestaan maar wordt de user_id op NULL gezet.
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE
 );
+
+-- Prompts voor AI beoordeling
+CREATE TABLE IF NOT EXISTS prompts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    description TEXT,
+    prompt_text TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
