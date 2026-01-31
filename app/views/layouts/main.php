@@ -35,7 +35,7 @@ if (file_exists($pingFile) && is_readable($pingFile)) {
 <nav class="navbar navbar-expand-lg navbar-dark navbar-custom shadow-sm">
   <div class="container">
     <a class="navbar-brand fw-bold" href="/">
-        <img src="/images/logo.png" alt="Logo" height="30" class="d-inline-block align-text-top me-2">
+        <img src="/images/logo.png" alt="Logo" height="40" class="d-inline-block align-text-top me-2">
         Openvragen Toetsing
     </a>
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
