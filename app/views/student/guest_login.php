@@ -14,6 +14,9 @@ ob_start();
     <div class="col-md-6 col-lg-5">
         <div class="card shadow">
             <div class="card-body p-4">
+                <div class="text-center mb-4">
+                    <img src="/images/logo.png" alt="Logo" style="max-height: 200px;">
+                </div>
                 <h3 class="card-title text-center mb-4">Toets Starten</h3>
                 <p class="text-center text-muted mb-4">
                     Je staat op het punt om de toets <strong><?= htmlspecialchars($exam['title']) ?></strong> te starten.
