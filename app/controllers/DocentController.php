@@ -173,7 +173,6 @@ class DocentController {
     Question::create(
 		     $_POST['exam_id'],
 		     $_POST['question_text'],
-		     '', // model_answer (deprecated)
 		     $_POST['criteria']
 		     );
     AuditLog::log('question_create', [
@@ -214,7 +213,6 @@ class DocentController {
     Question::update(
 		     $_POST['id'],
 		     $_POST['question_text'],
-		     '', // model_answer (deprecated)
 		     $_POST['criteria']
 		     );
 

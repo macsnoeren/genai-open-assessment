@@ -11,13 +11,13 @@ class Question {
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
   }
   
-  public static function create($examId, $text, $modelAnswer, $criteria) {
+  public static function create($examId, $text, $criteria) {
     $pdo = Database::connect();
     $stmt = $pdo->prepare("
-			  INSERT INTO questions (exam_id, question_text, model_answer, criteria)
-			  VALUES (?, ?, ?, ?)
+			  INSERT INTO questions (exam_id, question_text, criteria)
+			  VALUES (?, ?, ?)
 			  ");
-    $stmt->execute([$examId, $text, $modelAnswer, $criteria]);
+    $stmt->execute([$examId, $text, $criteria]);
   }
   
   public static function find($id) {
@@ -27,14 +27,14 @@ class Question {
     return $stmt->fetch(PDO::FETCH_ASSOC);
   }
   
-  public static function update($id, $text, $modelAnswer, $criteria) {
+  public static function update($id, $text, $criteria) {
     $pdo = Database::connect();
     $stmt = $pdo->prepare("
 			  UPDATE questions
-			  SET question_text = ?, model_answer = ?, criteria = ?, updated_at = CURRENT_TIMESTAMP
+			  SET question_text = ?, criteria = ?, updated_at = CURRENT_TIMESTAMP
 			  WHERE id = ?
 			  ");
-    $stmt->execute([$text, $modelAnswer, $criteria, $id]);
+    $stmt->execute([$text, $criteria, $id]);
   }
     
     public static function delete($id) {
