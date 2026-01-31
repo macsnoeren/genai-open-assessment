@@ -71,6 +71,10 @@ switch ($action) {
  case 'exam_delete':
    $docent->deleteExam();
    break;
+
+ case 'exam_duplicate':
+   $docent->duplicateExam();
+   break;
    
  case 'questions':
    $docent->questions($_GET['exam_id']);

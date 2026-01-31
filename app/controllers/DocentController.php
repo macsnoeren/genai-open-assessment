@@ -142,6 +142,25 @@ class DocentController {
   }
 
   /**
+   * Duplicates an exam including questions and student answers (but resets AI feedback).
+   */
+  public function duplicateExam() {
+    requireLogin();
+    requireRole('docent');
+    
+    $this->checkExamOwnership($_GET['id']);
+    
+    try {
+        Exam::duplicate($_GET['id']);
+    } catch (Exception $e) {
+        // Foutafhandeling (optioneel: logging of sessie bericht)
+    }
+    
+    header('Location: /?action=docent_dashboard');
+    exit;
+  }
+
+  /**
    * Lists all questions for a specific exam.
    * @param int $examId
    */
