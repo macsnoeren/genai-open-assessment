@@ -72,9 +72,15 @@ def import_dataset():
     unique_questions = {}
     
     print("Vragen verwerken...")
+    if len(data) > 0:
+        print(f"Beschikbare kolommen: {list(data[0].keys())}")
+
     for row in data:
-        q_text = row['question']
-        ref_answer = row['desired_answer']
+        q_text = row.get('question')
+        ref_answer = row.get('desired_answer') or row.get('reference_answer')
+        
+        if not q_text or not ref_answer:
+            continue
         
         # Gebruik de vraagtekst als sleutel om dubbelen te voorkomen
         if q_text not in unique_questions:
@@ -100,8 +106,12 @@ def import_dataset():
     print("Studentantwoorden importeren...")
     answer_count = 0
     for row in data:
-        q_text = row['question']
-        student_ans = row['student_answer']
+        q_text = row.get('question')
+        student_ans = row.get('student_answer')
+        
+        if not q_text or not student_ans:
+            continue
+
         # Score is 0-5 in dataset, schaal naar 0-10 en rond af naar integer
         raw_score = row.get('score_mean', 0)
         teacher_score = int(round(float(raw_score) * 2))
