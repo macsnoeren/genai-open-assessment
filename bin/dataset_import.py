@@ -58,7 +58,15 @@ def import_dataset():
 
     # 3. Verwerk dataset en voeg vragen toe
     # De dataset is waarschijnlijk een DatasetDict (met 'train') of direct een Dataset.
-    data = ds['train'] if 'train' in ds else ds
+    # Als het een DatasetDict is (heeft keys die splits zijn), pak de eerste split als 'train' ontbreekt.
+    if hasattr(ds, 'column_names') and isinstance(ds.column_names, dict):
+        # Het is een DatasetDict
+        if 'train' in ds:
+            data = ds['train']
+        else:
+            data = ds[list(ds.keys())[0]]
+    else:
+        data = ds
     
     # We moeten unieke vragen filteren, want de dataset bevat meerdere rijen per vraag (voor verschillende studentantwoorden)
     unique_questions = {}
