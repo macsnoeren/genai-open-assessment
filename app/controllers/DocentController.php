@@ -614,6 +614,11 @@ public function viewStudentAnswers($studentExamId) {
     $exam = Exam::find($examId);
     $questions = Question::allByExam($examId);
     
+    $prompt = null;
+    if (!empty($exam['prompt_id'])) {
+        $prompt = Prompt::find($exam['prompt_id']);
+    }
+    
     $pdo = Database::connect();
     // Haal antwoorden op die zowel door docent als AI zijn beoordeeld
     $stmt = $pdo->prepare("

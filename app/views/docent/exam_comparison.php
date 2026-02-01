@@ -152,6 +152,12 @@ ob_start();
             <div class="card-body">
                 <h5 class="card-title"><?= htmlspecialchars($exam['title']) ?></h5>
                 <p class="card-text"><?= nl2br(htmlspecialchars($exam['description'])) ?></p>
+                
+                <?php if (isset($prompt) && $prompt): ?>
+                    <hr>
+                    <h6 class="card-subtitle mb-2 text-muted">Gebruikte AI Prompt: <?= htmlspecialchars($prompt['title']) ?></h6>
+                    <div class="p-3 bg-light border rounded font-monospace small" style="white-space: pre-wrap;"><?= htmlspecialchars($prompt['prompt_text']) ?></div>
+                <?php endif; ?>
             </div>
         </div>
     </div>
