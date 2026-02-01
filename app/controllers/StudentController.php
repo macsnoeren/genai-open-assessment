@@ -112,20 +112,22 @@ class StudentController {
     
     // Als geen admin, behoud huidige rol
     if ($_SESSION['role'] !== 'admin') {
-        $stmt = $pdo->prepare("SELECT role FROM users WHERE id = ?");
+        $stmt = $pdo->prepare("SELECT role, email FROM users WHERE id = ?");
         $stmt->execute([$userIdToUpdate]);
         $currentUserData = $stmt->fetch(PDO::FETCH_ASSOC);
         $newRole = $currentUserData['role'];
+        $email = $currentUserData['email'];
     } else {
         $newRole = $_POST['role'] ?? 'student';
+        $email = $_POST['email'];
     }
     
     $sql = "UPDATE users SET name = ?, email = ?, role = ? WHERE id = ?";
-    $params = [$_POST['name'], $_POST['email'], $newRole, $userIdToUpdate];
+    $params = [$_POST['name'], $email, $newRole, $userIdToUpdate];
 
     if (!empty($_POST['password'])) {
         $sql = "UPDATE users SET name = ?, email = ?, role = ?, password = ? WHERE id = ?";
-        $params = [$_POST['name'], $_POST['email'], $newRole, password_hash($_POST['password'], PASSWORD_DEFAULT), $userIdToUpdate];
+        $params = [$_POST['name'], $email, $newRole, password_hash($_POST['password'], PASSWORD_DEFAULT), $userIdToUpdate];
     }
 
     $stmt = $pdo->prepare($sql);

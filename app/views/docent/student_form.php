@@ -28,7 +28,10 @@ ob_start(); ?>
 
     <div class="mb-3">
         <label class="form-label">Email</label>
-        <input type="email" name="email" class="form-control" value="<?= htmlspecialchars($student['email'] ?? '') ?>" required>
+        <input type="email" name="email" class="form-control" value="<?= htmlspecialchars($student['email'] ?? '') ?>" required <?= ($student && $_SESSION['role'] !== 'admin') ? 'readonly' : '' ?>>
+        <?php if ($student && $_SESSION['role'] !== 'admin'): ?>
+            <div class="form-text">Je kunt je e-mailadres niet wijzigen.</div>
+        <?php endif; ?>
     </div>
 
     <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin'): ?>
