@@ -77,7 +77,7 @@ def import_dataset():
 
     for row in data:
         q_text = row.get('question')
-        ref_answer = row.get('desired_answer') or row.get('reference_answer')
+        ref_answer = row.get('desired_answer') or row.get('reference_answer') or row.get('instructor_answer')
         
         if not q_text or not ref_answer:
             continue
@@ -113,7 +113,7 @@ def import_dataset():
             continue
 
         # Score is 0-5 in dataset, schaal naar 0-10 en rond af naar integer
-        raw_score = row.get('score_mean', 0)
+        raw_score = row.get('score_mean') or row.get('score_avg') or 0
         teacher_score = int(round(float(raw_score) * 2))
         
         if q_text in question_ids:
