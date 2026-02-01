@@ -57,5 +57,17 @@ class StudentAnswer {
     $stmt = $pdo->prepare("UPDATE student_answers SET ai_feedback = ? WHERE id = ?");
     $stmt->execute([$feedback, $id]);
   }
+
+  public static function clearAiFeedbackByExam($examId) {
+    $pdo = Database::connect();
+    $stmt = $pdo->prepare("
+        UPDATE student_answers 
+        SET ai_feedback = NULL, ai_updated_at = NULL
+        WHERE student_exam_id IN (
+            SELECT id FROM student_exams WHERE exam_id = ?
+        )
+    ");
+    $stmt->execute([$examId]);
+  }
 }
 ?>

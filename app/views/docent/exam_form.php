@@ -33,7 +33,7 @@ ob_start(); ?>
 
     <div class="mb-3">
         <label class="form-label">AI Prompt</label>
-        <select name="prompt_id" class="form-select">
+        <select name="prompt_id" class="form-select" id="promptSelect" data-original="<?= $exam['prompt_id'] ?? '' ?>">
             <option value="">-- Standaard prompt (indien geen geselecteerd) --</option>
             <?php foreach ($prompts as $prompt): ?>
                 <option value="<?= $prompt['id'] ?>" <?= ($exam && $exam['prompt_id'] == $prompt['id']) ? 'selected' : '' ?>><?= htmlspecialchars($prompt['title']) ?></option>
@@ -59,6 +59,26 @@ ob_start(); ?>
 
 </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.querySelector('form');
+    const promptSelect = document.getElementById('promptSelect');
+    
+    if (form && promptSelect) {
+        form.addEventListener('submit', function(e) {
+            const original = promptSelect.getAttribute('data-original');
+            const current = promptSelect.value;
+            
+            if (original !== '' && original !== current) {
+                if (!confirm('Je hebt de AI Prompt gewijzigd. Om de consistentie van de rapportages te waarborgen, zullen alle bestaande AI-beoordelingen voor deze toets worden verwijderd en opnieuw worden gegenereerd.\n\nWil je doorgaan?')) {
+                    e.preventDefault();
+                }
+            }
+        });
+    }
+});
+</script>
 
 <?php 
 $content = ob_get_clean();

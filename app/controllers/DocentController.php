@@ -13,6 +13,7 @@ require_once __DIR__ . '/../helpers/auth.php';
 require_once __DIR__ . '/../models/AuditLog.php';
 require_once __DIR__ . '/../models/Questions.php';
 require_once __DIR__ . '/../models/Prompt.php';
+require_once __DIR__ . '/../models/StudentAnswer.php';
 
 /**
  * Class DocentController
@@ -123,6 +124,10 @@ class DocentController {
     }
     if ($currentExam['prompt_id'] != $promptId) {
         $changes['prompt_id'] = ['old' => $currentExam['prompt_id'], 'new' => $promptId];
+        
+        // Reset AI feedback for all students for this exam to ensure consistency
+        StudentAnswer::clearAiFeedbackByExam($_POST['id']);
+        AuditLog::log('exam_ai_feedback_cleared', ['exam_id' => $_POST['id'], 'reason' => 'prompt_change']);
     }
     if ($currentExam['ai_grading_enabled'] != $aiGradingEnabled) {
         $changes['ai_grading_enabled'] = ['old' => $currentExam['ai_grading_enabled'], 'new' => $aiGradingEnabled];
