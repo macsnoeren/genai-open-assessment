@@ -42,7 +42,7 @@ ob_start();
       <td class="text-end">
         <div class="btn-group btn-group-sm">
             <a href="/?action=student_edit&id=<?= $s['id'] ?>" class="btn btn-outline-primary">Bewerken</a>
-            <a href="/?action=student_delete&id=<?= $s['id'] ?>" class="btn btn-outline-danger" onclick="return confirm('Weet je het zeker?')">Verwijderen</a>
+            <a href="/?action=student_delete&id=<?= $s['id'] ?>" class="btn btn-outline-danger" data-confirm="Weet je het zeker?">Verwijderen</a>
         </div>
       </td>
     </tr>

@@ -68,7 +68,7 @@ if (!function_exists('formatLogDetails')) {
 
 <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin'): ?>
 <div class="mb-3">
-    <a href="/?action=clear_audit_log" class="btn btn-danger" onclick="return confirm('Weet u zeker dat u de volledige audit log wilt wissen? Deze actie kan niet ongedaan worden gemaakt.');">Log leegmaken</a>
+    <a href="/?action=clear_audit_log" class="btn btn-danger" data-confirm="Weet u zeker dat u de volledige audit log wilt wissen? Deze actie kan niet ongedaan worden gemaakt.">Log leegmaken</a>
 </div>
 <?php endif; ?>
 

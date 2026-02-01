@@ -37,7 +37,7 @@
             <a href="/?action=grade_student_exam&student_exam_id=<?= $se['student_exam_id'] ?>" class="btn btn-outline-primary">Beoordelen (Blind)</a>
         </div>
     <a href="/?action=delete_student_exam&student_exam_id=<?= $se['student_exam_id'] ?>" 
-       onclick="return confirm('Weet je zeker dat je dit resultaat wilt verwijderen? Alle antwoorden en feedback gaan verloren.')" class="btn btn-sm btn-outline-danger ms-1">Verwijderen</a>
+       data-confirm="Weet je zeker dat je dit resultaat wilt verwijderen? Alle antwoorden en feedback gaan verloren." class="btn btn-sm btn-outline-danger ms-1">Verwijderen</a>
       </td>
     </tr>
     <?php endforeach; ?>

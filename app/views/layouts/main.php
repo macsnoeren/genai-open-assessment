@@ -132,5 +132,76 @@ if (file_exists($pingFile) && is_readable($pingFile)) {
 
 <!-- Bootstrap JS Bundle -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<!-- Confirmation Modal -->
+<div class="modal fade" id="confirmationModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Bevestiging</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body" id="confirmationMessage">
+        Weet je het zeker?
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuleren</button>
+        <button type="button" class="btn btn-primary" id="confirmActionBtn">Bevestigen</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// Global function to show confirmation modal
+window.showConfirmationModal = function(message, onConfirm) {
+    var modalEl = document.getElementById('confirmationModal');
+    var messageBody = document.getElementById('confirmationMessage');
+    var confirmBtn = document.getElementById('confirmActionBtn');
+    
+    messageBody.textContent = message;
+    
+    // Clone button to remove old listeners
+    var newBtn = confirmBtn.cloneNode(true);
+    confirmBtn.parentNode.replaceChild(newBtn, confirmBtn);
+    
+    newBtn.addEventListener('click', function() {
+        var modalInstance = bootstrap.Modal.getInstance(modalEl);
+        modalInstance.hide();
+        onConfirm();
+    });
+    
+    var modal = new bootstrap.Modal(modalEl);
+    modal.show();
+};
+
+document.addEventListener('DOMContentLoaded', function() {
+    document.body.addEventListener('click', function(e) {
+        var target = e.target.closest('[data-confirm]');
+        if (target) {
+            e.preventDefault();
+            var message = target.getAttribute('data-confirm');
+            
+            window.showConfirmationModal(message, function() {
+                if (target.tagName === 'A') {
+                    window.location.href = target.href;
+                } else if (target.tagName === 'BUTTON' && target.type === 'submit') {
+                    if (target.form.requestSubmit) {
+                        target.form.requestSubmit(target);
+                    } else {
+                        // Fallback for older browsers
+                        var input = document.createElement('input');
+                        input.type = 'hidden';
+                        input.name = target.name;
+                        input.value = target.value;
+                        target.form.appendChild(input);
+                        target.form.submit();
+                    }
+                }
+            });
+        }
+    });
+});
+</script>
 </body>
 </html>

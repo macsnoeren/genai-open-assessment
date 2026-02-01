@@ -48,7 +48,7 @@ if (isset($_SESSION['new_api_key'])):
       <td><?= $key['created_at'] ?></td>
       <td class="text-end">
         <a href="/?action=api_key_delete&id=<?= $key['id'] ?>"
-           onclick="return confirm('Weet je zeker dat je deze API-key wilt verwijderen?')" class="btn btn-sm btn-outline-danger">Verwijderen</a>
+           data-confirm="Weet je zeker dat je deze API-key wilt verwijderen?" class="btn btn-sm btn-outline-danger">Verwijderen</a>
       </td>
     </tr>
     <?php endforeach; ?>

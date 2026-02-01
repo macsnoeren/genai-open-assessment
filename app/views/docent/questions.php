@@ -35,7 +35,7 @@ ob_start();
               <td class="text-end">
                 <div class="btn-group btn-group-sm">
                     <a href="index.php?action=question_edit&id=<?= $q['id'] ?>" class="btn btn-outline-primary">Bewerken</a>
-                    <a href="index.php?action=question_delete&id=<?= $q['id'] ?>" class="btn btn-outline-danger" onclick="return confirm('Weet je het zeker?')">Verwijderen</a>
+                    <a href="index.php?action=question_delete&id=<?= $q['id'] ?>" class="btn btn-outline-danger" data-confirm="Weet je het zeker?">Verwijderen</a>
                 </div>
               </td>
             </tr>

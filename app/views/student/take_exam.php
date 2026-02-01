@@ -41,7 +41,7 @@ ob_start();
   
   <div class="d-flex justify-content-between mt-4 mb-5">
       <button type="submit" name="action_type" value="save" class="btn btn-secondary">Tussentijds opslaan</button>
-      <button type="submit" name="action_type" value="submit" class="btn btn-success btn-lg" onclick="return confirm('Weet je zeker dat je de toets definitief wilt inleveren? Hierna kun je geen wijzigingen meer maken.')">Definitief inleveren</button>
+      <button type="submit" name="action_type" value="submit" class="btn btn-success btn-lg" data-confirm="Weet je zeker dat je de toets definitief wilt inleveren? Hierna kun je geen wijzigingen meer maken.">Definitief inleveren</button>
   </div>
 </form>
 
