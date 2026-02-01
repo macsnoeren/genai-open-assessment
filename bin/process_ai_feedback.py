@@ -227,8 +227,7 @@ def run():
                             f"Model: {model}\n"
                             f"Tijdsduur: {result['duration']:.2f}s\n"
                             f"Aantal punten: {result['score']}\n"
-                            f"Feedback: {result['feedback']}\n"
-                            f"Uitleg: {result['uitleg']}"
+                            f"Feedback: {result['feedback']}"
                         )
                     else:
                         print(f"Model {model} faalde voor antwoord {q['student_answer_id']}. Feedback wordt niet verstuurd.")

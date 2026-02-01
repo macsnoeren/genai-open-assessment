@@ -66,6 +66,7 @@ ob_start();
                             <th>Gemiddelde Score</th>
                             <th>Standaarddeviatie</th>
                             <th>Afwijking t.o.v. Docent (MAE)</th>
+                            <th>Afwijking t.o.v. Docent (RMSE)</th>
                             <th>Correlatie met Docent</th>
                         </tr>
                     </thead>
@@ -78,6 +79,14 @@ ob_start();
                             <td>
                                 <?php if ($name !== 'Docent' && isset($data['mae'])): ?>
                                     <?= number_format($data['mae'], 2) ?>
+                                    <small class="text-muted d-block" style="font-size: 0.75em;">(lager is beter)</small>
+                                <?php else: ?>
+                                    -
+                                <?php endif; ?>
+                            </td>
+                            <td>
+                                <?php if ($name !== 'Docent' && isset($data['rmse'])): ?>
+                                    <?= number_format($data['rmse'], 2) ?>
                                     <small class="text-muted d-block" style="font-size: 0.75em;">(lager is beter)</small>
                                 <?php else: ?>
                                     -

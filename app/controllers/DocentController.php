@@ -587,6 +587,7 @@ public function viewStudentAnswers($studentExamId) {
             // Vergelijking met docent (als dit geen docent is)
             if ($name !== 'Docent') {
                 $maeSum = 0; // Mean Absolute Error
+                $mseSum = 0; // Mean Squared Error (voor RMSE)
                 $docentScores = $stats['Docent']['scores'];
                 
                 // Correlatie berekening variabelen
@@ -600,6 +601,7 @@ public function viewStudentAnswers($studentExamId) {
                         $y = $row['models'][$name];
                         
                         $maeSum += abs($x - $y);
+                        $mseSum += pow($x - $y, 2);
 
                         $sumX += $x;
                         $sumY += $y;
@@ -611,6 +613,7 @@ public function viewStudentAnswers($studentExamId) {
                 }
 
                 $data['mae'] = ($n > 0) ? $maeSum / $n : 0;
+                $data['rmse'] = ($n > 0) ? sqrt($mseSum / $n) : 0;
                 
                 // Pearson Correlatie
                 $numerator = $n * $sumXY - $sumX * $sumY;
