@@ -62,7 +62,7 @@ class StudentController {
     $password = password_hash($_POST['password'], PASSWORD_DEFAULT);
 
     $pdo = Database::connect();
-    $stmt = $pdo->prepare("INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)");
+    $stmt = $pdo->prepare("INSERT INTO users (name, email, password, role, force_password_change) VALUES (?, ?, ?, ?, 1)");
     $stmt->execute([$_POST['name'], $_POST['email'], $password, $role]);
 
     AuditLog::log('user_create', [

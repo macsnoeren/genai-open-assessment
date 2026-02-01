@@ -45,6 +45,7 @@ if (file_exists($pingFile) && is_readable($pingFile)) {
     <div class="collapse navbar-collapse" id="navbarNav">
       <ul class="navbar-nav me-auto">
         <?php if (!empty($_SESSION['user_id'])): ?>
+            <?php if (empty($_SESSION['force_password_change'])): ?>
             <?php if (isset($_SESSION['role']) && ($_SESSION['role'] === 'docent' || $_SESSION['role'] === 'admin')): ?>
                 <li class="nav-item"><a class="nav-link" href="index.php?action=docent_dashboard">Dashboard</a></li>
                 <li class="nav-item"><a class="nav-link" href="/?action=pending_assessments">Beoordelen</a></li>
@@ -61,6 +62,7 @@ if (file_exists($pingFile) && is_readable($pingFile)) {
                 <li class="nav-item"><a class="nav-link" href="index.php?action=student_dashboard">Dashboard</a></li>
                 <li class="nav-item"><a class="nav-link" href="/?action=my_exams">Mijn Toetsen</a></li>
             <?php endif; ?>
+            <?php endif; ?>
         <?php endif; ?>
       </ul>
       
@@ -73,7 +75,9 @@ if (file_exists($pingFile) && is_readable($pingFile)) {
                 <small class="d-block fw-bold"><?= htmlspecialchars($_SESSION['name']) ?></small>
                 <small class="opacity-75" style="font-size: 0.75rem;"><?= htmlspecialchars(ucfirst($_SESSION['role'])) ?></small>
             </div>
+            <?php if (empty($_SESSION['force_password_change'])): ?>
             <a href="/?action=student_edit&id=<?= $_SESSION['user_id'] ?>" class="btn btn-sm btn-outline-light ms-2">Profiel</a>
+            <?php endif; ?>
             <a href="index.php?action=logout" class="btn btn-sm btn-outline-light ms-2">Uitloggen</a>
         <?php else: ?>
             <?php if (empty($isGuest)): ?>

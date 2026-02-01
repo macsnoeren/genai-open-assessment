@@ -47,6 +47,14 @@ switch ($action) {
  case 'do_register':
    $auth->register();
    break;
+
+ case 'change_password':
+   $auth->showChangePassword();
+   break;
+
+ case 'do_change_password':
+   $auth->updatePassword();
+   break;
     
  case 'docent_dashboard':
    $docent->dashboard();

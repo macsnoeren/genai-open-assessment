@@ -13,6 +13,15 @@ function requireLogin() {
         header('Location: /?action=login');
         exit;
     }
+
+    // Dwing wachtwoordwijziging af indien nodig
+    if (!empty($_SESSION['force_password_change'])) {
+        $action = $_GET['action'] ?? '';
+        if ($action !== 'change_password' && $action !== 'do_change_password' && $action !== 'logout') {
+            header('Location: /?action=change_password');
+            exit;
+        }
+    }
 }
 
 function requireRole($requiredRole) {

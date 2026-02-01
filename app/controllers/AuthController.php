@@ -52,9 +52,15 @@ class AuthController {
     $_SESSION['user_id'] = $user['id'];
     $_SESSION['name']    = $user['name'];
     $_SESSION['role']    = $user['role'];
+    $_SESSION['force_password_change'] = $user['force_password_change'] ?? 0;
     
     AuditLog::log('login_success');
     
+    if (!empty($_SESSION['force_password_change'])) {
+        header('Location: index.php?action=change_password');
+        exit;
+    }
+
     // redirect op rol
     if ($user['role'] === 'docent' || $user['role'] === 'admin') {
       header('Location: index.php?action=docent_dashboard');
@@ -101,6 +107,43 @@ class AuthController {
     $stmt->execute([$name, $email, $password, $role]);
 
     header('Location: /?action=login');
+    exit;
+  }
+
+  public function showChangePassword() {
+    requireLogin();
+    require __DIR__ . '/../views/auth/change_password.php';
+  }
+
+  public function updatePassword() {
+    requireLogin();
+
+    $password = $_POST['password'];
+    $confirm = $_POST['confirm_password'];
+
+    if ($password !== $confirm) {
+        $_SESSION['error'] = "Wachtwoorden komen niet overeen.";
+        header('Location: /?action=change_password');
+        exit;
+    }
+
+    $pdo = Database::connect();
+    $stmt = $pdo->prepare("UPDATE users SET password = ?, force_password_change = 0 WHERE id = ?");
+    $stmt->execute([password_hash($password, PASSWORD_DEFAULT), $_SESSION['user_id']]);
+
+    $_SESSION['force_password_change'] = 0;
+    $_SESSION['success_message'] = "Wachtwoord succesvol gewijzigd.";
+
+    AuditLog::log('password_change_forced');
+
+    // Redirect naar dashboard (wordt afgehandeld door login logica of handmatig hier)
+    if ($_SESSION['role'] === 'docent' || $_SESSION['role'] === 'admin') {
+        header('Location: index.php?action=docent_dashboard');
+    } elseif ($_SESSION['role'] === 'beoordelaar') {
+        header('Location: index.php?action=pending_assessments');
+    } else {
+        header('Location: index.php?action=student_dashboard');
+    }
     exit;
   }
 }
