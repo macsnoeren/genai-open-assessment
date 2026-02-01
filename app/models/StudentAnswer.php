@@ -39,6 +39,7 @@ class StudentAnswer {
         LEFT JOIN prompts p ON e.prompt_id = p.id
         WHERE (sa.ai_feedback IS NULL OR sa.ai_feedback = '')
         AND se.completed_at IS NOT NULL
+        AND e.ai_grading_enabled = 1
         ORDER BY sa.id ASC
     ";
 

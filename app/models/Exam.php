@@ -11,15 +11,15 @@ class Exam {
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
   }
   
-  public static function create($title, $description, $docentId, $promptId = null) {
+  public static function create($title, $description, $docentId, $promptId = null, $aiGradingEnabled = 0) {
     $pdo = Database::connect();
     // Genereer een unieke publieke token
     $publicToken = bin2hex(random_bytes(16));
     $stmt = $pdo->prepare("
-			  INSERT INTO exams (title, description, docent_id, public_token, prompt_id)
-			  VALUES (?, ?, ?, ?, ?)
+			  INSERT INTO exams (title, description, docent_id, public_token, prompt_id, ai_grading_enabled)
+			  VALUES (?, ?, ?, ?, ?, ?)
 			  ");
-    $stmt->execute([$title, $description, $docentId, $publicToken, $promptId]);
+    $stmt->execute([$title, $description, $docentId, $publicToken, $promptId, $aiGradingEnabled]);
   }
 
     public static function all() {
@@ -43,14 +43,14 @@ class Exam {
       return $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
-    public static function update($id, $title, $description, $promptId = null) {
+    public static function update($id, $title, $description, $promptId = null, $aiGradingEnabled = 0) {
       $pdo = Database::connect();
       $stmt = $pdo->prepare("
 			                UPDATE exams
-			    SET title = ?, description = ?, prompt_id = ?, updated_at = CURRENT_TIMESTAMP
+			    SET title = ?, description = ?, prompt_id = ?, ai_grading_enabled = ?, updated_at = CURRENT_TIMESTAMP
 			                WHERE id = ?
 			            ");
-      $stmt->execute([$title, $description, $promptId, $id]);
+      $stmt->execute([$title, $description, $promptId, $aiGradingEnabled, $id]);
     }
 
     public static function duplicate($id) {

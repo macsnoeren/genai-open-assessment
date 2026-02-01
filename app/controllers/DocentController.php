@@ -57,17 +57,20 @@ class DocentController {
     requireRole('docent');
     
     $promptId = !empty($_POST['prompt_id']) ? $_POST['prompt_id'] : null;
+    $aiGradingEnabled = isset($_POST['ai_grading_enabled']) ? 1 : 0;
 
     Exam::create(
 		 $_POST['title'],
 		 $_POST['description'],
 		 $_SESSION['user_id'],
-         $promptId
+         $promptId,
+         $aiGradingEnabled
 		 );
     AuditLog::log('exam_create', [
         'title' => $_POST['title'],
         'description' => $_POST['description'],
-        'prompt_id' => $promptId
+        'prompt_id' => $promptId,
+        'ai_grading_enabled' => $aiGradingEnabled
     ]);
     
     header('Location: /?action=docent_dashboard');
@@ -101,12 +104,14 @@ class DocentController {
     
     $currentExam = Exam::find($_POST['id']);
     $promptId = !empty($_POST['prompt_id']) ? $_POST['prompt_id'] : null;
+    $aiGradingEnabled = isset($_POST['ai_grading_enabled']) ? 1 : 0;
     
     Exam::update(
 		 $_POST['id'],
 		 $_POST['title'],
 		 $_POST['description'],
-         $promptId
+         $promptId,
+         $aiGradingEnabled
 		 );
 
     $changes = ['id' => $_POST['id']];
@@ -118,6 +123,9 @@ class DocentController {
     }
     if ($currentExam['prompt_id'] != $promptId) {
         $changes['prompt_id'] = ['old' => $currentExam['prompt_id'], 'new' => $promptId];
+    }
+    if ($currentExam['ai_grading_enabled'] != $aiGradingEnabled) {
+        $changes['ai_grading_enabled'] = ['old' => $currentExam['ai_grading_enabled'], 'new' => $aiGradingEnabled];
     }
 
     AuditLog::log('exam_update', $changes);
