@@ -33,7 +33,14 @@ ob_start();
               <tbody>
                 <?php foreach ($exams as $exam): ?>
                 <tr>
-                  <td class="align-middle"><?= htmlspecialchars($exam['title']) ?></td>
+                  <td class="align-middle">
+                      <?= htmlspecialchars($exam['title']) ?>
+                      <?php if ($exam['ai_grading_enabled']): ?>
+                          <span class="badge bg-success ms-2" title="AI beoordeling actief">AI Aan</span>
+                      <?php else: ?>
+                          <span class="badge bg-secondary ms-2" title="AI beoordeling inactief">AI Uit</span>
+                      <?php endif; ?>
+                  </td>
                   <td class="align-middle"><?= $exam['created_at'] ?></td>
                   <td class="text-end">
                     <?php if (!empty($exam['public_token'])): ?>
