@@ -165,6 +165,11 @@ class StudentExamController {
         if ($se['access_token'] !== $_COOKIE['guest_access_token']) {
             die("Geen toegang.");
         }
+    } else {
+        $se = StudentExam::find($studentExamId);
+        if (!$se || $se['student_id'] != $_SESSION['user_id']) {
+            die("Geen toegang: Dit is niet jouw toetspoging.");
+        }
     }
     
     foreach ($_POST['answers'] as $questionId => $answer) {

@@ -341,6 +341,7 @@ public function viewStudentAnswers($studentExamId) {
     requireRole('beoordelaar');
 
     $studentExam = StudentExam::find($studentExamId);
+    $this->checkGradingPermission($studentExam['exam_id']);
 
     $pdo = Database::connect();
     $stmt = $pdo->prepare("
@@ -366,6 +367,12 @@ public function viewStudentAnswers($studentExamId) {
     $score = $_POST['teacher_score'] === '' ? null : $_POST['teacher_score'];
     $feedback = $_POST['teacher_feedback'];
     $studentExamId = $_POST['student_exam_id'];
+    
+    $studentExam = StudentExam::find($studentExamId);
+    if ($studentExam) {
+        $this->checkGradingPermission($studentExam['exam_id']);
+    }
+
     $redirectAction = $_POST['redirect_action'] ?? 'view_student_answers';
 
     $pdo = Database::connect();
@@ -706,6 +713,20 @@ public function viewStudentAnswers($studentExamId) {
       $exam = Exam::find($examId);
       if (!$exam || $exam['docent_id'] != $_SESSION['user_id']) {
           die("Geen toegang: U bent niet de eigenaar van deze toets.");
+      }
+  }
+
+  /**
+   * Checks if the current user is allowed to grade this exam.
+   * Docents can only grade their own exams. Beoordelaars and Admins can grade all.
+   * @param int $examId
+   */
+  private function checkGradingPermission($examId) {
+      if ($_SESSION['role'] === 'admin' || $_SESSION['role'] === 'beoordelaar') return;
+      
+      $exam = Exam::find($examId);
+      if (!$exam || $exam['docent_id'] != $_SESSION['user_id']) {
+          die("Geen toegang: U mag deze toets niet beoordelen.");
       }
   }
 
