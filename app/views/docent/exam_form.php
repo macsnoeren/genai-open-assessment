@@ -69,8 +69,9 @@ document.addEventListener('DOMContentLoaded', function() {
         form.addEventListener('submit', function(e) {
             const original = promptSelect.getAttribute('data-original');
             const current = promptSelect.value;
+            const isEdit = form.getAttribute('action').includes('exam_update');
             
-            if (original !== '' && original !== current) {
+            if (isEdit && original !== current) {
                 if (!confirm('Je hebt de AI Prompt gewijzigd. Om de consistentie van de rapportages te waarborgen, zullen alle bestaande AI-beoordelingen voor deze toets worden verwijderd en opnieuw worden gegenereerd.\n\nWil je doorgaan?')) {
                     e.preventDefault();
                 }
