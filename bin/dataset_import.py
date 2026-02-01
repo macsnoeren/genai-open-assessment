@@ -47,10 +47,10 @@ def import_dataset():
     exam_description = "Geïmporteerde vragen uit de Mohler ASAG dataset (cleaned)."
     public_token = secrets.token_hex(16)
     
-    # We zetten AI grading standaard aan voor deze import
+    # We zetten AI grading standaard uit voor deze import
     cursor.execute("""
         INSERT INTO exams (title, description, docent_id, public_token, ai_grading_enabled)
-        VALUES (?, ?, ?, ?, 1)
+        VALUES (?, ?, ?, ?, 0)
     """, (exam_title, exam_description, docent_id, public_token))
     
     exam_id = cursor.lastrowid
@@ -70,6 +70,7 @@ def import_dataset():
     
     # We moeten unieke vragen filteren, want de dataset bevat meerdere rijen per vraag (voor verschillende studentantwoorden)
     unique_questions = {}
+    all_answers_by_question = {}
     
     print("Vragen verwerken...")
     if len(data) > 0:
@@ -82,9 +83,25 @@ def import_dataset():
         if not q_text or not ref_answer:
             continue
         
+        # Clean text
+        q_text = q_text.replace("<STOP>", "").strip()
+        ref_answer = ref_answer.replace("<STOP>", "").strip()
+
         # Gebruik de vraagtekst als sleutel om dubbelen te voorkomen
         if q_text not in unique_questions:
             unique_questions[q_text] = ref_answer
+            all_answers_by_question[q_text] = []
+
+        # Store student answer for later grouping
+        student_ans = row.get('student_answer')
+        if student_ans:
+            student_ans = student_ans.replace("<STOP>", "").strip()
+            raw_score = row.get('score_mean') or row.get('score_avg') or 0
+            teacher_score = int(round(float(raw_score) * 2))
+            all_answers_by_question[q_text].append({
+                'answer': student_ans,
+                'score': teacher_score
+            })
 
     print(f"{len(unique_questions)} unieke vragen gevonden.")
 
@@ -104,45 +121,48 @@ def import_dataset():
 
     # 5. Student antwoorden en beoordelingen importeren
     print("Studentantwoorden importeren...")
-    answer_count = 0
-    for row in data:
-        q_text = row.get('question')
-        student_ans = row.get('student_answer')
+    
+    # Bepaal hoeveel studenten we kunnen simuleren (max aantal antwoorden per vraag)
+    max_students = 0
+    for q in all_answers_by_question:
+        max_students = max(max_students, len(all_answers_by_question[q]))
+    
+    print(f"Er worden {max_students} virtuele studenten aangemaakt...")
+    
+    total_answers_inserted = 0
+    
+    for i in range(max_students):
+        # Maak een unieke gast-poging aan voor deze student
+        unique_id = f"IMP-{secrets.token_hex(4)}"
+        access_token = secrets.token_hex(16)
+        guest_name = f"Student {i + 1}"
         
-        if not q_text or not student_ans:
-            continue
-
-        # Score is 0-5 in dataset, schaal naar 0-10 en rond af naar integer
-        raw_score = row.get('score_mean') or row.get('score_avg') or 0
-        teacher_score = int(round(float(raw_score) * 2))
+        cursor.execute("""
+            INSERT INTO student_exams (exam_id, unique_id, guest_name, access_token, started_at, completed_at)
+            VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        """, (exam_id, unique_id, guest_name, access_token))
         
-        if q_text in question_ids:
-            q_id = question_ids[q_text]
+        student_exam_id = cursor.lastrowid
+        
+        # Loop door alle vragen van de toets
+        for q_text, q_id in question_ids.items():
+            answers_list = all_answers_by_question.get(q_text, [])
             
-            # Maak een unieke gast-poging aan voor dit antwoord
-            unique_id = f"IMP-{secrets.token_hex(4)}"
-            access_token = secrets.token_hex(16)
-            guest_name = f"Student {answer_count + 1}"
-            
-            cursor.execute("""
-                INSERT INTO student_exams (exam_id, unique_id, guest_name, access_token, started_at, completed_at)
-                VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-            """, (exam_id, unique_id, guest_name, access_token))
-            
-            student_exam_id = cursor.lastrowid
-            
-            cursor.execute("""
-                INSERT INTO student_answers (student_exam_id, question_id, answer, teacher_score, teacher_feedback)
-                VALUES (?, ?, ?, ?, ?)
-            """, (student_exam_id, q_id, student_ans, teacher_score, "Geïmporteerd uit Mohler dataset"))
-            
-            answer_count += 1
-            if answer_count % 100 == 0:
-                print(f"{answer_count} antwoorden verwerkt...")
+            # Als er een antwoord is op index i, voeg toe
+            if i < len(answers_list):
+                ans_data = answers_list[i]
+                cursor.execute("""
+                    INSERT INTO student_answers (student_exam_id, question_id, answer, teacher_score, teacher_feedback)
+                    VALUES (?, ?, ?, ?, ?)
+                """, (student_exam_id, q_id, ans_data['answer'], ans_data['score'], "Geïmporteerd uit Mohler dataset"))
+                total_answers_inserted += 1
+        
+        if (i + 1) % 10 == 0:
+            print(f"{i + 1} studenten verwerkt...")
 
     conn.commit()
     conn.close()
-    print(f"Klaar! {answer_count} studentantwoorden geïmporteerd in toets {exam_id}.")
+    print(f"Klaar! {total_answers_inserted} studentantwoorden geïmporteerd voor {max_students} studenten in toets {exam_id}.")
 
 if __name__ == "__main__":
     import_dataset()
