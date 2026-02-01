@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS exams (
     public_token TEXT UNIQUE, -- Unieke token voor de publieke link
     prompt_id INTEGER, -- Gekoppelde prompt voor AI beoordeling
     ai_grading_enabled INTEGER DEFAULT 0, -- AI beoordeling aan/uit (0=uit, 1=aan)
+    shared INTEGER DEFAULT 0, -- Gedeeld met andere docenten (0=nee, 1=ja)
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     -- Voorkom dat een docent wordt verwijderd als er nog toetsen aan gekoppeld zijn.

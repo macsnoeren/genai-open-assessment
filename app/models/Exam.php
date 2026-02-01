@@ -6,20 +6,20 @@ class Exam {
   
   public static function allByDocent($docentId) {
     $pdo = Database::connect();
-    $stmt = $pdo->prepare("SELECT * FROM exams WHERE docent_id = ?");
+    $stmt = $pdo->prepare("SELECT * FROM exams WHERE docent_id = ? OR shared = 1 ORDER BY created_at DESC");
     $stmt->execute([$docentId]);
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
   }
   
-  public static function create($title, $description, $docentId, $promptId = null, $aiGradingEnabled = 0) {
+  public static function create($title, $description, $docentId, $promptId = null, $aiGradingEnabled = 0, $shared = 0) {
     $pdo = Database::connect();
     // Genereer een unieke publieke token
     $publicToken = bin2hex(random_bytes(16));
     $stmt = $pdo->prepare("
-			  INSERT INTO exams (title, description, docent_id, public_token, prompt_id, ai_grading_enabled)
-			  VALUES (?, ?, ?, ?, ?, ?)
+			  INSERT INTO exams (title, description, docent_id, public_token, prompt_id, ai_grading_enabled, shared)
+			  VALUES (?, ?, ?, ?, ?, ?, ?)
 			  ");
-    $stmt->execute([$title, $description, $docentId, $publicToken, $promptId, $aiGradingEnabled]);
+    $stmt->execute([$title, $description, $docentId, $publicToken, $promptId, $aiGradingEnabled, $shared]);
   }
 
     public static function all() {
@@ -43,14 +43,14 @@ class Exam {
       return $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
-    public static function update($id, $title, $description, $promptId = null, $aiGradingEnabled = 0) {
+    public static function update($id, $title, $description, $promptId = null, $aiGradingEnabled = 0, $shared = 0) {
       $pdo = Database::connect();
       $stmt = $pdo->prepare("
 			                UPDATE exams
-			    SET title = ?, description = ?, prompt_id = ?, ai_grading_enabled = ?, updated_at = CURRENT_TIMESTAMP
+			    SET title = ?, description = ?, prompt_id = ?, ai_grading_enabled = ?, shared = ?, updated_at = CURRENT_TIMESTAMP
 			                WHERE id = ?
 			            ");
-      $stmt->execute([$title, $description, $promptId, $aiGradingEnabled, $id]);
+      $stmt->execute([$title, $description, $promptId, $aiGradingEnabled, $shared, $id]);
     }
 
     public static function duplicate($id) {
@@ -73,10 +73,10 @@ class Exam {
         $publicToken = bin2hex(random_bytes(16));
         
         $stmt = $pdo->prepare("
-            INSERT INTO exams (title, description, docent_id, public_token, prompt_id)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO exams (title, description, docent_id, public_token, prompt_id, ai_grading_enabled, shared)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
         ");
-        $stmt->execute([$newTitle, $exam['description'], $exam['docent_id'], $publicToken, $exam['prompt_id']]);
+        $stmt->execute([$newTitle, $exam['description'], $exam['docent_id'], $publicToken, $exam['prompt_id'], $exam['ai_grading_enabled'], 0]); // Kopie is standaard niet gedeeld
         $newExamId = $pdo->lastInsertId();
 
         // 3. Kopieer vragen

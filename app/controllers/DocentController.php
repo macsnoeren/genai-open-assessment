@@ -60,19 +60,22 @@ class DocentController {
     
     $promptId = !empty($_POST['prompt_id']) ? $_POST['prompt_id'] : null;
     $aiGradingEnabled = isset($_POST['ai_grading_enabled']) ? 1 : 0;
+    $shared = isset($_POST['shared']) ? 1 : 0;
 
     Exam::create(
 		 $_POST['title'],
 		 $_POST['description'],
 		 $_SESSION['user_id'],
          $promptId,
-         $aiGradingEnabled
+         $aiGradingEnabled,
+         $shared
 		 );
     AuditLog::log('exam_create', [
         'title' => $_POST['title'],
         'description' => $_POST['description'],
         'prompt_id' => $promptId,
-        'ai_grading_enabled' => $aiGradingEnabled
+        'ai_grading_enabled' => $aiGradingEnabled,
+        'shared' => $shared
     ]);
     
     header('Location: /?action=docent_dashboard');
@@ -108,13 +111,15 @@ class DocentController {
     $currentExam = Exam::find($_POST['id']);
     $promptId = !empty($_POST['prompt_id']) ? $_POST['prompt_id'] : null;
     $aiGradingEnabled = isset($_POST['ai_grading_enabled']) ? 1 : 0;
+    $shared = isset($_POST['shared']) ? 1 : 0;
     
     Exam::update(
 		 $_POST['id'],
 		 $_POST['title'],
 		 $_POST['description'],
          $promptId,
-         $aiGradingEnabled
+         $aiGradingEnabled,
+         $shared
 		 );
 
     $changes = ['id' => $_POST['id']];
@@ -133,6 +138,9 @@ class DocentController {
     }
     if ($currentExam['ai_grading_enabled'] != $aiGradingEnabled) {
         $changes['ai_grading_enabled'] = ['old' => $currentExam['ai_grading_enabled'], 'new' => $aiGradingEnabled];
+    }
+    if ($currentExam['shared'] != $shared) {
+        $changes['shared'] = ['old' => $currentExam['shared'], 'new' => $shared];
     }
 
     AuditLog::log('exam_update', $changes);
@@ -724,7 +732,7 @@ public function viewStudentAnswers($studentExamId) {
       if ($_SESSION['role'] === 'admin') return;
       
       $exam = Exam::find($examId);
-      if (!$exam || $exam['docent_id'] != $_SESSION['user_id']) {
+      if (!$exam || ($exam['docent_id'] != $_SESSION['user_id'] && !$exam['shared'])) {
           die("Geen toegang: U bent niet de eigenaar van deze toets.");
       }
   }
@@ -738,7 +746,7 @@ public function viewStudentAnswers($studentExamId) {
       if ($_SESSION['role'] === 'admin' || $_SESSION['role'] === 'beoordelaar') return;
       
       $exam = Exam::find($examId);
-      if (!$exam || $exam['docent_id'] != $_SESSION['user_id']) {
+      if (!$exam || ($exam['docent_id'] != $_SESSION['user_id'] && !$exam['shared'])) {
           die("Geen toegang: U mag deze toets niet beoordelen.");
       }
   }

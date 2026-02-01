@@ -51,6 +51,14 @@ ob_start(); ?>
         <div class="form-text">Als dit is ingeschakeld, worden ingeleverde antwoorden automatisch opgehaald en beoordeeld door de AI-service.</div>
     </div>
 
+    <div class="mb-4">
+        <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" id="shared" name="shared" value="1" <?= ($exam && $exam['shared']) ? 'checked' : '' ?>>
+            <label class="form-check-label" for="shared">Delen met andere docenten</label>
+        </div>
+        <div class="form-text">Als dit is ingeschakeld, kunnen andere docenten deze toets zien, gebruiken en beoordelen.</div>
+    </div>
+
     <div class="d-flex gap-2">
         <button type="submit" class="btn btn-primary">Opslaan</button>
     </div>

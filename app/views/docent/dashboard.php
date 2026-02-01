@@ -40,6 +40,12 @@ ob_start();
                       <?php else: ?>
                           <span class="badge bg-secondary ms-2" title="AI beoordeling inactief">AI Uit</span>
                       <?php endif; ?>
+                      <?php if ($exam['shared']): ?>
+                          <span class="badge bg-info text-dark ms-1" title="Gedeeld met andere docenten">Gedeeld</span>
+                      <?php endif; ?>
+                      <?php if ($exam['docent_id'] != $_SESSION['user_id']): ?>
+                          <span class="badge bg-warning text-dark ms-1" title="Gemaakt door een andere docent">Van collega</span>
+                      <?php endif; ?>
                   </td>
                   <td class="align-middle"><?= $exam['created_at'] ?></td>
                   <td class="text-end">
