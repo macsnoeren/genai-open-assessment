@@ -43,5 +43,6 @@ ob_start();
 <?php
 $content = ob_get_clean();
 $title = "Toets Starten";
+$hideHeaderFooter = true;
 require __DIR__ . '/../layouts/main.php';
 ?>
