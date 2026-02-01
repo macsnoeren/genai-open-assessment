@@ -7,6 +7,17 @@
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  */
+
+// Configure session cookie parameters for security
+$secure = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on';
+session_set_cookie_params([
+    'lifetime' => 0,
+    'path' => '/',
+    'domain' => '',
+    'secure' => $secure,
+    'httponly' => true,
+    'samesite' => 'Strict'
+]);
 session_start();
 
 require_once __DIR__ . '/../app/controllers/AuthController.php';

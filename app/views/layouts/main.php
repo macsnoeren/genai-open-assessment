@@ -11,6 +11,8 @@
 // Content Security Policy configuration
 header("Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; img-src 'self' data:; font-src 'self' https://cdn.jsdelivr.net; connect-src 'self';");
 header("X-Frame-Options: SAMEORIGIN");
+header("X-XSS-Protection: 1; mode=block");
+header("Strict-Transport-Security: max-age=31536000; includeSubDomains");
 
 $parserStatus = 'inactive';
 $pingFile = __DIR__ . '/../../../database/last_api_ping.txt';
