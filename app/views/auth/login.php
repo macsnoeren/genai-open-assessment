@@ -27,6 +27,7 @@ ob_start();
                 <?php endif; ?>
 
                 <form method="POST" action="index.php?action=do_login">
+                    <?= csrfInput() ?>
                     <div class="mb-3">
                         <label class="form-label">Email</label>
                         <input type="email" name="email" class="form-control" required autofocus>

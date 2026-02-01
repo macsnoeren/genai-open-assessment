@@ -80,6 +80,7 @@ class StudentExamController {
    * Registers a guest and starts the exam.
    */
   public function guestStart() {
+      validateCsrfToken();
       $token = $_POST['token'] ?? '';
       $name = trim($_POST['name'] ?? '');
       
@@ -145,6 +146,7 @@ class StudentExamController {
    * Submits the exam answers (either interim save or final submit).
    */
   public function submitExam() {
+    validateCsrfToken();
     // Check login of gast-sessie
     $isGuest = false;
     if (!isset($_SESSION['user_id'])) {

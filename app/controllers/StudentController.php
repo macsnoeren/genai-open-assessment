@@ -50,6 +50,7 @@ class StudentController {
    * Stores a new user in the database.
    */
   public function store() {
+    validateCsrfToken();
     requireLogin();
     requireRole('admin');
     
@@ -99,6 +100,7 @@ class StudentController {
    * Updates a user in the database.
    */
   public function update() {
+    validateCsrfToken();
     requireLogin();
     
     $userIdToUpdate = $_POST['id'];
@@ -156,6 +158,7 @@ class StudentController {
    * Deletes a user.
    */
   public function delete() {
+            validateCsrfToken();
             requireLogin();
 	    requireRole('admin');
 	    

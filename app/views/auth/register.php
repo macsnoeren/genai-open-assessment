@@ -5,6 +5,7 @@
     <p>Er zijn nog geen gebruikers gevonden. Maak het eerste account aan. Dit account wordt automatisch <strong>Admin</strong>.</p>
     
     <form method="POST" action="/?action=do_register">
+        <?= csrfInput() ?>
         <div style="margin-bottom: 10px;">
             <label>Naam</label><br>
             <input type="text" name="name" required style="width: 100%;">

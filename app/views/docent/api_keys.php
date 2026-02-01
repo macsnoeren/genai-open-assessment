@@ -67,6 +67,7 @@ if (isset($_SESSION['new_api_key'])):
       </div>
       <div class="modal-body">
         <form method="POST" action="/?action=api_key_create">
+          <?= csrfInput() ?>
           <div class="mb-3">
               <label class="form-label">Naam</label>
               <input type="text" name="name" class="form-control" placeholder="bv. AI Feedback Script" required>

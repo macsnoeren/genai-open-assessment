@@ -28,6 +28,7 @@ ob_start();
                 <?php endif; ?>
 
                 <form method="POST" action="index.php?action=do_change_password">
+                    <?= csrfInput() ?>
                     <div class="mb-3">
                         <label class="form-label">Nieuw Wachtwoord</label>
                         <input type="password" name="password" class="form-control" required autofocus>

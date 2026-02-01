@@ -30,6 +30,7 @@ class ApiKeyController {
    * Creates a new API key.
    */
   public function create() {
+    validateCsrfToken();
     requireRole('admin');
     
     $name = $_POST['name'];
@@ -48,6 +49,7 @@ class ApiKeyController {
    * Toggles the active status of an API key.
    */
   public function toggle() {
+    validateCsrfToken();
     requireRole('admin');
     AuditLog::log('api_key_toggle', ['id' => $_GET['id']]);
     ApiKey::toggle($_GET['id']);
@@ -59,6 +61,7 @@ class ApiKeyController {
    * Deletes an API key.
    */
   public function delete() {
+    validateCsrfToken();
     requireRole('admin');
     AuditLog::log('api_key_delete', ['id' => $_GET['id']]);
     ApiKey::delete($_GET['id']);

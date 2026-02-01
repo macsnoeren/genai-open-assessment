@@ -24,6 +24,7 @@ ob_start();
                 </p>
 
                 <form method="POST" action="index.php?action=guest_start">
+                    <?= csrfInput() ?>
                     <input type="hidden" name="token" value="<?= htmlspecialchars($_GET['token']) ?>">
                     
                     <div class="mb-3">

@@ -184,7 +184,19 @@ document.addEventListener('DOMContentLoaded', function() {
             
             window.showConfirmationModal(message, function() {
                 if (target.tagName === 'A') {
-                    window.location.href = target.href;
+                    // Zet GET link om naar POST formulier met CSRF token
+                    var form = document.createElement('form');
+                    form.method = 'POST';
+                    form.action = target.href;
+                    
+                    var csrfInput = document.createElement('input');
+                    csrfInput.type = 'hidden';
+                    csrfInput.name = 'csrf_token';
+                    csrfInput.value = '<?= generateCsrfToken() ?>';
+                    
+                    form.appendChild(csrfInput);
+                    document.body.appendChild(form);
+                    form.submit();
                 } else if (target.tagName === 'BUTTON' && target.type === 'submit') {
                     if (target.form.requestSubmit) {
                         target.form.requestSubmit(target);

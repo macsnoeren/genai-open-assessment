@@ -27,6 +27,7 @@ ob_start();
       <hr class="my-4">
       
       <form method="POST" action="/?action=save_teacher_feedback">
+      <?= csrfInput() ?>
       <input type="hidden" name="student_answer_id" value="<?= $a['id'] ?>">
       <input type="hidden" name="student_exam_id" value="<?= $studentExam['id'] ?>">
       <input type="hidden" name="redirect_action" value="grade_student_exam">

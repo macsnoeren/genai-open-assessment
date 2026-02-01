@@ -17,6 +17,7 @@ ob_start(); ?>
 <div class="card">
 <div class="card-body">
 <form action="/?action=<?= $action ?>" method="post">
+    <?= csrfInput() ?>
     <input type="hidden" name="exam_id" value="<?= $examId ?>">
     <?php if ($question): ?>
         <input type="hidden" name="id" value="<?= $question['id'] ?>">

@@ -36,6 +36,7 @@ class AuthController {
    * Processes the login request.
    */
   public function login() {
+    validateCsrfToken();
     $email = $_POST['email'] ?? '';
     $password = $_POST['password'] ?? '';
     
@@ -93,6 +94,7 @@ class AuthController {
    * Registers a new user. First user becomes admin, others become student.
    */
   public function register() {
+    validateCsrfToken();
     $pdo = Database::connect();
     $count = $pdo->query("SELECT COUNT(*) FROM users")->fetchColumn();
     
@@ -116,6 +118,7 @@ class AuthController {
   }
 
   public function updatePassword() {
+    validateCsrfToken();
     requireLogin();
 
     $password = $_POST['password'];

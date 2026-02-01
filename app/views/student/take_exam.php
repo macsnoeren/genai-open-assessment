@@ -28,6 +28,7 @@ ob_start();
 <p class="text-muted mb-4">ID: <?= htmlspecialchars($studentExam['unique_id']) ?></p>
 
 <form method="POST" action="/?action=submit_exam">
+  <?= csrfInput() ?>
   <input type="hidden" name="student_exam_id" value="<?= $studentExam['id'] ?>">
   
   <?php foreach ($questions as $q): ?>

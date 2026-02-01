@@ -34,8 +34,8 @@ class Database {
       $pdo = self::$pdo;
       
       $stmt = $pdo->prepare("
-			    INSERT INTO users (name, email, password, role)
-			    VALUES (?, ?, ?, ?)
+			    INSERT INTO users (name, email, password, role, force_password_change)
+			    VALUES (?, ?, ?, ?, 1)
 			    ");
 			    
       $stmt->execute([

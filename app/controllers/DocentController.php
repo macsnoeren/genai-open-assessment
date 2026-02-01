@@ -54,6 +54,7 @@ class DocentController {
    * Stores a newly created exam in the database.
    */
   public function storeExam() {
+    validateCsrfToken();
     requireLogin();
     requireRole('docent');
     
@@ -98,6 +99,7 @@ class DocentController {
    * Updates an existing exam in the database.
    */
   public function updateExam() {
+    validateCsrfToken();
     requireLogin();
     requireRole('docent');
     
@@ -143,6 +145,7 @@ class DocentController {
    * Deletes an exam.
    */
   public function deleteExam() {
+    validateCsrfToken();
     requireLogin();
     requireRole('docent');
     
@@ -158,6 +161,7 @@ class DocentController {
    * Duplicates an exam including questions and student answers (but resets AI feedback).
    */
   public function duplicateExam() {
+    validateCsrfToken();
     requireLogin();
     requireRole('docent');
     
@@ -209,6 +213,7 @@ class DocentController {
    * Stores a newly created question.
    */
   public function storeQuestion() {
+    validateCsrfToken();
     requireLogin();
     requireRole('docent');
     
@@ -248,6 +253,7 @@ class DocentController {
    * Updates an existing question.
    */
   public function updateQuestion() {
+    validateCsrfToken();
     requireLogin();
     requireRole('docent');
     
@@ -278,6 +284,7 @@ class DocentController {
    * Deletes a question.
    */
   public function deleteQuestion() {
+    validateCsrfToken();
     requireLogin();
     requireRole('docent');
     
@@ -360,6 +367,7 @@ public function viewStudentAnswers($studentExamId) {
    * Saves the teacher's feedback and score for a specific answer.
    */
   public function saveTeacherFeedback() {
+    validateCsrfToken();
     requireLogin();
     requireRole('beoordelaar');
 
@@ -387,6 +395,7 @@ public function viewStudentAnswers($studentExamId) {
    * Deletes a student's exam attempt.
    */
   public function deleteStudentExam() {
+    validateCsrfToken();
     requireLogin();
     requireRole('docent');
     
@@ -472,6 +481,7 @@ public function viewStudentAnswers($studentExamId) {
    * Clears the audit log (Admin only).
    */
   public function clearAuditLog() {
+    validateCsrfToken();
     requireLogin();
     
     if ($_SESSION['role'] !== 'admin') {

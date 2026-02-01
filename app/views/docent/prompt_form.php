@@ -17,6 +17,7 @@ ob_start(); ?>
 <div class="card">
 <div class="card-body">
 <form action="/?action=<?= $action ?>" method="post">
+    <?= csrfInput() ?>
     <?php if ($prompt): ?>
         <input type="hidden" name="id" value="<?= $prompt['id'] ?>">
     <?php endif; ?>

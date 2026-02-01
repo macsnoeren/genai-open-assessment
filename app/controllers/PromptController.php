@@ -29,6 +29,7 @@ class PromptController {
     }
 
     public function store() {
+        validateCsrfToken();
         requireRole('admin');
         
         Prompt::create(
@@ -56,6 +57,7 @@ class PromptController {
     }
 
     public function update() {
+        validateCsrfToken();
         requireRole('admin');
         
         Prompt::update(
@@ -71,6 +73,7 @@ class PromptController {
     }
 
     public function delete() {
+        validateCsrfToken();
         requireRole('admin');
         
         AuditLog::log('prompt_delete', ['id' => $_GET['id']]);
