@@ -55,6 +55,15 @@ ob_start(); ?>
         <input type="password" name="password" class="form-control" <?= $student ? '' : 'required' ?>>
     </div>
 
+    <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin' && $student): ?>
+    <div class="mb-4">
+        <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="forcePasswordChange" name="force_password_change" value="1" <?= ($student['force_password_change'] ?? 0) ? 'checked' : '' ?>>
+            <label class="form-check-label" for="forcePasswordChange">Dwing wachtwoordwijziging af bij volgende login</label>
+        </div>
+    </div>
+    <?php endif; ?>
+
     <div class="d-flex gap-2">
         <button type="submit" class="btn btn-primary">Opslaan</button>
     </div>

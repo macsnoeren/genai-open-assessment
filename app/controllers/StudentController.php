@@ -111,23 +111,26 @@ class StudentController {
     $pdo = Database::connect();
     
     // Als geen admin, behoud huidige rol
+    $forcePasswordChange = 0;
     if ($_SESSION['role'] !== 'admin') {
-        $stmt = $pdo->prepare("SELECT role, email FROM users WHERE id = ?");
+        $stmt = $pdo->prepare("SELECT role, email, force_password_change FROM users WHERE id = ?");
         $stmt->execute([$userIdToUpdate]);
         $currentUserData = $stmt->fetch(PDO::FETCH_ASSOC);
         $newRole = $currentUserData['role'];
         $email = $currentUserData['email'];
+        $forcePasswordChange = $currentUserData['force_password_change'];
     } else {
         $newRole = $_POST['role'] ?? 'student';
         $email = $_POST['email'];
+        $forcePasswordChange = isset($_POST['force_password_change']) ? 1 : 0;
     }
     
-    $sql = "UPDATE users SET name = ?, email = ?, role = ? WHERE id = ?";
-    $params = [$_POST['name'], $email, $newRole, $userIdToUpdate];
+    $sql = "UPDATE users SET name = ?, email = ?, role = ?, force_password_change = ? WHERE id = ?";
+    $params = [$_POST['name'], $email, $newRole, $forcePasswordChange, $userIdToUpdate];
 
     if (!empty($_POST['password'])) {
-        $sql = "UPDATE users SET name = ?, email = ?, role = ?, password = ? WHERE id = ?";
-        $params = [$_POST['name'], $email, $newRole, password_hash($_POST['password'], PASSWORD_DEFAULT), $userIdToUpdate];
+        $sql = "UPDATE users SET name = ?, email = ?, role = ?, force_password_change = ?, password = ? WHERE id = ?";
+        $params = [$_POST['name'], $email, $newRole, $forcePasswordChange, password_hash($_POST['password'], PASSWORD_DEFAULT), $userIdToUpdate];
     }
 
     $stmt = $pdo->prepare($sql);
