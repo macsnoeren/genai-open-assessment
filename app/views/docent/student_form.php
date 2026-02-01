@@ -31,6 +31,7 @@ ob_start(); ?>
         <input type="email" name="email" class="form-control" value="<?= htmlspecialchars($student['email'] ?? '') ?>" required>
     </div>
 
+    <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin'): ?>
     <div class="mb-3">
         <label class="form-label">Rol</label>
         <select name="role" class="form-select">
@@ -42,6 +43,9 @@ ob_start(); ?>
             <?php endif; ?>
         </select>
     </div>
+    <?php else: ?>
+        <div class="mb-3"><label class="form-label">Rol</label><input type="text" class="form-control" value="<?= htmlspecialchars($student['role'] ?? '') ?>" disabled></div>
+    <?php endif; ?>
 
     <div class="mb-4">
         <label class="form-label">Wachtwoord <?= $student ? '<span class="text-muted fw-normal">(laat leeg om niet te wijzigen)</span>' : '' ?></label>
@@ -60,10 +64,22 @@ ob_start(); ?>
 
 <?php 
 $content = ob_get_clean();
+
+$dashboardLink = '/?action=student_dashboard';
+if (isset($_SESSION['role'])) {
+    if ($_SESSION['role'] === 'docent' || $_SESSION['role'] === 'admin') {
+        $dashboardLink = '/?action=docent_dashboard';
+    } elseif ($_SESSION['role'] === 'beoordelaar') {
+        $dashboardLink = '/?action=pending_assessments';
+    }
+}
+
 $breadcrumbs = [
-    'Dashboard' => '/?action=docent_dashboard',
-    'Gebruikers' => '/?action=students',
-    $title => ''
+    'Dashboard' => $dashboardLink,
 ];
+if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin') {
+    $breadcrumbs['Gebruikers'] = '/?action=students';
+}
+$breadcrumbs[$title] = '';
 require __DIR__ . '/../layouts/main.php'; 
 ?>

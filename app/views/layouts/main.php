@@ -48,8 +48,8 @@ if (file_exists($pingFile) && is_readable($pingFile)) {
             <?php if (isset($_SESSION['role']) && ($_SESSION['role'] === 'docent' || $_SESSION['role'] === 'admin')): ?>
                 <li class="nav-item"><a class="nav-link" href="index.php?action=docent_dashboard">Dashboard</a></li>
                 <li class="nav-item"><a class="nav-link" href="/?action=pending_assessments">Beoordelen</a></li>
-                <li class="nav-item"><a class="nav-link" href="/?action=students">Gebruikers</a></li>
                 <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin'): ?>
+                    <li class="nav-item"><a class="nav-link" href="/?action=students">Gebruikers</a></li>
                     <li class="nav-item"><a class="nav-link" href="/?action=api_keys">API Keys</a></li>
                     <li class="nav-item"><a class="nav-link" href="/?action=prompts">Prompts</a></li>
                 <?php endif; ?>
@@ -73,6 +73,7 @@ if (file_exists($pingFile) && is_readable($pingFile)) {
                 <small class="d-block fw-bold"><?= htmlspecialchars($_SESSION['name']) ?></small>
                 <small class="opacity-75" style="font-size: 0.75rem;"><?= htmlspecialchars(ucfirst($_SESSION['role'])) ?></small>
             </div>
+            <a href="/?action=student_edit&id=<?= $_SESSION['user_id'] ?>" class="btn btn-sm btn-outline-light ms-2">Profiel</a>
             <a href="index.php?action=logout" class="btn btn-sm btn-outline-light ms-2">Uitloggen</a>
         <?php else: ?>
             <?php if (empty($isGuest)): ?>

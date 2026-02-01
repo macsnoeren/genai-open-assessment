@@ -23,7 +23,7 @@ class StudentController {
    */
   public function index() {
     requireLogin();
-    requireRole('docent');
+    requireRole('admin');
     
     // Haal ALLE gebruikers op (niet alleen studenten)
     $pdo = Database::connect();
@@ -38,7 +38,7 @@ class StudentController {
    */
   public function create() {
     requireLogin();
-    requireRole('docent');
+    requireRole('admin');
     
     $student = null;
     $action = 'student_store';
@@ -51,7 +51,7 @@ class StudentController {
    */
   public function store() {
     requireLogin();
-    requireRole('docent');
+    requireRole('admin');
     
     $role = $_POST['role'] ?? 'student';
     // Alleen admins mogen de admin rol toewijzen.
@@ -79,16 +79,15 @@ class StudentController {
    */
   public function edit() {
     requireLogin();
-    requireRole('docent');
     
     $pdo = Database::connect();
     $stmt = $pdo->prepare("SELECT * FROM users WHERE id = ?");
     $stmt->execute([$_GET['id']]);
     $student = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    // Alleen admins mogen andere admins bewerken.
-    if ($student && $student['role'] === 'admin' && $_SESSION['role'] !== 'admin') {
-        die("Geen toegang: docenten kunnen geen admin-gebruikers bewerken.");
+    // Check: Admin of Eigen profiel
+    if ($_SESSION['role'] !== 'admin' && $_SESSION['user_id'] != $student['id']) {
+        die("Geen toegang: je mag alleen je eigen profiel bewerken.");
     }
 
     $action = 'student_update';
@@ -101,24 +100,24 @@ class StudentController {
    */
   public function update() {
     requireLogin();
-    requireRole('docent');
     
     $userIdToUpdate = $_POST['id'];
-    $newRole = $_POST['role'] ?? 'student';
-
-    // Alleen admins mogen de admin rol toewijzen.
-    if ($newRole === 'admin' && $_SESSION['role'] !== 'admin') {
-        die("Geen toegang: alleen admins kunnen de admin rol toewijzen.");
+    
+    // Check: Admin of Eigen profiel
+    if ($_SESSION['role'] !== 'admin' && $_SESSION['user_id'] != $userIdToUpdate) {
+        die("Geen toegang.");
     }
 
     $pdo = Database::connect();
     
-    // Alleen admins mogen andere admins bewerken.
-    $stmt = $pdo->prepare("SELECT role FROM users WHERE id = ?");
-    $stmt->execute([$userIdToUpdate]);
-    $userToUpdate = $stmt->fetch(PDO::FETCH_ASSOC);
-    if ($userToUpdate && $userToUpdate['role'] === 'admin' && $_SESSION['role'] !== 'admin') {
-        die("Geen toegang: docenten kunnen geen admin-gebruikers bewerken.");
+    // Als geen admin, behoud huidige rol
+    if ($_SESSION['role'] !== 'admin') {
+        $stmt = $pdo->prepare("SELECT role FROM users WHERE id = ?");
+        $stmt->execute([$userIdToUpdate]);
+        $currentUserData = $stmt->fetch(PDO::FETCH_ASSOC);
+        $newRole = $currentUserData['role'];
+    } else {
+        $newRole = $_POST['role'] ?? 'student';
     }
     
     $sql = "UPDATE users SET name = ?, email = ?, role = ? WHERE id = ?";
@@ -134,7 +133,17 @@ class StudentController {
 
     AuditLog::log('user_update', ['id' => $userIdToUpdate, 'name' => $_POST['name'], 'role' => $newRole]);
     
-    header('Location: /?action=students');
+    if ($_SESSION['role'] === 'admin') {
+        header('Location: /?action=students');
+    } else {
+        if ($_SESSION['role'] === 'docent') {
+             header('Location: /?action=docent_dashboard');
+        } elseif ($_SESSION['role'] === 'beoordelaar') {
+             header('Location: /?action=pending_assessments');
+        } else {
+             header('Location: /?action=student_dashboard');
+        }
+    }
     exit;
   }
   
@@ -143,7 +152,7 @@ class StudentController {
    */
   public function delete() {
             requireLogin();
-	    requireRole('docent');
+	    requireRole('admin');
 	    
         if ($_GET['id'] == $_SESSION['user_id']) {
             die("Je kunt jezelf niet verwijderen.");
