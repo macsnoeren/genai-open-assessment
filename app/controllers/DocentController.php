@@ -198,6 +198,12 @@ class DocentController {
     $exam = Exam::find($examId);
     $questions = Question::allByExam($examId);
     
+    // Nummer de vragen voor weergave
+    foreach ($questions as $index => &$question) {
+        $question['question_text'] = ($index + 1) . ". " . $question['question_text'];
+    }
+    unset($question);
+
     require __DIR__ . '/../views/docent/questions.php';
   }
   
