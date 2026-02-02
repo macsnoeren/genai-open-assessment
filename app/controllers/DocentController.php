@@ -696,10 +696,23 @@ public function viewStudentAnswers($studentExamId) {
 
     // Bepaal welke modellen er zijn
     $modelsFound = [];
+    $studentScores = [];
+
     foreach ($rows as $row) {
+        if (!isset($studentScores[$row['student_name']])) {
+            $studentScores[$row['student_name']] = ['Docent' => []];
+        }
+        $studentScores[$row['student_name']]['Docent'][] = (int)$row['teacher_score'];
+
         preg_match_all('/Model:\s+(.+?)\s+.*?Aantal punten:\s+(\d+)/is', $row['ai_feedback'], $matches, PREG_SET_ORDER);
         foreach ($matches as $match) {
             $modelsFound[trim($match[1])] = true;
+            $modelName = trim($match[1]);
+            $modelsFound[$modelName] = true;
+            if (!isset($studentScores[$row['student_name']][$modelName])) {
+                $studentScores[$row['student_name']][$modelName] = [];
+            }
+            $studentScores[$row['student_name']][$modelName][] = (int)$match[2];
         }
     }
     $modelNames = array_keys($modelsFound);
@@ -747,6 +760,40 @@ public function viewStudentAnswers($studentExamId) {
         fputcsv($output, $csvRow, ';');
     }
     
+    // Voeg eindscores toe
+    fputcsv($output, [], ';');
+    fputcsv($output, ['EINDSCORES (GEMIDDELDEN)'], ';');
+
+    $summaryHeaders = ['Student', 'Docent Gemiddelde'];
+    foreach ($modelNames as $model) {
+        $summaryHeaders[] = $model . ' Gemiddelde';
+        $summaryHeaders[] = $model . ' Verschil';
+    }
+    fputcsv($output, $summaryHeaders, ';');
+
+    foreach ($studentScores as $student => $judges) {
+        $csvRow = [$student];
+        $docentAvg = isset($judges['Docent']) && count($judges['Docent']) > 0 ? array_sum($judges['Docent']) / count($judges['Docent']) : null;
+        
+        $csvRow[] = $docentAvg !== null ? number_format($docentAvg, 1, ',', '.') : '';
+
+        foreach ($modelNames as $model) {
+            if (isset($judges[$model]) && count($judges[$model]) > 0) {
+                $modelAvg = array_sum($judges[$model]) / count($judges[$model]);
+                $csvRow[] = number_format($modelAvg, 1, ',', '.');
+                if ($docentAvg !== null) {
+                    $csvRow[] = number_format($modelAvg - $docentAvg, 1, ',', '.');
+                } else {
+                    $csvRow[] = '';
+                }
+            } else {
+                $csvRow[] = '';
+                $csvRow[] = '';
+            }
+        }
+        fputcsv($output, $csvRow, ';');
+    }
+
     fclose($output);
     exit;
   }
