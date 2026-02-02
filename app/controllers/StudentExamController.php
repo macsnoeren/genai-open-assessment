@@ -132,6 +132,12 @@ class StudentExamController {
 
     $questions = Question::allByExam($studentExam['exam_id']);
 
+    // Nummer de vragen voor weergave
+    foreach ($questions as $index => &$question) {
+        $question['question_text'] = ($index + 1) . ". " . $question['question_text'];
+    }
+    unset($question);
+
     // Haal bestaande antwoorden op om het formulier vooraf in te vullen
     $answersRaw = StudentAnswer::allByStudentExam($studentExamId);
     $answers = [];
@@ -255,6 +261,13 @@ class StudentExamController {
     
     $exam = Exam::find($studentExam['exam_id']);
     $questions = Question::allByExam($studentExam['exam_id']);
+
+    // Nummer de vragen voor weergave
+    foreach ($questions as $index => &$question) {
+        $question['question_text'] = ($index + 1) . ". " . $question['question_text'];
+    }
+    unset($question);
+
     $answersRaw = StudentAnswer::allByStudentExam($studentExamId);
     
     $answers = [];
