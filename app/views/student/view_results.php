@@ -12,6 +12,12 @@ ob_start(); ?>
 <h2>Resultaten: <?= htmlspecialchars($exam['title']) ?></h2>
 <p><?= htmlspecialchars($exam['description']) ?></p>
 
+<?php if (isset($finalScore) && $finalScore !== null): ?>
+<div class="alert alert-primary">
+    <strong>Eindscore (Gemiddelde):</strong> <?= number_format($finalScore, 1) ?>
+</div>
+<?php endif; ?>
+
 <?php foreach ($questions as $q): ?>
     <?php $a = $answers[$q['id']] ?? null; ?>
     <div class="card">
