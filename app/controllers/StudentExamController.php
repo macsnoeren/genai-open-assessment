@@ -271,9 +271,16 @@ class StudentExamController {
     $answersRaw = StudentAnswer::allByStudentExam($studentExamId);
     
     $answers = [];
+    $totalScore = 0;
+    $scoredCount = 0;
     foreach ($answersRaw as $a) {
       $answers[$a['question_id']] = $a;
+      if (isset($a['teacher_score']) && $a['teacher_score'] !== null && $a['teacher_score'] !== '') {
+          $totalScore += (float)$a['teacher_score'];
+          $scoredCount++;
+      }
     }
+    $finalScore = $scoredCount > 0 ? $totalScore / $scoredCount : null;
     
     require __DIR__ . '/../views/student/view_results.php';
   }

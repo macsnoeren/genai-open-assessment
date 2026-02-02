@@ -350,6 +350,17 @@ public function viewStudentAnswers($studentExamId) {
         $stmt->execute([$studentExamId]);
 	    $answers = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+    // Bereken eindscore (gemiddelde)
+    $totalScore = 0;
+    $scoredCount = 0;
+    foreach ($answers as $a) {
+        if (isset($a['teacher_score']) && $a['teacher_score'] !== null && $a['teacher_score'] !== '') {
+            $totalScore += (float)$a['teacher_score'];
+            $scoredCount++;
+        }
+    }
+    $finalScore = $scoredCount > 0 ? $totalScore / $scoredCount : null;
+
     require __DIR__ . '/../views/docent/student_answers.php';
     }
 

@@ -12,6 +12,12 @@ ob_start();
 
 <h2 class="mb-4">Student antwoorden</h2>
 
+<?php if (isset($finalScore) && $finalScore !== null): ?>
+<div class="alert alert-primary">
+    <strong>Eindscore (Gemiddelde):</strong> <?= number_format($finalScore, 1) ?>
+</div>
+<?php endif; ?>
+
 <?php foreach ($answers as $a): ?>
 <div class="card mb-4" id="answer-<?= $a['id'] ?>">
   <div class="card-header bg-light">
