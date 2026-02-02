@@ -353,13 +353,35 @@ public function viewStudentAnswers($studentExamId) {
     // Bereken eindscore (gemiddelde)
     $totalScore = 0;
     $scoredCount = 0;
+    $aiModelScores = [];
+
     foreach ($answers as $a) {
         if (isset($a['teacher_score']) && $a['teacher_score'] !== null && $a['teacher_score'] !== '') {
             $totalScore += (float)$a['teacher_score'];
             $scoredCount++;
         }
+
+        if (!empty($a['ai_feedback'])) {
+            preg_match_all('/Model:\s+(.+?)\s+.*?Aantal punten:\s+(\d+)/is', $a['ai_feedback'], $matches, PREG_SET_ORDER);
+            foreach ($matches as $match) {
+                $modelName = trim($match[1]);
+                $score = (int)$match[2];
+                if (!isset($aiModelScores[$modelName])) {
+                    $aiModelScores[$modelName] = [];
+                }
+                $aiModelScores[$modelName][] = $score;
+            }
+        }
     }
     $finalScore = $scoredCount > 0 ? $totalScore / $scoredCount : null;
+
+    $finalAiScores = [];
+    foreach ($aiModelScores as $model => $scores) {
+        if (count($scores) > 0) {
+            $finalAiScores[$model] = array_sum($scores) / count($scores);
+        }
+    }
+    ksort($finalAiScores);
 
     require __DIR__ . '/../views/docent/student_answers.php';
     }
