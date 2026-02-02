@@ -108,6 +108,54 @@ ob_start();
         </div>
     </div>
 
+    <!-- Eindscores per Student -->
+    <div class="card mb-4">
+        <div class="card-header bg-light fw-bold">
+            Eindscores per Student (Gemiddelde)
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-striped table-hover table-sm mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Student</th>
+                            <th class="text-center table-primary">Docent</th>
+                            <?php foreach (array_keys($modelsFound) as $model): ?>
+                                <th class="text-center"><?= htmlspecialchars($model) ?></th>
+                            <?php endforeach; ?>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($studentAverages as $student => $scores): ?>
+                        <tr>
+                            <td><?= htmlspecialchars($student) ?></td>
+                            <td class="text-center table-primary fw-bold">
+                                <?= isset($scores['Docent']) ? number_format($scores['Docent'], 1) : '-' ?>
+                            </td>
+                            <?php foreach (array_keys($modelsFound) as $model): ?>
+                                <td class="text-center">
+                                    <?php 
+                                    if (isset($scores[$model])) {
+                                        echo number_format($scores[$model], 1);
+                                        if (isset($scores['Docent'])) {
+                                            $diff = $scores[$model] - $scores['Docent'];
+                                            $color = abs($diff) < 0.1 ? 'text-success' : ($diff > 0 ? 'text-danger' : 'text-warning');
+                                            echo " <small class='$color'>(" . ($diff > 0 ? '+' : '') . number_format($diff, 1) . ")</small>";
+                                        }
+                                    } else {
+                                        echo "-";
+                                    }
+                                    ?>
+                                </td>
+                            <?php endforeach; ?>
+                        </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
     <!-- Detail Tabel -->
     <div class="card html2pdf__page-break">
         <div class="card-header bg-light fw-bold">

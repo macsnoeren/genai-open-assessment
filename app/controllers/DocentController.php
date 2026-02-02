@@ -550,6 +550,7 @@ public function viewStudentAnswers($studentExamId) {
     $stats = [
         'Docent' => ['scores' => []]
     ];
+    $studentScores = [];
 
     foreach ($rows as $row) {
         $entry = [
@@ -560,6 +561,11 @@ public function viewStudentAnswers($studentExamId) {
         ];
 
         $stats['Docent']['scores'][] = (int)$row['teacher_score'];
+        
+        if (!isset($studentScores[$row['student_name']])) {
+            $studentScores[$row['student_name']] = ['Docent' => []];
+        }
+        $studentScores[$row['student_name']]['Docent'][] = (int)$row['teacher_score'];
 
         // Parse AI feedback string
         // Verwacht formaat uit Python script: "Model: [naam] ... Aantal punten: [score]"
@@ -576,9 +582,24 @@ public function viewStudentAnswers($studentExamId) {
                 $stats[$modelName] = ['scores' => []];
             }
             $stats[$modelName]['scores'][] = $score;
+
+            if (!isset($studentScores[$row['student_name']][$modelName])) {
+                $studentScores[$row['student_name']][$modelName] = [];
+            }
+            $studentScores[$row['student_name']][$modelName][] = $score;
         }
 
         $comparisonData[] = $entry;
+    }
+
+    // Bereken gemiddelden per student
+    $studentAverages = [];
+    foreach ($studentScores as $student => $judges) {
+        foreach ($judges as $judge => $scores) {
+            if (count($scores) > 0) {
+                $studentAverages[$student][$judge] = array_sum($scores) / count($scores);
+            }
+        }
     }
 
     // Bereken statistieken
