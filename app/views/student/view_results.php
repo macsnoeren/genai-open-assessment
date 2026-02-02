@@ -18,6 +18,17 @@ ob_start(); ?>
 </div>
 <?php endif; ?>
 
+<?php if (!empty($finalAiScores)): ?>
+<div class="alert alert-info">
+    <strong>AI Model Scores (Gemiddelde):</strong>
+    <ul class="mb-0 mt-1">
+    <?php foreach ($finalAiScores as $model => $score): ?>
+        <li><strong><?= htmlspecialchars($model) ?>:</strong> <?= number_format($score, 1) ?></li>
+    <?php endforeach; ?>
+    </ul>
+</div>
+<?php endif; ?>
+
 <?php foreach ($questions as $q): ?>
     <?php $a = $answers[$q['id']] ?? null; ?>
     <div class="card">
