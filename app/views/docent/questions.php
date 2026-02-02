@@ -30,8 +30,8 @@ ob_start();
           <tbody>
             <?php foreach ($questions as $q): ?>
             <tr>
-              <td><?= htmlspecialchars($q['question_text']) ?></td>
-              <td><small class="text-muted"><?= htmlspecialchars($q['criteria']) ?></small></td>
+              <td><?= nl2br(htmlspecialchars($q['question_text'])) ?></td>
+              <td><small class="text-muted"><?= nl2br(htmlspecialchars($q['criteria'])) ?></small></td>
               <td class="text-end">
                 <div class="btn-group btn-group-sm">
                     <a href="index.php?action=question_edit&id=<?= $q['id'] ?>" class="btn btn-outline-primary">Bewerken</a>
