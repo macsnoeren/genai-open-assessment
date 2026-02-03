@@ -61,9 +61,9 @@ ob_start();
                     <div class="btn-group btn-group-sm">
                         <a href="/?action=questions&exam_id=<?= $exam['id'] ?>" class="btn btn-outline-secondary" title="Vragen beheren">📝</a>
                         <a href="/?action=exam_results&exam_id=<?= $exam['id'] ?>" class="btn btn-outline-secondary" title="Resultaten bekijken">📊</a>
-                        <a href="/?action=exam_comparison&exam_id=<?= $exam['id'] ?>" class="btn btn-outline-secondary" title="Vergelijk AI met Docent">🤖</a>
+                        <a href="/?action=exam_comparison&exam_id=<?= $exam['id'] ?>" class="btn btn-outline-secondary" title="Vergelijk AI met Docent">📈</a>
                         <a href="/?action=start_exam&exam_id=<?= $exam['id'] ?>" class="btn btn-outline-secondary" data-confirm="Weet je zeker dat je deze toets wilt testen?" title="Testen">▶️</a>
-                        <a href="/?action=exam_duplicate&id=<?= $exam['id'] ?>" class="btn btn-outline-warning" data-confirm="Weet je zeker dat je deze toets wilt dupliceren inclusief alle antwoorden? De AI-feedback wordt gewist, docent-feedback blijft behouden." title="Dupliceren">📑</a>
+                        <a href="/?action=exam_duplicate&id=<?= $exam['id'] ?>" class="btn btn-outline-warning" data-confirm="Weet je zeker dat je deze toets wilt dupliceren inclusief alle antwoorden? De AI-feedback wordt gewist, docent-feedback blijft behouden." title="Dupliceren">📋</a>
                         <a href="/?action=exam_edit&id=<?= $exam['id'] ?>" class="btn btn-outline-primary" title="Bewerken">✏️</a>
                         <a href="/?action=exam_delete&id=<?= $exam['id'] ?>" class="btn btn-outline-danger" data-confirm="Weet je zeker dat je deze toets wilt verwijderen?" title="Verwijderen">🗑️</a>
                     </div>
