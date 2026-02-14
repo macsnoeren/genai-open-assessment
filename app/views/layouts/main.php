@@ -136,7 +136,8 @@ if (file_exists($pingFile) && is_readable($pingFile)) {
 <?php if (!isset($hideHeaderFooter) || !$hideHeaderFooter): ?>
 <footer class="bg-light py-4 mt-auto border-top">
     <div class="container text-center text-muted">
-    &copy; <?= date('Y') ?> Openvragen kennistoetsing (proof-of-concept) - powered by JMNL Innovation
+        &copy; <?= date('Y') ?> Openvragen kennistoetsing (proof-of-concept) - powered by JMNL Innovation<br>
+        <small><a href="/?action=privacy" class="text-decoration-none text-muted">Privacy & Cookies</a></small>
     </div>
 </footer>
 <?php endif; ?>
@@ -161,6 +162,19 @@ if (file_exists($pingFile) && is_readable($pingFile)) {
       </div>
     </div>
   </div>
+</div>
+
+<!-- Cookie Banner -->
+<div id="cookieBanner" class="fixed-bottom p-3 bg-dark text-white shadow-lg" style="display: none; z-index: 1050;">
+    <div class="container">
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-center">
+            <div class="mb-2 mb-md-0">
+                <strong>Cookie melding:</strong> Wij gebruiken functionele cookies om deze applicatie goed te laten werken en voor onderzoeksdoeleinden in het onderwijs. 
+                <a href="/?action=privacy" class="text-info text-decoration-underline">Lees meer</a>.
+            </div>
+            <button id="acceptCookiesBtn" class="btn btn-primary btn-sm text-nowrap">Ik begrijp het</button>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -223,6 +237,23 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
         }
+    });
+
+    // Cookie Banner Logic
+    var cookieBanner = document.getElementById('cookieBanner');
+    var acceptBtn = document.getElementById('acceptCookiesBtn');
+    
+    // Check if cookie exists
+    if (document.cookie.indexOf('cookie_consent=1') === -1) {
+        cookieBanner.style.display = 'block';
+    }
+
+    acceptBtn.addEventListener('click', function() {
+        // Set cookie for 1 year
+        var date = new Date();
+        date.setTime(date.getTime() + (365*24*60*60*1000));
+        document.cookie = "cookie_consent=1; expires=" + date.toUTCString() + "; path=/; SameSite=Strict";
+        cookieBanner.style.display = 'none';
     });
 });
 </script>

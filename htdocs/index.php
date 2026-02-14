@@ -279,6 +279,10 @@ switch ($action) {
  case 'submit_ai_feedback':
     $apiController->submitAiFeedback();
     break;
+
+ case 'privacy':
+    require __DIR__ . '/../app/views/pages/privacy.php';
+    break;
    
  default:
    echo "404";
