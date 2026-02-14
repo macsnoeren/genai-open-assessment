@@ -212,6 +212,10 @@ switch ($action) {
    $docent->deleteStudentExam();
    break;
 
+ case 'update_guest_name':
+   $docent->updateGuestName();
+   break;
+
  case 'api_keys':
    $apiKeyController->index();
    break;
