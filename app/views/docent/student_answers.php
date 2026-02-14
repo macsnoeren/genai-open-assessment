@@ -27,6 +27,14 @@ ob_start();
     <?php endif; ?>
 </div>
 
+<?php if (isset($_SESSION['success_message'])): ?>
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <?= htmlspecialchars($_SESSION['success_message']) ?>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    <?php unset($_SESSION['success_message']); ?>
+<?php endif; ?>
+
 <?php if (isset($finalScore) && $finalScore !== null): ?>
 <div class="alert alert-primary">
     <strong>Eindscore (Gemiddelde):</strong> <?= number_format($finalScore, 1) ?>

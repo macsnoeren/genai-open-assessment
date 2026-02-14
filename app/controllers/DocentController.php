@@ -14,6 +14,7 @@ require_once __DIR__ . '/../models/AuditLog.php';
 require_once __DIR__ . '/../models/Questions.php';
 require_once __DIR__ . '/../models/Prompt.php';
 require_once __DIR__ . '/../models/StudentAnswer.php';
+require_once __DIR__ . '/../models/StudentExam.php';
 
 /**
  * Class DocentController
@@ -435,6 +436,41 @@ public function viewStudentAnswers($studentExamId) {
     $stmt->execute([$score, $feedback, $studentAnswerId]);
 
     header('Location: /?action=' . $redirectAction . '&student_exam_id=' . $studentExamId . '#answer-' . $studentAnswerId);
+    exit;
+  }
+
+  /**
+   * Updates the name of a guest student.
+   */
+  public function updateGuestName() {
+    validateCsrfToken();
+    requireLogin();
+    requireRole('docent');
+
+    $studentExamId = $_POST['student_exam_id'] ?? null;
+    $guestName = trim($_POST['guest_name'] ?? '');
+
+    if ($studentExamId && $guestName) {
+        $studentExam = StudentExam::find($studentExamId);
+        
+        if ($studentExam) {
+            $this->checkExamOwnership($studentExam['exam_id']);
+            
+            $oldName = $studentExam['guest_name'];
+            $updated = StudentExam::updateGuestName($studentExamId, $guestName);
+            
+            if ($updated) {
+                AuditLog::log('guest_name_update', [
+                    'student_exam_id' => $studentExamId, 
+                    'new_name' => $guestName,
+                    'old_name' => $oldName
+                ]);
+                $_SESSION['success_message'] = "Naam van gaststudent succesvol aangepast.";
+            }
+        }
+    }
+
+    header("Location: /?action=view_student_answers&student_exam_id=" . $studentExamId);
     exit;
   }
 

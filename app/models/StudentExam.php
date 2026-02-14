@@ -85,8 +85,9 @@ class StudentExam {
 
   public static function updateGuestName($id, $guestName) {
       $pdo = Database::connect();
-      $stmt = $pdo->prepare("UPDATE student_exams SET guest_name = ? WHERE id = ?");
+      $stmt = $pdo->prepare("UPDATE student_exams SET guest_name = ? WHERE id = ? AND student_id IS NULL");
       $stmt->execute([$guestName, $id]);
+      return $stmt->rowCount() > 0;
   }
 }
 ?>
