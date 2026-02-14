@@ -75,13 +75,22 @@ ob_start(); ?>
     </div>
 <?php endforeach; ?>
 
+<?php if (empty($isGuest)): ?>
+<div class="mt-4">
+    <a href="/?action=my_exams" class="btn btn-secondary">Terug naar overzicht</a>
+</div>
+<?php endif; ?>
+
 <?php
 $content = ob_get_clean();
 $title = "Resultaten - " . $exam['title'];
-$breadcrumbs = [
-    'Dashboard' => '/?action=student_dashboard',
-    'Mijn toetsen' => '/?action=my_exams',
-    'Resultaten' => ''
-];
+$breadcrumbs = [];
+if (empty($isGuest)) {
+    $breadcrumbs = [
+        'Dashboard' => '/?action=student_dashboard',
+        'Mijn toetsen' => '/?action=my_exams',
+        'Resultaten' => ''
+    ];
+}
 require __DIR__ . '/../layouts/main.php';
 ?>
