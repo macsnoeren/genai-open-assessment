@@ -155,6 +155,11 @@ class StudentExamController {
         }
     }
 
+    if (!empty($studentExam['completed_at'])) {
+        header("Location: /?action=student_view_results&student_exam_id={$studentExamId}");
+        exit;
+    }
+
     $questions = Question::allByExam($studentExam['exam_id']);
 
     // Nummer de vragen voor weergave
@@ -221,7 +226,7 @@ class StudentExamController {
              // Voor nu sturen we ze terug naar de toets pagina, die toont dan 'ingeleverd'.
              // Of we kunnen een simpele 'bedankt' view maken.
              // Laten we ze naar de take_exam sturen, die we kunnen aanpassen om status te tonen.
-             header("Location: /?action=take_exam&student_exam_id={$studentExamId}");
+             header("Location: /?action=student_view_results&student_exam_id={$studentExamId}");
         } else {
             header("Location: /?action=my_exams");
         }
@@ -269,7 +274,14 @@ class StudentExamController {
    * Views the results of a specific exam attempt.
    */
   public function viewResults() {
-    requireLogin();
+    $isGuest = false;
+    if (!isset($_SESSION['user_id'])) {
+        if (isset($_COOKIE['guest_access_token'])) {
+            $isGuest = true;
+        } else {
+            requireLogin();
+        }
+    }
     
     $studentExamId = $_GET['student_exam_id'] ?? null;
     
@@ -280,8 +292,14 @@ class StudentExamController {
     
     $studentExam = StudentExam::find($studentExamId);
     
-    if (!$studentExam || $studentExam['student_id'] != $_SESSION['user_id']) {
-      die("Geen toegang.");
+    if ($isGuest) {
+        if (!$studentExam || $studentExam['access_token'] !== $_COOKIE['guest_access_token']) {
+            die("Geen toegang (ongeldig token).");
+        }
+    } else {
+        if (!$studentExam || $studentExam['student_id'] != $_SESSION['user_id']) {
+            die("Geen toegang.");
+        }
     }
     
     $exam = Exam::find($studentExam['exam_id']);
