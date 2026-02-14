@@ -82,5 +82,11 @@ class StudentExam {
       $stmt = $pdo->prepare("DELETE FROM student_exams WHERE id = ?");
       $stmt->execute([$id]);
   }
+
+  public static function updateGuestName($id, $guestName) {
+      $pdo = Database::connect();
+      $stmt = $pdo->prepare("UPDATE student_exams SET guest_name = ? WHERE id = ?");
+      $stmt->execute([$guestName, $id]);
+  }
 }
 ?>

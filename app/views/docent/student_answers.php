@@ -10,7 +10,22 @@
 ob_start();
 ?>
 
-<h2 class="mb-4">Student antwoorden</h2>
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="mb-0">Student antwoorden</h2>
+    <?php if (empty($studentExam['student_id'])): ?>
+        <form action="/?action=update_guest_name" method="POST" class="d-flex align-items-center">
+            <?= csrfInput() ?>
+            <input type="hidden" name="student_exam_id" value="<?= $studentExam['id'] ?>">
+            <div class="input-group">
+                <span class="input-group-text bg-warning text-dark border-warning">Gast</span>
+                <input type="text" name="guest_name" class="form-control border-warning" value="<?= htmlspecialchars($studentExam['guest_name'] ?? '') ?>" required>
+                <button type="submit" class="btn btn-outline-warning text-dark">Wijzigen</button>
+            </div>
+        </form>
+    <?php elseif (isset($studentExam['name'])): ?>
+        <h4 class="text-muted mb-0"><?= htmlspecialchars($studentExam['name']) ?></h4>
+    <?php endif; ?>
+</div>
 
 <?php if (isset($finalScore) && $finalScore !== null): ?>
 <div class="alert alert-primary">
