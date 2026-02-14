@@ -98,6 +98,31 @@ class StudentExamController {
       header("Location: /?action=take_exam&student_exam_id={$result['id']}");
       exit;
   }
+
+  /**
+   * Logs out a guest user (clears cookie) so they can change their name/start over.
+   */
+  public function guestLogout() {
+      $studentExamId = $_GET['student_exam_id'] ?? null;
+      
+      // Verwijder de cookie
+      $secure = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on';
+      setcookie('guest_access_token', '', time() - 3600, "/", "", $secure, true);
+
+      if ($studentExamId) {
+          $studentExam = StudentExam::find($studentExamId);
+          if ($studentExam) {
+              $exam = Exam::find($studentExam['exam_id']);
+              if ($exam && $exam['public_token']) {
+                  header("Location: /?action=guest&token={$exam['public_token']}");
+                  exit;
+              }
+          }
+      }
+      
+      header("Location: /");
+      exit;
+  }
   
   /**
    * Displays the exam form for taking the exam.

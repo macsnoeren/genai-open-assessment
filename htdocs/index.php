@@ -160,6 +160,10 @@ switch ($action) {
    $studentExamController->guestStart();
    break;
 
+ case 'guest_logout':
+   $studentExamController->guestLogout();
+   break;
+
  case 'start_exam':
    $studentExamController->startExam();
    break;
