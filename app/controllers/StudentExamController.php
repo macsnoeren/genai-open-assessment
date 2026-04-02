@@ -128,29 +128,22 @@ class StudentExamController {
    * Displays the exam form for taking the exam.
    */
   public function takeExam() {
-    // Check login of gast-sessie
-    $isGuest = false;
-    if (!isset($_SESSION['user_id'])) {
-        // Probeer gast toegang
-        if (isset($_COOKIE['guest_access_token'])) {
-            $isGuest = true;
-        } else {
-            // Geen login en geen gast cookie
-            header('Location: /?action=login');
-            exit;
-        }
-    }
-
     $studentExamId = $_GET['student_exam_id'];
     $studentExam = StudentExam::find($studentExamId);
+    if (!$studentExam) {
+        die("Toetspoging niet gevonden.");
+    }
 
-    // Security check: student kan alleen eigen toetsen inzien (of gast via token)
+    // Bepaal of dit een gastpoging is of een geregistreerde student
+    $isGuest = ($studentExam['student_id'] === null);
+
     if ($isGuest) {
-        if ($studentExam['access_token'] !== $_COOKIE['guest_access_token']) {
+        if (!isset($_COOKIE['guest_access_token']) || $studentExam['access_token'] !== $_COOKIE['guest_access_token']) {
             die("Geen toegang (ongeldig token).");
         }
     } else {
-        if (!$studentExam || $studentExam['student_id'] != $_SESSION['user_id']) {
+        requireLogin();
+        if ($studentExam['student_id'] != $_SESSION['user_id']) {
             die("Geen toegang.");
         }
     }
@@ -183,28 +176,23 @@ class StudentExamController {
    */
   public function submitExam() {
     validateCsrfToken();
-    // Check login of gast-sessie
-    $isGuest = false;
-    if (!isset($_SESSION['user_id'])) {
-        if (isset($_COOKIE['guest_access_token'])) {
-            $isGuest = true;
-        } else {
-            header('Location: /?action=login');
-            exit;
-        }
-    }
     
     $studentExamId = $_POST['student_exam_id'];
+    $se = StudentExam::find($studentExamId);
+    if (!$se) {
+        die("Toetspoging niet gevonden.");
+    }
+
     $actionType = $_POST['action_type'] ?? 'submit'; // 'submit' is de standaard
 
-    // Extra validatie voor gasten
+    $isGuest = ($se['student_id'] === null);
+
     if ($isGuest) {
-        $se = StudentExam::find($studentExamId);
-        if ($se['access_token'] !== $_COOKIE['guest_access_token']) {
+        if (!isset($_COOKIE['guest_access_token']) || $se['access_token'] !== $_COOKIE['guest_access_token']) {
             die("Geen toegang.");
         }
     } else {
-        $se = StudentExam::find($studentExamId);
+        requireLogin();
         if (!$se || $se['student_id'] != $_SESSION['user_id']) {
             die("Geen toegang: Dit is niet jouw toetspoging.");
         }
@@ -274,30 +262,23 @@ class StudentExamController {
    * Views the results of a specific exam attempt.
    */
   public function viewResults() {
-    $isGuest = false;
-    if (!isset($_SESSION['user_id'])) {
-        if (isset($_COOKIE['guest_access_token'])) {
-            $isGuest = true;
-        } else {
-            requireLogin();
-        }
-    }
-    
     $studentExamId = $_GET['student_exam_id'] ?? null;
-    
-    if (!$studentExamId) {
-      header("Location: /?action=student_dashboard");
-      exit;
-    }
-    
     $studentExam = StudentExam::find($studentExamId);
-    
+
+    if (!$studentExam) {
+        header("Location: /?action=student_dashboard");
+        exit;
+    }
+
+    $isGuest = ($studentExam['student_id'] === null);
+
     if ($isGuest) {
-        if (!$studentExam || $studentExam['access_token'] !== $_COOKIE['guest_access_token']) {
+        if (!isset($_COOKIE['guest_access_token']) || $studentExam['access_token'] !== $_COOKIE['guest_access_token']) {
             die("Geen toegang (ongeldig token).");
         }
     } else {
-        if (!$studentExam || $studentExam['student_id'] != $_SESSION['user_id']) {
+        requireLogin();
+        if ($studentExam['student_id'] != $_SESSION['user_id']) {
             die("Geen toegang.");
         }
     }
