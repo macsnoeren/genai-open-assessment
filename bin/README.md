@@ -1,31 +1,31 @@
 # AI Feedback Processor
 
-Dit onderdeel van de applicatie is verantwoordelijk voor het asynchroon verwerken van studentantwoorden met behulp van Generatieve AI (LLM's). 
+This component of the application is responsible for the asynchronous processing of student answers using Generative AI (LLMs). 
 
-## Overzicht
-Het script `process_ai_feedback.py` fungeert als een 'worker' die op de achtergrond draait. Het zorgt ervoor dat de webserver niet wordt belast met zware AI-berekeningen tijdens het inleveren van een toets door studenten.
+## Overview
+The `process_ai_feedback.py` script acts as a background worker. It ensures the web server is not burdened with heavy AI computations when students submit an exam.
 
-### Werking
-1. **Poll**: Het script vraagt periodiek via de API (`action=open_student_answers`) of er nieuwe, onbeoordeelde studentantwoorden zijn.
-2. **Verwerking**: Voor elk antwoord wordt de specifieke prompt van de toets (of een fallback) gecombineerd met de vraag en het antwoord.
-3. **AI Beoordeling**: De data wordt naar een lokale Ollama-server gestuurd. Er kunnen meerdere modellen tegelijkertijd worden geraadpleegd voor vergelijking.
-4. **Opslag**: De JSON-output van de AI (score en feedback) wordt via de API (`action=submit_ai_feedback`) teruggestuurd naar de webapplicatie.
+### How it works
+1. **Poll**: The script periodically requests new, ungraded student answers via the API (`action=open_student_answers`).
+2. **Processing**: For each answer, the specific exam prompt (or a fallback) is combined with the question and the student's response.
+3. **AI Assessment**: The data is sent to a local Ollama server. Multiple models can be consulted simultaneously for comparison.
+4. **Storage**: The AI's JSON output (score and feedback) is sent back to the web application via the API (`action=submit_ai_feedback`).
 
-## Vereisten
+## Requirements
 - Python 3.x
-- Ollama (geïnstalleerd en draaiend)
-- De Python `requests` library: `pip install requests`
+- Ollama (installed and running)
+- The Python `requests` library: `pip install requests`
 
-## Installatie & Configuratie
+## Installation & Configuration
 
-1. **Configuratie**: Maak een bestand `config.py` aan in deze map (`bin/`) met de volgende inhoud:
+1. **Configuration**: Create a `config.py` file in this directory (`bin/`) with the following content:
 
 ```python
-API_KEY = "jouw_api_key" # Genereer deze in het Admin paneel van de webapp
+API_KEY = "your_api_key" # Generate this in the Admin panel of the webapp
 BASE_URL = "http://localhost/index.php"
 OLLAMA_URL = "http://localhost:11434/api/generate"
-LLM_MODELS = ["llama3", "phi3"] # Lijst met modellen die je wilt gebruiken
-POLL_INTERVAL = 30 # Aantal seconden tussen checks
+LLM_MODELS = ["llama3", "phi3"] # List of models you want to use
+POLL_INTERVAL = 30 # Interval in seconds between checks
 ```
 
 2. **Modellen**: Zorg dat de geconfigureerde modellen aanwezig zijn in Ollama:
