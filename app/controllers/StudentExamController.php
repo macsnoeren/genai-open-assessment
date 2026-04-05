@@ -95,6 +95,13 @@ class StudentExamController {
       $secure = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on';
       setcookie('guest_access_token', $result['access_token'], time() + (86400 * 30), "/", "", $secure, true);
 
+      // Update gast-geschiedenis cookie zodat de student meerdere resultaten kan inzien
+      $history = isset($_COOKIE['guest_history']) ? json_decode($_COOKIE['guest_history'], true) : [];
+      if (!in_array($result['access_token'], $history)) {
+          $history[] = $result['access_token'];
+          setcookie('guest_history', json_encode($history), time() + (86400 * 30), "/", "", $secure, true);
+      }
+
       header("Location: /?action=take_exam&student_exam_id={$result['id']}");
       exit;
   }
@@ -269,26 +276,70 @@ class StudentExamController {
     $studentExamId = $_GET['student_exam_id'] ?? null;
     $studentExam = StudentExam::find($studentExamId);
 
-    if (!$studentExam) {
-        header("Location: /?action=student_dashboard");
-        exit;
-    }
+    $isGuest = true;
+    $currentStudentId = null;
 
-    $isGuest = ($studentExam['student_id'] === null);
+    if ($studentExam) {
+        $isGuest = ($studentExam['student_id'] === null);
+        $currentStudentId = $studentExam['student_id'];
 
-    if ($isGuest) {
-        // Controleer op toegang via cookie OF via een token in de URL
-        $urlToken = $_GET['token'] ?? null;
-        $cookieToken = $_COOKIE['guest_access_token'] ?? null;
+        if ($isGuest) {
+            $urlToken = $_GET['token'] ?? null;
+            $cookieToken = $_COOKIE['guest_access_token'] ?? null;
 
-        if ($studentExam['access_token'] !== $urlToken && $studentExam['access_token'] !== $cookieToken) {
-            die("Geen toegang (ongeldig token).");
+            if ($studentExam['access_token'] !== $urlToken && $studentExam['access_token'] !== $cookieToken) {
+                die("Geen toegang (ongeldig token).");
+            }
+
+            // Voeg token toe aan geschiedenis voor een centraal overzicht (dashboard)
+            $history = isset($_COOKIE['guest_history']) ? json_decode($_COOKIE['guest_history'], true) : [];
+            if (!in_array($studentExam['access_token'], $history)) {
+                $history[] = $studentExam['access_token'];
+                $secure = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on';
+                setcookie('guest_history', json_encode($history), time() + (86400 * 30), "/", "", $secure, true);
+            }
+        } else {
+            requireLogin();
+            if ($studentExam['student_id'] != $_SESSION['user_id']) {
+                die("Geen toegang.");
+            }
         }
     } else {
-        requireLogin();
-        if ($studentExam['student_id'] != $_SESSION['user_id']) {
-            die("Geen toegang.");
+        // Geen specifiek examen geselecteerd; dashboard modus op basis van login of cookies
+        if (isset($_SESSION['user_id']) && $_SESSION['role'] === 'student') {
+            $isGuest = false;
+            $currentStudentId = $_SESSION['user_id'];
+        } elseif (isset($_COOKIE['guest_history']) || isset($_COOKIE['guest_access_token'])) {
+            $isGuest = true;
+        } else {
+            header("Location: /?action=login");
+            exit;
         }
+    }
+
+    // Haal de lijst met alle relevante afgeronde toetsen op voor de student of gast
+    $allStudentExams = [];
+    if (!$isGuest) {
+        $allStudentExams = StudentExam::allByStudent($currentStudentId);
+    } else {
+        $history = isset($_COOKIE['guest_history']) ? json_decode($_COOKIE['guest_history'], true) : [];
+        if (isset($_COOKIE['guest_access_token']) && !in_array($_COOKIE['guest_access_token'], $history)) {
+            $history[] = $_COOKIE['guest_access_token'];
+        }
+        foreach ($history as $token) {
+            $se = StudentExam::findByAccessToken($token);
+            if ($se && !empty($se['completed_at'])) {
+                $exData = Exam::find($se['exam_id']);
+                $se['exam_title'] = $exData['title'] ?? 'Toets';
+                $allStudentExams[] = $se;
+            }
+        }
+    }
+
+    if (!$studentExam) {
+        // Toon enkel het dashboard overzicht met alle resultaten
+        require __DIR__ . '/../views/student/view_results.php';
+        return;
     }
     
     $exam = Exam::find($studentExam['exam_id']);
