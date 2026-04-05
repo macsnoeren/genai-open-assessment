@@ -341,6 +341,13 @@ public function viewStudentAnswers($studentExamId) {
     $studentExam = StudentExam::find($studentExamId);
     $this->checkExamOwnership($studentExam['exam_id']);
 
+    // Genereer een deelbare link voor gaststudenten zodat zij hun resultaat kunnen inzien
+    $shareableLink = null;
+    if ($studentExam['student_id'] === null && !empty($studentExam['access_token'])) {
+        $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') ? "https" : "http";
+        $shareableLink = "{$protocol}://{$_SERVER['HTTP_HOST']}/?action=student_view_results&student_exam_id={$studentExamId}&token={$studentExam['access_token']}";
+    }
+
     $pdo = Database::connect();
         $stmt = $pdo->prepare("
         SELECT sa.id, q.question_text, sa.answer, q.criteria, sa.ai_feedback, sa.teacher_score, sa.teacher_feedback

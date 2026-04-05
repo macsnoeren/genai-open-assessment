@@ -138,7 +138,11 @@ class StudentExamController {
     $isGuest = ($studentExam['student_id'] === null);
 
     if ($isGuest) {
-        if (!isset($_COOKIE['guest_access_token']) || $studentExam['access_token'] !== $_COOKIE['guest_access_token']) {
+        // Check of er toegang is via een cookie OF via een token in de URL
+        $urlToken = $_GET['token'] ?? null;
+        $cookieToken = $_COOKIE['guest_access_token'] ?? null;
+
+        if ($studentExam['access_token'] !== $urlToken && $studentExam['access_token'] !== $cookieToken) {
             die("Geen toegang (ongeldig token).");
         }
     } else {
