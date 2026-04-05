@@ -35,6 +35,17 @@ ob_start();
     <?php unset($_SESSION['success_message']); ?>
 <?php endif; ?>
 
+<?php if (isset($shareableLink) && $shareableLink): ?>
+    <div class="alert alert-info mb-4">
+        <label class="form-label"><strong>Deelbare link voor de student:</strong></label>
+        <div class="input-group mb-1">
+            <input type="text" id="shareableLink" class="form-control" value="<?= htmlspecialchars($shareableLink) ?>" readonly onclick="this.select();">
+            <button class="btn btn-outline-primary" type="button" onclick="copyLink('shareableLink')">Kopieer link</button>
+        </div>
+        <small>De student kan deze link gebruiken om zijn resultaten te bekijken, ook als hij zijn sessie/cookie is kwijtgeraakt.</small>
+    </div>
+<?php endif; ?>
+
 <?php if (isset($finalScore) && $finalScore !== null): ?>
 <div class="alert alert-primary">
     <strong>Eindscore (Gemiddelde):</strong> <?= number_format($finalScore, 1) ?>
@@ -93,6 +104,21 @@ ob_start();
   </div>
 </div>
 <?php endforeach; ?>
+
+<script>
+function copyLink(elementId) {
+    var copyText = document.getElementById(elementId);
+    copyText.select();
+    copyText.setSelectionRange(0, 99999); // Voor mobiele apparaten
+    
+    if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(copyText.value);
+    } else {
+        document.execCommand('copy');
+    }
+    alert("Link gekopieerd naar klembord!");
+}
+</script>
 
 <?php
  $content = ob_get_clean();
