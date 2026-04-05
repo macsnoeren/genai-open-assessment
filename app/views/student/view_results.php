@@ -45,6 +45,7 @@ ob_start(); ?>
 
 <h2>Resultaten: <?= htmlspecialchars($exam['title']) ?></h2>
 <h4 class="text-muted mb-3">Student: <?= htmlspecialchars($studentExam['guest_name'] ?? $_SESSION['name'] ?? 'Onbekend') ?></h4>
+<p class="text-muted"><strong>Ingeleverd op:</strong> <?= htmlspecialchars($studentExam['completed_at']) ?></p>
 
 <p><?= htmlspecialchars($exam['description']) ?></p>
 
