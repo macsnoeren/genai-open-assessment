@@ -104,11 +104,21 @@ OUTPUTFORMAAT JSON exact (verplicht):
 STUDENTANTWOORD:
 {answer}
 """
-    
+
+    # Qwen3-modellen hebben een "thinking"-modus die standaard aanstaat en
+    # veel van de output-tokenlimiet kan opsouperen, waardoor de JSON-output
+    # halverwege wordt afgekapt. /no_think schakelt dat redeneerblok uit.
+    if "qwen3" in model_name.lower():
+        prompt = prompt.rstrip() + "\n\n/no_think"
+
     payload = {
         "model": model_name,
         "prompt": prompt,
-        "stream": False
+        "stream": False,
+        "format": "json",
+        "options": {
+            "num_predict": 800
+        }
     }
 
     try:
@@ -118,10 +128,15 @@ STUDENTANTWOORD:
         duration = end_time - start_time
         data = response.json()
         raw = data.get("response", "")
+        done_reason = data.get("done_reason")
+
+        if done_reason and done_reason != "stop":
+            print(f"[{model_name}] Waarschuwing: generatie stopte met reden '{done_reason}' (mogelijk afgekapt).")
+
         parsed = extract_json(raw)
 
         if not parsed:
-            print(f"[{model_name}] Kon geen geldige JSON vinden ({raw})")
+            print(f"[{model_name}] Kon geen geldige JSON vinden ({raw}), done_reason={done_reason}")
             print("RAW OUTPUT:", raw)
             return None
         

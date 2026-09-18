@@ -8,7 +8,26 @@
  * (at your option) any later version.
  */
 ob_start();
+
+$studentDisplayName = $isGuest ? ($studentExam['guest_name'] ?? 'Gast') : ($_SESSION['name'] ?? 'Student');
+$backToAppUrl = $isGuest ? '/' : '/?action=student_dashboard';
 ?>
+
+<div class="exam-topbar">
+  <div class="container exam-topbar-inner">
+    <div class="exam-topbar-brand">
+        <img src="/images/logo-h.png" alt="Logo" class="exam-topbar-logo">
+        <span class="exam-topbar-name"><?= htmlspecialchars($studentDisplayName) ?></span>
+    </div>
+    <?php if (!$studentExam['completed_at']): ?>
+    <div class="exam-topbar-actions">
+        <button type="submit" form="examForm" name="action_type" value="save" class="btn btn-sm btn-outline-light">Tussentijds opslaan</button>
+        <button type="submit" form="examForm" name="action_type" value="submit" class="btn btn-sm btn-light fw-bold" data-confirm="Weet je zeker dat je de toets definitief wilt inleveren? Hierna kun je geen wijzigingen meer maken.">Definitief inleveren</button>
+    </div>
+    <?php endif; ?>
+  </div>
+</div>
+<div class="exam-topbar-spacer"></div>
 
 <?php if (isset($_SESSION['success_message'])): ?>
     <div class="alert alert-success mb-4">
@@ -22,15 +41,16 @@ ob_start();
         <h4>Toets ingeleverd</h4>
         <p>Je hebt deze toets ingeleverd op <?= $studentExam['completed_at'] ?>. Je kunt je antwoorden niet meer wijzigen.</p>
     </div>
+    <a href="<?= $backToAppUrl ?>" class="btn btn-primary">Terug naar hoofdapplicatie</a>
 <?php else: ?>
 
 <h2 class="mb-4">Toets maken</h2>
 <p class="text-muted mb-4">ID: <?= htmlspecialchars($studentExam['unique_id']) ?></p>
 
-<form method="POST" action="/?action=submit_exam">
+<form id="examForm" method="POST" action="/?action=submit_exam">
   <?= csrfInput() ?>
   <input type="hidden" name="student_exam_id" value="<?= $studentExam['id'] ?>">
-  
+
   <?php foreach ($questions as $q): ?>
   <div class="card mb-4">
     <div class="card-body">
@@ -39,11 +59,6 @@ ob_start();
     </div>
   </div>
   <?php endforeach; ?>
-  
-  <div class="d-flex justify-content-between mt-4 mb-5">
-      <button type="submit" name="action_type" value="save" class="btn btn-secondary">Tussentijds opslaan</button>
-      <button type="submit" name="action_type" value="submit" class="btn btn-success btn-lg" data-confirm="Weet je zeker dat je de toets definitief wilt inleveren? Hierna kun je geen wijzigingen meer maken.">Definitief inleveren</button>
-  </div>
 </form>
 
 <?php endif; ?>
@@ -51,13 +66,7 @@ ob_start();
 <?php
 $content = ob_get_clean();
 $title = "Toets maken";
-if (isset($isGuest) && $isGuest) {
-    $breadcrumbs = [];
-} else {
-    $breadcrumbs = [
-        'Dashboard' => '/?action=student_dashboard',
-        'Toets maken' => ''
-    ];
-}
+$hideHeaderFooter = true;
+$breadcrumbs = [];
 require __DIR__ . '/../layouts/main.php';
 ?>
