@@ -9,12 +9,30 @@ BASE_URL = "https://test.jmnl.nl/api/index.php"
 # URL van de Ollama API
 OLLAMA_URL = "http://localhost:11434/api/generate"
 
-# Lijst met LLM-modellen die gebruikt worden voor de beoordeling
+# Lijst met LLM-modellen die gebruikt worden voor de beoordeling.
+# Cloud-modellen (Ollama Cloud, "-cloud" suffix) draaien op ollama.com i.p.v.
+# lokaal, dus is geen GPU nodig. Vereist een 'ollama signin' op deze machine.
+# gpt-oss:20b-cloud en gpt-oss:120b-cloud vallen onder de gratis laag.
 LLM_MODELS = [
-    "qwen3:4b",
-    "gemma3:1b",
-    "gemma3:4b",
+    "gpt-oss:20b-cloud",
+    "gpt-oss:120b-cloud",
 ]
 
 # Interval in seconden voor het ophalen van nieuwe antwoorden
 POLL_INTERVAL = 30
+# Model dat elk studentantwoord vooraf controleert op prompt injection.
+# Zet op None om deze controle uit te schakelen.
+INJECTION_CHECK_MODEL = "gpt-oss:20b-cloud"
+
+# Zet de AI-score op 0 als de voorcontrole prompt injection vermoedt.
+# De oorspronkelijke score blijft zichtbaar in de feedbacktekst voor de docent.
+INJECTION_ZERO_SCORE = True
+
+# Aantal pogingen voordat een antwoord als "niet beoordeelbaar" wordt gemarkeerd
+MAX_ATTEMPTS = 3
+
+# Contextvenster (tokens) dat aan Ollama wordt doorgegeven
+NUM_CTX = 8192
+
+# Maximale lengte (tekens) van het studentantwoord dat naar het model gaat
+MAX_ANSWER_CHARS = 4000
