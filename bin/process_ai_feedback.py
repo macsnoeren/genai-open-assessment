@@ -26,6 +26,20 @@ API_HEADERS = {"Authorization": f"Bearer {API_KEY}"}
 # Alleen voor lokale tests uit te zetten via ALLOW_INSECURE_BASE_URL = True in config.py.
 ALLOW_INSECURE_BASE_URL = getattr(config, "ALLOW_INSECURE_BASE_URL", False)
 
+# Tijdelijke brug voor een server die nog de OUDE code draait: die leest de
+# key uitsluitend uit ?api_key= en negeert de Authorization-header. Met deze
+# vlag aan wordt de key óók als query-parameter meegestuurd. Nadeel: de key
+# belandt dan in de access log van de server. Alleen gebruiken tot de nieuwe
+# versie is uitgerold (zie docs/rollout-new-version.md), daarna weer op False.
+LEGACY_API_KEY_IN_QUERY = getattr(config, "LEGACY_API_KEY_IN_QUERY", False)
+
+
+def api_params(**params) -> Dict:
+    """Query-parameters voor een API-aanroep, met de key erbij in legacy-modus."""
+    if LEGACY_API_KEY_IN_QUERY:
+        params["api_key"] = API_KEY
+    return params
+
 
 def check_base_url() -> None:
     parsed = urlparse(BASE_URL)
@@ -543,16 +557,17 @@ def fetch_open_student_answers() -> List[Dict]:
 
     response = requests.get(
         BASE_URL,
-        params={
-            "action": "open_student_answers",
-            "limit": 5
-        },
+        params=api_params(action="open_student_answers", limit=5),
         headers=API_HEADERS,
         timeout=30
     )
 
     if response.status_code == 401:
         print("API-key geweigerd (401). Controleer API_KEY in config.py en of de key actief is.")
+        if not LEGACY_API_KEY_IN_QUERY:
+            print("Draait de server nog de oude code (key alleen via ?api_key=)? "
+                  "Zet dan tijdelijk LEGACY_API_KEY_IN_QUERY = True in config.py, "
+                  "zie docs/rollout-new-version.md.")
         return []
     try:
         data = response.json()
@@ -583,7 +598,8 @@ def submit_ai_feedback(
     }
 
     response = requests.post(
-        f"{BASE_URL}?action=submit_ai_feedback",
+        BASE_URL,
+        params=api_params(action="submit_ai_feedback"),
         json=payload,
         headers=API_HEADERS,
         timeout=180,
@@ -660,6 +676,10 @@ def run():
     """
 
     check_base_url()
+    if LEGACY_API_KEY_IN_QUERY:
+        print("LET OP: LEGACY_API_KEY_IN_QUERY staat aan. De API-key wordt ook als "
+              "?api_key= meegestuurd en belandt in de access log van de server. "
+              "Zet dit uit zodra de nieuwe versie is uitgerold (docs/rollout-new-version.md).")
     print("AI feedback service gestart...")
     attempts: Dict[int, int] = {}
 

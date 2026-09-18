@@ -10,6 +10,12 @@ BASE_URL = "https://test.jmnl.nl/api/index.php"
 # Alleen voor lokale tests zonder TLS: sta een http:// BASE_URL toe.
 # ALLOW_INSECURE_BASE_URL = True
 
+# Tijdelijke brug als de server nog de OUDE code draait (key alleen via
+# ?api_key=). Zet op True tot de nieuwe versie is uitgerold, daarna weer op
+# False: met deze vlag aan belandt de key in de access log van de server.
+# Zie docs/rollout-new-version.md.
+LEGACY_API_KEY_IN_QUERY = False
+
 # URL van de Ollama API
 OLLAMA_URL = "http://localhost:11434/api/generate"
 
