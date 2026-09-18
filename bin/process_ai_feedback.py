@@ -105,17 +105,12 @@ STUDENTANTWOORD:
 {answer}
 """
 
-    # Qwen3-modellen hebben een "thinking"-modus die standaard aanstaat en
-    # veel van de output-tokenlimiet kan opsouperen, waardoor de JSON-output
-    # halverwege wordt afgekapt. /no_think schakelt dat redeneerblok uit.
-    if "qwen3" in model_name.lower():
-        prompt = prompt.rstrip() + "\n\n/no_think"
-
     payload = {
         "model": model_name,
         "prompt": prompt,
         "stream": False,
         "format": "json",
+        "think": False,
         "options": {
             "num_predict": 800
         }

@@ -67,9 +67,8 @@ body {
 }
 
 .exam-topbar-inner {
-    max-width: 960px;
-    margin: 0 auto;
-    padding: 0.5rem 1rem;
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
     min-height: 48px;
     display: flex;
     justify-content: space-between;
