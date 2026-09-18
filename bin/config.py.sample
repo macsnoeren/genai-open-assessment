@@ -24,6 +24,11 @@ POLL_INTERVAL = 30
 # Zet op None om deze controle uit te schakelen.
 INJECTION_CHECK_MODEL = "gpt-oss:20b-cloud"
 
+# "think"-instelling per modelfamilie (prefix-match). gpt-oss negeert False
+# en redeneert dan op "medium"; die tokens tellen mee voor num_predict en
+# kappen de JSON af. Modellen zonder niveaus (qwen3 e.d.) krijgen False.
+THINK_LEVELS = {"gpt-oss": "low"}
+
 # Zet de AI-score op 0 als de voorcontrole prompt injection vermoedt.
 # De oorspronkelijke score blijft zichtbaar in de feedbacktekst voor de docent.
 INJECTION_ZERO_SCORE = True

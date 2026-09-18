@@ -42,8 +42,17 @@ MAX_ANSWER_CHARS = getattr(config, "MAX_ANSWER_CHARS", 4000)
 # dus zonder deze override kunnen gemanipuleerde scores in de statistieken komen.
 INJECTION_ZERO_SCORE = getattr(config, "INJECTION_ZERO_SCORE", True)
 
-# Maximale lengte van de tekstvelden die het model teruggeeft.
-MAX_FEEDBACK_CHARS = 600
+# Maximale lengte van de tekstvelden die het model teruggeeft. Ruim genomen:
+# dit is een bovengrens tegen een model dat doorratelt, geen redactiemiddel.
+MAX_FEEDBACK_CHARS = getattr(config, "MAX_FEEDBACK_CHARS", 1500)
+
+# "think"-instelling per modelfamilie (prefix-match op de modelnaam).
+# gpt-oss negeert think=False en redeneert dan op "medium"-niveau; die
+# onzichtbare tokens tellen mee voor num_predict en kappen de JSON af.
+# "low" verbruikt ~4x minder. Modellen zonder niveaus (qwen3 e.d.) kennen
+# alleen aan/uit, en daar betekent alles behalve False: denken AAN.
+THINK_LEVELS = getattr(config, "THINK_LEVELS", {"gpt-oss": "low"})
+THINK_DEFAULT = False
 
 # Toegestane scores. Alles daarbuiten wordt afgekeurd.
 ALLOWED_SCORES = {0, 1, 5, 10}
@@ -242,7 +251,13 @@ def clean_output_text(text) -> str:
         return ""
     text = re.sub(r'(Model|Tijdsduur|Aantal punten|Feedback)\s*:', r'\1 -', text, flags=re.IGNORECASE)
     text = re.sub(r'\s+', ' ', text).strip()
-    return text[:MAX_FEEDBACK_CHARS]
+    if len(text) <= MAX_FEEDBACK_CHARS:
+        return text
+
+    # Afkappen op een woordgrens, met een expliciet teken dat er tekst mist,
+    # zodat een afgekapte zin niet als de volledige feedback wordt gelezen.
+    cut = text[:MAX_FEEDBACK_CHARS].rsplit(' ', 1)[0]
+    return cut + ' […]'
 
 
 def validate_feedback(parsed: Dict) -> Optional[Dict]:
@@ -312,6 +327,15 @@ veldnamen: {required_keys}. Geen andere tekst, uitleg of markdown-opmaak.
 """
 
 
+def think_setting(model_name: str):
+    """Geeft de "think"-waarde voor dit model terug (zie THINK_LEVELS)."""
+    name = model_name.lower()
+    for prefix, level in THINK_LEVELS.items():
+        if name.startswith(prefix.lower()):
+            return level
+    return THINK_DEFAULT
+
+
 def call_ollama(model_name: str, system_prompt: str, user_prompt: str, schema: Dict, num_predict: int) -> Tuple[Optional[Dict], float]:
     """
     Doet een aanroep naar Ollama met gescheiden systeem- en gebruikersbericht
@@ -333,7 +357,7 @@ def call_ollama(model_name: str, system_prompt: str, user_prompt: str, schema: D
             "prompt": prompt,
             "stream": False,
             "format": schema,
-            "think": False,
+            "think": think_setting(model_name),
             "options": {
                 "num_predict": current_num_predict,
                 "num_ctx": NUM_CTX,
@@ -440,7 +464,7 @@ def get_feedback_from_model(
 
     system_prompt, user_prompt = build_prompts(q, injection_suspected)
 
-    parsed, duration = call_ollama(model_name, system_prompt, user_prompt, FEEDBACK_SCHEMA, num_predict=800)
+    parsed, duration = call_ollama(model_name, system_prompt, user_prompt, FEEDBACK_SCHEMA, num_predict=1500)
     if parsed is None:
         return None
 
