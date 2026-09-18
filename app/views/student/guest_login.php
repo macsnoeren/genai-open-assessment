@@ -20,7 +20,7 @@ ob_start();
                 <h3 class="card-title text-center mb-4">Toets Starten</h3>
                 <p class="text-center text-muted mb-4">
                     Je staat op het punt om de toets <strong><?= htmlspecialchars($exam['title']) ?></strong> te starten.
-                    Vul je naam in om te beginnen.
+                    Vul je voornaam en de eerste letter van je achternaam in om te beginnen.
                 </p>
 
                 <form method="POST" action="index.php?action=guest_start">
@@ -28,8 +28,8 @@ ob_start();
                     <input type="hidden" name="token" value="<?= htmlspecialchars($_GET['token']) ?>">
                     
                     <div class="mb-3">
-                        <label class="form-label">Volledige Naam</label>
-                        <input type="text" name="name" class="form-control" required autofocus placeholder="Bijv. Jan Jansen">
+                        <label class="form-label">Voornaam én eerste letter achternaam</label>
+                        <input type="text" name="name" class="form-control" required autofocus placeholder="Bijv. Jan J">
                     </div>
                     
                     <div class="d-grid">
