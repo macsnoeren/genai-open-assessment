@@ -8,7 +8,9 @@
  * (at your option) any later version.
  */
 
+require_once __DIR__ . '/../../config/app.php';
 require_once __DIR__ . '/../models/Student.php';
+require_once __DIR__ . '/../models/User.php';
 require_once __DIR__ . '/../models/AuditLog.php';
 require_once __DIR__ . '/../helpers/auth.php';
 
@@ -17,17 +19,30 @@ require_once __DIR__ . '/../helpers/auth.php';
  * Handles user management (CRUD for students/users).
  */
 class StudentController {
+
+  private function redirectAfterUpdate(): void {
+    $role = $_SESSION['role'] ?? 'student';
+    if ($role === 'admin') {
+        header('Location: /?action=students');
+    } elseif ($role === 'docent') {
+        header('Location: /?action=docent_dashboard');
+    } elseif ($role === 'beoordelaar') {
+        header('Location: /?action=pending_assessments');
+    } else {
+        header('Location: /?action=student_dashboard');
+    }
+    exit;
+  }
   
   /**
    * Lists all users.
    */
   public function index() {
-    requireLogin();
     requireRole('admin');
     
-    // Haal ALLE gebruikers op (niet alleen studenten)
+    // Haal ALLE gebruikers op (niet alleen studenten); nooit de wachtwoordhash naar de view
     $pdo = Database::connect();
-    $stmt = $pdo->query("SELECT * FROM users ORDER BY role, name");
+    $stmt = $pdo->query("SELECT id, name, email, role, force_password_change, created_at, updated_at FROM users ORDER BY role, name");
     $students = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
     require __DIR__ . '/../views/docent/students.php';
@@ -37,7 +52,6 @@ class StudentController {
    * Shows the form to create a new user.
    */
   public function create() {
-    requireLogin();
     requireRole('admin');
     
     $student = null;
@@ -51,23 +65,39 @@ class StudentController {
    */
   public function store() {
     validateCsrfToken();
-    requireLogin();
     requireRole('admin');
     
-    $role = $_POST['role'] ?? 'student';
-    // Alleen admins mogen de admin rol toewijzen.
-    if ($role === 'admin' && $_SESSION['role'] !== 'admin') {
-        die("Geen toegang: alleen admins kunnen de admin rol toewijzen.");
+    $role = requestString($_POST, 'role', 20, 'student');
+    if (!in_array($role, validRoles(), true)) {
+        abort(400, 'Ongeldige rol.');
     }
 
-    $password = password_hash($_POST['password'], PASSWORD_DEFAULT);
+    $name = trim(requestString($_POST, 'name', MAX_NAME_LENGTH));
+    $email = normalizeEmail(requestString($_POST, 'email', 254));
+    $password = requestString($_POST, 'password', 1024);
+
+    if ($name === '' || $email === null) {
+        $_SESSION['error'] = 'Vul een geldige naam en e-mailadres in.';
+        header('Location: /?action=student_create');
+        exit;
+    }
+    if (($error = validatePasswordPolicy($password)) !== null) {
+        $_SESSION['error'] = $error;
+        header('Location: /?action=student_create');
+        exit;
+    }
+    if (User::findByEmail($email)) {
+        $_SESSION['error'] = 'Dit e-mailadres is al in gebruik.';
+        header('Location: /?action=student_create');
+        exit;
+    }
 
     $pdo = Database::connect();
     $stmt = $pdo->prepare("INSERT INTO users (name, email, password, role, force_password_change) VALUES (?, ?, ?, ?, 1)");
-    $stmt->execute([$_POST['name'], $_POST['email'], $password, $role]);
+    $stmt->execute([$name, $email, password_hash($password, PASSWORD_DEFAULT), $role]);
 
     AuditLog::log('user_create', [
-        'name' => $_POST['name'], 
+        'name' => $name, 
         'role' => $role
     ]);
     
@@ -80,15 +110,23 @@ class StudentController {
    */
   public function edit() {
     requireLogin();
-    
-    $pdo = Database::connect();
-    $stmt = $pdo->prepare("SELECT * FROM users WHERE id = ?");
-    $stmt->execute([$_GET['id']]);
-    $student = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    $id = requestInt($_GET, 'id');
+    if ($id === null) {
+        abort(400, 'Ongeldig verzoek.');
+    }
 
     // Check: Admin of Eigen profiel
-    if ($_SESSION['role'] !== 'admin' && $_SESSION['user_id'] != $student['id']) {
-        die("Geen toegang: je mag alleen je eigen profiel bewerken.");
+    if ($_SESSION['role'] !== 'admin' && (int)$_SESSION['user_id'] !== $id) {
+        abort(403, 'Geen toegang: je mag alleen je eigen profiel bewerken.');
+    }
+    
+    $pdo = Database::connect();
+    $stmt = $pdo->prepare("SELECT id, name, email, role, force_password_change FROM users WHERE id = ?");
+    $stmt->execute([$id]);
+    $student = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (!$student) {
+        abort(404, 'Gebruiker niet gevonden.');
     }
 
     $action = 'student_update';
@@ -103,73 +141,130 @@ class StudentController {
     validateCsrfToken();
     requireLogin();
     
-    $userIdToUpdate = $_POST['id'];
+    $userIdToUpdate = requestInt($_POST, 'id');
+    if ($userIdToUpdate === null) {
+        abort(400, 'Ongeldig verzoek.');
+    }
+    $isAdmin = ($_SESSION['role'] === 'admin');
+    $isSelf = ((int)$_SESSION['user_id'] === $userIdToUpdate);
     
     // Check: Admin of Eigen profiel
-    if ($_SESSION['role'] !== 'admin' && $_SESSION['user_id'] != $userIdToUpdate) {
-        die("Geen toegang.");
+    if (!$isAdmin && !$isSelf) {
+        abort(403, 'Geen toegang.');
     }
 
     $pdo = Database::connect();
+    $stmt = $pdo->prepare("SELECT id, role, email, password, force_password_change FROM users WHERE id = ?");
+    $stmt->execute([$userIdToUpdate]);
+    $currentUserData = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (!$currentUserData) {
+        abort(404, 'Gebruiker niet gevonden.');
+    }
+
+    $name = trim(requestString($_POST, 'name', MAX_NAME_LENGTH));
+    if ($name === '') {
+        $_SESSION['error'] = 'Naam mag niet leeg zijn.';
+        header('Location: /?action=student_edit&id=' . $userIdToUpdate);
+        exit;
+    }
     
-    // Als geen admin, behoud huidige rol
-    $forcePasswordChange = 0;
-    if ($_SESSION['role'] !== 'admin') {
-        $stmt = $pdo->prepare("SELECT role, email, force_password_change FROM users WHERE id = ?");
-        $stmt->execute([$userIdToUpdate]);
-        $currentUserData = $stmt->fetch(PDO::FETCH_ASSOC);
+    // Als geen admin: behoud huidige rol, e-mail en force_password_change
+    if (!$isAdmin) {
         $newRole = $currentUserData['role'];
         $email = $currentUserData['email'];
         $forcePasswordChange = $currentUserData['force_password_change'];
     } else {
-        $newRole = $_POST['role'] ?? 'student';
-        $email = $_POST['email'];
+        $newRole = requestString($_POST, 'role', 20, 'student');
+        if (!in_array($newRole, validRoles(), true)) {
+            abort(400, 'Ongeldige rol.');
+        }
+        $email = normalizeEmail(requestString($_POST, 'email', 254));
+        if ($email === null) {
+            $_SESSION['error'] = 'Ongeldig e-mailadres.';
+            header('Location: /?action=student_edit&id=' . $userIdToUpdate);
+            exit;
+        }
+        $existing = User::findByEmail($email);
+        if ($existing && (int)$existing['id'] !== $userIdToUpdate) {
+            $_SESSION['error'] = 'Dit e-mailadres is al in gebruik.';
+            header('Location: /?action=student_edit&id=' . $userIdToUpdate);
+            exit;
+        }
         $forcePasswordChange = isset($_POST['force_password_change']) ? 1 : 0;
     }
-    
-    $sql = "UPDATE users SET name = ?, email = ?, role = ?, force_password_change = ? WHERE id = ?";
-    $params = [$_POST['name'], $email, $newRole, $forcePasswordChange, $userIdToUpdate];
 
-    if (!empty($_POST['password'])) {
-        $sql = "UPDATE users SET name = ?, email = ?, role = ?, force_password_change = ?, password = ? WHERE id = ?";
-        $params = [$_POST['name'], $email, $newRole, $forcePasswordChange, password_hash($_POST['password'], PASSWORD_DEFAULT), $userIdToUpdate];
+    $newPassword = requestString($_POST, 'password', 1024);
+    $passwordChanged = false;
+    if ($newPassword !== '') {
+        if (($error = validatePasswordPolicy($newPassword)) !== null) {
+            $_SESSION['error'] = $error;
+            header('Location: /?action=student_edit&id=' . $userIdToUpdate);
+            exit;
+        }
+        // Eigen wachtwoord wijzigen vereist het huidige wachtwoord
+        if ($isSelf) {
+            $current = requestString($_POST, 'current_password', 1024);
+            if ($current === '' || !password_verify($current, $currentUserData['password'])) {
+                $_SESSION['error'] = 'Het huidige wachtwoord is onjuist.';
+                header('Location: /?action=student_edit&id=' . $userIdToUpdate);
+                exit;
+            }
+        }
+        $passwordChanged = true;
+    }
+    
+    if ($passwordChanged) {
+        $sql = "UPDATE users SET name = ?, email = ?, role = ?, force_password_change = ?, password = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?";
+        $params = [$name, $email, $newRole, $forcePasswordChange, password_hash($newPassword, PASSWORD_DEFAULT), $userIdToUpdate];
+    } else {
+        $sql = "UPDATE users SET name = ?, email = ?, role = ?, force_password_change = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?";
+        $params = [$name, $email, $newRole, $forcePasswordChange, $userIdToUpdate];
     }
 
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
 
-    AuditLog::log('user_update', ['id' => $userIdToUpdate, 'name' => $_POST['name'], 'role' => $newRole]);
-    
-    if ($_SESSION['role'] === 'admin') {
-        header('Location: /?action=students');
-    } else {
-        if ($_SESSION['role'] === 'docent') {
-             header('Location: /?action=docent_dashboard');
-        } elseif ($_SESSION['role'] === 'beoordelaar') {
-             header('Location: /?action=pending_assessments');
-        } else {
-             header('Location: /?action=student_dashboard');
+    AuditLog::log('user_update', [
+        'id' => $userIdToUpdate,
+        'name' => $name,
+        'role' => $newRole,
+        'password_changed' => $passwordChanged,
+    ]);
+
+    if ($isSelf) {
+        $_SESSION['name'] = $name;
+        if ($passwordChanged) {
+            session_regenerate_id(true);
         }
     }
-    exit;
+    $_SESSION['success_message'] = 'Gebruiker opgeslagen.';
+    
+    $this->redirectAfterUpdate();
   }
   
   /**
    * Deletes a user.
    */
   public function delete() {
-            validateCsrfToken();
-            requireLogin();
-	    requireRole('admin');
-	    
-        if ($_GET['id'] == $_SESSION['user_id']) {
-            die("Je kunt jezelf niet verwijderen.");
-        }
+    validateCsrfToken();
+    requireRole('admin');
 
-	    AuditLog::log('user_delete', ['id' => $_GET['id']]);
-        Database::connect()->prepare("DELETE FROM users WHERE id = ?")->execute([$_GET['id']]);
-	    header('Location: /?action=students');
-	    exit;
+    $id = requestInt($_GET, 'id') ?? requestInt($_POST, 'id');
+    if ($id === null) {
+        abort(400, 'Ongeldig verzoek.');
+    }
+    if ($id === (int)$_SESSION['user_id']) {
+        abort(400, 'Je kunt jezelf niet verwijderen.');
+    }
+
+    try {
+        Database::connect()->prepare("DELETE FROM users WHERE id = ?")->execute([$id]);
+        AuditLog::log('user_delete', ['id' => $id]);
+    } catch (PDOException $e) {
+        // FK RESTRICT: docent heeft nog toetsen
+        $_SESSION['error'] = 'Deze gebruiker kan niet worden verwijderd zolang er toetsen aan gekoppeld zijn.';
+    }
+    header('Location: /?action=students');
+    exit;
   }
 }
-?>

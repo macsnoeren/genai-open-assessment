@@ -8,7 +8,7 @@ mkdir -p "$DB_DIR"
 
 if [ ! -f "$DB_FILE" ]; then
     echo "Geen database gevonden, database wordt geïnitialiseerd..."
-    php /var/www/html/htdocs/setup/init_db.php
+    php /var/www/html/setup/init_db.php
 fi
 
 chown -R www-data:www-data "$DB_DIR"

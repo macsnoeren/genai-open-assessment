@@ -21,7 +21,7 @@ ob_start();
                 
                 <?php if (isset($_SESSION['error'])): ?>
                     <div class="alert alert-danger">
-                        <?= $_SESSION['error'] ?>
+                        <?= e($_SESSION['error']) ?>
                         <?php unset($_SESSION['error']); ?>
                     </div>
                 <?php endif; ?>

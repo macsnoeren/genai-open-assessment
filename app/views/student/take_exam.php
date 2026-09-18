@@ -31,7 +31,7 @@ $backToAppUrl = $isGuest ? '/' : '/?action=student_dashboard';
 
 <?php if (isset($_SESSION['success_message'])): ?>
     <div class="alert alert-success mb-4">
-        <?= $_SESSION['success_message'] ?>
+        <?= e($_SESSION['success_message']) ?>
     </div>
     <?php unset($_SESSION['success_message']); ?>
 <?php endif; ?>
@@ -39,9 +39,9 @@ $backToAppUrl = $isGuest ? '/' : '/?action=student_dashboard';
 <?php if ($studentExam['completed_at']): ?>
     <div class="alert alert-info mb-4">
         <h4>Toets ingeleverd</h4>
-        <p>Je hebt deze toets ingeleverd op <?= $studentExam['completed_at'] ?>. Je kunt je antwoorden niet meer wijzigen.</p>
+        <p>Je hebt deze toets ingeleverd op <?= e($studentExam['completed_at']) ?>. Je kunt je antwoorden niet meer wijzigen.</p>
     </div>
-    <a href="<?= $backToAppUrl ?>" class="btn btn-primary">Terug naar hoofdapplicatie</a>
+    <a href="<?= e($backToAppUrl) ?>" class="btn btn-primary">Terug naar hoofdapplicatie</a>
 <?php else: ?>
 
 <h2 class="mb-4">Toets maken</h2>
@@ -49,13 +49,13 @@ $backToAppUrl = $isGuest ? '/' : '/?action=student_dashboard';
 
 <form id="examForm" method="POST" action="/?action=submit_exam">
   <?= csrfInput() ?>
-  <input type="hidden" name="student_exam_id" value="<?= $studentExam['id'] ?>">
+  <input type="hidden" name="student_exam_id" value="<?= (int)$studentExam['id'] ?>">
 
   <?php foreach ($questions as $q): ?>
   <div class="card mb-4">
     <div class="card-body">
         <label class="form-label fw-bold"><?= htmlspecialchars($q['question_text']) ?></label>
-        <textarea name="answers[<?= $q['id'] ?>]" class="form-control" rows="6" placeholder="Typ hier je antwoord..."><?= htmlspecialchars($answers[$q['id']]['answer'] ?? '') ?></textarea>
+        <textarea name="answers[<?= (int)$q['id'] ?>]" class="form-control" rows="6" maxlength="<?= (int)MAX_ANSWER_LENGTH ?>" placeholder="Typ hier je antwoord..."><?= htmlspecialchars($answers[$q['id']]['answer'] ?? '') ?></textarea>
     </div>
   </div>
   <?php endforeach; ?>

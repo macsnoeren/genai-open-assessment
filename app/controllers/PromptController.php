@@ -8,6 +8,7 @@
  * (at your option) any later version.
  */
 
+require_once __DIR__ . '/../../config/app.php';
 require_once __DIR__ . '/../models/Prompt.php';
 require_once __DIR__ . '/../models/AuditLog.php';
 require_once __DIR__ . '/../helpers/auth.php';
@@ -31,14 +32,20 @@ class PromptController {
     public function store() {
         validateCsrfToken();
         requireRole('admin');
+
+        $titleText = trim(requestString($_POST, 'title', 255));
+        $promptText = requestString($_POST, 'prompt_text');
+        if ($titleText === '' || trim($promptText) === '') {
+            abort(400, 'Titel en prompttekst zijn verplicht.');
+        }
         
         Prompt::create(
-            $_POST['title'],
-            $_POST['description'],
-            $_POST['prompt_text']
+            $titleText,
+            requestString($_POST, 'description'),
+            $promptText
         );
 
-        AuditLog::log('prompt_create', ['title' => $_POST['title']]);
+        AuditLog::log('prompt_create', ['title' => $titleText]);
         header('Location: /?action=prompts');
         exit;
     }
@@ -46,9 +53,10 @@ class PromptController {
     public function edit() {
         requireRole('admin');
         
-        $prompt = Prompt::find($_GET['id']);
+        $id = requestInt($_GET, 'id');
+        $prompt = $id !== null ? Prompt::find($id) : null;
         if (!$prompt) {
-            die("Prompt niet gevonden.");
+            abort(404, 'Prompt niet gevonden.');
         }
 
         $action = 'prompt_update';
@@ -59,15 +67,25 @@ class PromptController {
     public function update() {
         validateCsrfToken();
         requireRole('admin');
+
+        $id = requestInt($_POST, 'id');
+        if ($id === null || !Prompt::find($id)) {
+            abort(404, 'Prompt niet gevonden.');
+        }
+        $titleText = trim(requestString($_POST, 'title', 255));
+        $promptText = requestString($_POST, 'prompt_text');
+        if ($titleText === '' || trim($promptText) === '') {
+            abort(400, 'Titel en prompttekst zijn verplicht.');
+        }
         
         Prompt::update(
-            $_POST['id'],
-            $_POST['title'],
-            $_POST['description'],
-            $_POST['prompt_text']
+            $id,
+            $titleText,
+            requestString($_POST, 'description'),
+            $promptText
         );
 
-        AuditLog::log('prompt_update', ['id' => $_POST['id'], 'title' => $_POST['title']]);
+        AuditLog::log('prompt_update', ['id' => $id, 'title' => $titleText]);
         header('Location: /?action=prompts');
         exit;
     }
@@ -75,9 +93,13 @@ class PromptController {
     public function delete() {
         validateCsrfToken();
         requireRole('admin');
-        
-        AuditLog::log('prompt_delete', ['id' => $_GET['id']]);
-        Prompt::delete($_GET['id']);
+
+        $id = requestInt($_GET, 'id') ?? requestInt($_POST, 'id');
+        if ($id === null) {
+            abort(400, 'Ongeldig verzoek.');
+        }
+        AuditLog::log('prompt_delete', ['id' => $id]);
+        Prompt::delete($id);
         
         header('Location: /?action=prompts');
         exit;
@@ -88,4 +110,3 @@ class PromptController {
         require __DIR__ . '/../views/docent/prompt_help.php';
     }
 }
-?>

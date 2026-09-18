@@ -16,7 +16,7 @@
         </div>
         <div style="margin-bottom: 10px;">
             <label>Wachtwoord</label><br>
-            <input type="password" name="password" required style="width: 100%;">
+            <input type="password" name="password" required minlength="<?= (int)PASSWORD_MIN_LENGTH ?>" autocomplete="new-password" style="width: 100%;">
         </div>
         <button type="submit" style="width: 100%; padding: 10px; background: #007bff; color: white; border: none;">Admin Account Aanmaken</button>
     </form>

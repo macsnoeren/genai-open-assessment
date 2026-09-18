@@ -8,6 +8,8 @@
  * (at your option) any later version.
  */
 
+require_once __DIR__ . '/../../config/app.php';
+require_once __DIR__ . '/../helpers/auth.php';
 require_once __DIR__ . '/../models/ApiKey.php';
 require_once __DIR__ . '/../models/AuditLog.php';
 
@@ -33,7 +35,10 @@ class ApiKeyController {
     validateCsrfToken();
     requireRole('admin');
     
-    $name = $_POST['name'];
+    $name = trim(requestString($_POST, 'name', MAX_NAME_LENGTH));
+    if ($name === '') {
+        abort(400, 'Naam is verplicht.');
+    }
     $newKey = ApiKey::create($name);
     AuditLog::log('api_key_create', ['name' => $name]);
     $_SESSION['new_api_key'] = [
@@ -51,8 +56,12 @@ class ApiKeyController {
   public function toggle() {
     validateCsrfToken();
     requireRole('admin');
-    AuditLog::log('api_key_toggle', ['id' => $_GET['id']]);
-    ApiKey::toggle($_GET['id']);
+    $id = requestInt($_GET, 'id') ?? requestInt($_POST, 'id');
+    if ($id === null) {
+        abort(400, 'Ongeldig verzoek.');
+    }
+    AuditLog::log('api_key_toggle', ['id' => $id]);
+    ApiKey::toggle($id);
     header("Location: /?action=api_keys");
     exit;
   }
@@ -63,10 +72,13 @@ class ApiKeyController {
   public function delete() {
     validateCsrfToken();
     requireRole('admin');
-    AuditLog::log('api_key_delete', ['id' => $_GET['id']]);
-    ApiKey::delete($_GET['id']);
+    $id = requestInt($_GET, 'id') ?? requestInt($_POST, 'id');
+    if ($id === null) {
+        abort(400, 'Ongeldig verzoek.');
+    }
+    AuditLog::log('api_key_delete', ['id' => $id]);
+    ApiKey::delete($id);
     header("Location: /?action=api_keys");
     exit;
   }
 }
-?>

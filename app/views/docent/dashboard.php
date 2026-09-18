@@ -43,29 +43,37 @@ ob_start();
                       <?php if ($exam['shared']): ?>
                           <span class="badge bg-info text-dark ms-1" title="Gedeeld met andere docenten">Gedeeld</span>
                       <?php endif; ?>
+                      <?php if (!empty($exam['published'])): ?>
+                          <span class="badge bg-primary ms-1" title="Zichtbaar voor ingelogde studenten">Gepubliceerd</span>
+                      <?php endif; ?>
                       <?php if ($exam['docent_id'] != $_SESSION['user_id']): ?>
                           <span class="badge bg-warning text-dark ms-1" title="Gemaakt door een andere docent">Van collega</span>
                       <?php endif; ?>
                   </td>
-                  <td class="align-middle"><?= $exam['created_at'] ?></td>
+                  <td class="align-middle"><?= e($exam['created_at']) ?></td>
                   <td class="text-end">
                     <?php if (!empty($exam['public_token'])): ?>
                         <?php 
-                            $link = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http") . "://$_SERVER[HTTP_HOST]/?action=guest&token=" . $exam['public_token'];
+                            $link = appBaseUrl() . "/?action=guest&token=" . $exam['public_token'];
+                            $isOwner = ($_SESSION['role'] === 'admin' || (int)$exam['docent_id'] === (int)$_SESSION['user_id']);
                         ?>
                         <div class="input-group input-group-sm mb-2" style="max-width: 300px; margin-left: auto;">
                             <input type="text" class="form-control" value="<?= htmlspecialchars($link) ?>" readonly id="link-<?= $exam['id'] ?>">
-                            <button class="btn btn-outline-secondary" type="button" onclick="copyLink('link-<?= $exam['id'] ?>')" title="Kopieer link">📋</button>
+                            <button class="btn btn-outline-secondary" type="button" data-copy-target="link-<?= (int)$exam['id'] ?>" title="Kopieer link">📋</button>
                         </div>
+                    <?php else: ?>
+                        <?php $isOwner = ($_SESSION['role'] === 'admin' || (int)$exam['docent_id'] === (int)$_SESSION['user_id']); ?>
                     <?php endif; ?>
                     <div class="btn-group btn-group-sm">
                         <a href="/?action=questions&exam_id=<?= $exam['id'] ?>" class="btn btn-outline-secondary" title="Vragen beheren">📝</a>
                         <a href="/?action=exam_results&exam_id=<?= $exam['id'] ?>" class="btn btn-outline-secondary" title="Resultaten bekijken">📊</a>
                         <a href="/?action=exam_comparison&exam_id=<?= $exam['id'] ?>" class="btn btn-outline-secondary" title="Vergelijk AI met Docent">📈</a>
                         <a href="/?action=start_exam&exam_id=<?= $exam['id'] ?>" class="btn btn-outline-secondary" data-confirm="Weet je zeker dat je deze toets wilt testen?" title="Testen">▶️</a>
+                        <?php if ($isOwner): ?>
                         <a href="/?action=exam_duplicate&id=<?= $exam['id'] ?>" class="btn btn-outline-warning" data-confirm="Weet je zeker dat je deze toets wilt dupliceren inclusief alle antwoorden? De AI-feedback wordt gewist, docent-feedback blijft behouden." title="Dupliceren">📋</a>
                         <a href="/?action=exam_edit&id=<?= $exam['id'] ?>" class="btn btn-outline-primary" title="Bewerken">✏️</a>
                         <a href="/?action=exam_delete&id=<?= $exam['id'] ?>" class="btn btn-outline-danger" data-confirm="Weet je zeker dat je deze toets wilt verwijderen?" title="Verwijderen">🗑️</a>
+                        <?php endif; ?>
                     </div>
                   </td>
                 </tr>
@@ -75,20 +83,6 @@ ob_start();
         </div>
     </div>
 </div>
-
-<script>
-function copyLink(elementId) {
-    var copyText = document.getElementById(elementId);
-    copyText.select();
-    copyText.setSelectionRange(0, 99999); // Voor mobiele apparaten
-    
-    if (navigator.clipboard && window.isSecureContext) {
-        navigator.clipboard.writeText(copyText.value);
-    } else {
-        document.execCommand('copy');
-    }
-}
-</script>
 
 <?php
 $content = ob_get_clean();

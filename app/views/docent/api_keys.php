@@ -19,15 +19,15 @@ if (isset($_SESSION['new_api_key'])):
     <strong>Naam:</strong> <?= htmlspecialchars($newKeyData['name']) ?><br>
     <strong>Key:</strong>
     <div class="input-group mt-2">
-        <input type="text" id="newApiKeyValue" readonly onclick="this.select();" value="<?= htmlspecialchars($newKeyData['key']) ?>" class="form-control font-monospace">
-        <button class="btn btn-outline-secondary" type="button" onclick="copyLink('newApiKeyValue')" title="Kopieer key">📋</button>
+        <input type="text" id="newApiKeyValue" readonly data-select-on-click value="<?= htmlspecialchars($newKeyData['key']) ?>" class="form-control font-monospace">
+        <button class="btn btn-outline-secondary" type="button" data-copy-target="newApiKeyValue" title="Kopieer key">📋</button>
     </div>
 </div>
 <?php endif; ?>
 
 <h2>API-keys beheren</h2>
 
-<p>Beheer hier de API-keys voor externe applicaties, zoals de AI feedback service.</p>
+<p>Beheer hier de API-keys voor externe applicaties, zoals de AI feedback service. Keys worden gehasht opgeslagen; de externe applicatie stuurt de key mee in de header <code>Authorization: Bearer &lt;key&gt;</code>.</p>
 
 <div class="mb-3">
     <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#apiKeyModal">Nieuwe API-key</button>
@@ -39,7 +39,7 @@ if (isset($_SESSION['new_api_key'])):
   <thead class="table-light">
     <tr>
       <th>Naam</th>
-      <th>Key (gedeeltelijk)</th>
+      <th>Vingerafdruk (SHA-256)</th>
       <th>Status</th>
       <th>Aangemaakt</th>
       <th class="text-end">Acties</th>
@@ -57,13 +57,13 @@ if (isset($_SESSION['new_api_key'])):
         <span class="badge bg-secondary">Uitgeschakeld</span>
         <?php endif; ?>
       </td>
-      <td><?= $key['created_at'] ?></td>
+      <td><?= e($key['created_at']) ?></td>
       <td class="text-end">
         <?php if ($key['active']): ?>
         <a href="/?action=api_key_toggle&id=<?= $key['id'] ?>"
            data-confirm="Weet je zeker dat je deze API-key tijdelijk wilt uitschakelen?" class="btn btn-sm btn-outline-secondary">Uitschakelen</a>
         <?php else: ?>
-        <a href="/?action=api_key_toggle&id=<?= $key['id'] ?>" class="btn btn-sm btn-outline-success">Inschakelen</a>
+        <a href="/?action=api_key_toggle&id=<?= (int)$key['id'] ?>" data-confirm="Weet je zeker dat je deze API-key wilt inschakelen?" class="btn btn-sm btn-outline-success">Inschakelen</a>
         <?php endif; ?>
         <a href="/?action=api_key_delete&id=<?= $key['id'] ?>"
            data-confirm="Weet je zeker dat je deze API-key wilt verwijderen?" class="btn btn-sm btn-outline-danger">Verwijderen</a>
@@ -101,20 +101,6 @@ if (isset($_SESSION['new_api_key'])):
     </div>
   </div>
 </div>
-
-<script>
-function copyLink(elementId) {
-    var copyText = document.getElementById(elementId);
-    copyText.select();
-    copyText.setSelectionRange(0, 99999); // Voor mobiele apparaten
-
-    if (navigator.clipboard && window.isSecureContext) {
-        navigator.clipboard.writeText(copyText.value);
-    } else {
-        document.execCommand('copy');
-    }
-}
-</script>
 
 <?php
 $content = ob_get_clean();

@@ -14,8 +14,8 @@ ob_start();
     <h2 class="mb-0">AI Model Vergelijking: <?= htmlspecialchars($exam['title']) ?></h2>
     <?php if (!empty($comparisonData)): ?>
         <div>
-            <button onclick="generatePDF()" class="btn btn-danger me-2">Export PDF</button>
-            <a href="/?action=exam_comparison_export&exam_id=<?= $exam['id'] ?>" class="btn btn-success">Export CSV</a>
+            <button type="button" id="exportPdfBtn" class="btn btn-danger me-2">Export PDF</button>
+            <a href="/?action=exam_comparison_export&exam_id=<?= (int)$exam['id'] ?>" class="btn btn-success">Export CSV</a>
         </div>
     <?php endif; ?>
 </div>
@@ -179,7 +179,7 @@ ob_start();
                         <tr>
                             <td><?= htmlspecialchars($row['student']) ?></td>
                             <td><small><?= htmlspecialchars(substr($row['question'], 0, 100)) ?>...</small></td>
-                            <td class="text-center table-primary fw-bold"><?= $row['teacher_score'] ?></td>
+                            <td class="text-center table-primary fw-bold"><?= (int)$row['teacher_score'] ?></td>
                             <?php foreach (array_keys($modelsFound) as $model): ?>
                                 <td class="text-center">
                                     <?php 
@@ -240,12 +240,17 @@ ob_start();
     </div> <!-- Einde report-content -->
 
     <!-- Chart.js Script -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"
+            integrity="sha384-Yv5O+t3uE3hunW8uyrbpPW3iw6/5/Y7HitWJBLgqfMoA36NogMmy+8wWZMpn3HWc" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"
+            integrity="sha384-9nhczxUqK87bcKHh20fSQcTGD4qq5GhayNYSYWqwBkINBhOfQLg/P5HG5lF1urn4" crossorigin="anonymous"></script>
+    <script nonce="<?= e(cspNonce()) ?>">
         document.addEventListener('DOMContentLoaded', function() {
-            const comparisonData = <?= json_encode($comparisonData) ?>;
-            const modelsFound = <?= json_encode(array_keys($modelsFound)) ?>;
+            var pdfBtn = document.getElementById('exportPdfBtn');
+            if (pdfBtn) { pdfBtn.addEventListener('click', generatePDF); }
+
+            const comparisonData = <?= json_encode($comparisonData, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+            const modelsFound = <?= json_encode(array_keys($modelsFound), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
             
             const datasets = modelsFound.map((model, index) => {
                 const colors = ['#0d6efd', '#dc3545', '#198754', '#ffc107', '#0dcaf0', '#6610f2', '#fd7e14'];

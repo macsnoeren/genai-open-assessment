@@ -5,7 +5,7 @@ Deze map bevat alles om de webapplicatie (map `htdocs/` in de repo-root) lokaal 
 ## Inhoud
 - **Dockerfile** — `php:8.2-apache` image met de `pdo_sqlite`-extensie en document root ingesteld op `htdocs/`.
 - **docker-compose.yml** — bouwt de image en start de container, met poort `8080` op de host en een named volume voor de database.
-- **entrypoint.sh** — draait bij het opstarten van de container; initialiseert de SQLite-database via `htdocs/setup/init_db.php` als die nog niet bestaat, en zet de juiste eigenaar (`www-data`) op de database-map.
+- **entrypoint.sh** — draait bij het opstarten van de container; initialiseert de SQLite-database via `setup/init_db.php` als die nog niet bestaat, en zet de juiste eigenaar (`www-data`) op de database-map.
 - **start.sh** — wrapper rondom `docker compose up --build` die altijd vanuit deze map draait, zodat de build-context (de repo-root, nodig omdat de Dockerfile ook `app/` en `config/` moet kunnen kopiëren) klopt, ongeacht vanaf welke directory je het script aanroept.
 
 De build-context is bewust de **repo-root** (`context: ..` in `docker-compose.yml`), omdat de Dockerfile de hele applicatie kopieert (`app/`, `config/`, `htdocs/`), niet alleen deze map.

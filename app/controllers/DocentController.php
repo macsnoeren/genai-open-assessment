@@ -8,6 +8,7 @@
  * (at your option) any later version.
  */
 
+require_once __DIR__ . '/../../config/app.php';
 require_once __DIR__ . '/../models/Exam.php';
 require_once __DIR__ . '/../helpers/auth.php';
 require_once __DIR__ . '/../models/AuditLog.php';
@@ -26,7 +27,6 @@ class DocentController {
    * Displays the dashboard for the docent.
    */
   public function dashboard() {
-    requireLogin();
     requireRole('docent');
     
     if ($_SESSION['role'] === 'admin') {
@@ -41,7 +41,6 @@ class DocentController {
    * Shows the form to create a new exam.
    */
   public function createExam() {
-    requireLogin();
     requireRole('docent');
     
     $exam = null;
@@ -56,27 +55,37 @@ class DocentController {
    */
   public function storeExam() {
     validateCsrfToken();
-    requireLogin();
     requireRole('docent');
     
-    $promptId = !empty($_POST['prompt_id']) ? $_POST['prompt_id'] : null;
+    $title = trim(requestString($_POST, 'title', 255));
+    $description = requestString($_POST, 'description');
+    if ($title === '') {
+        abort(400, 'Titel is verplicht.');
+    }
+    $promptId = requestInt($_POST, 'prompt_id');
+    if ($promptId !== null && !Prompt::find($promptId)) {
+        abort(400, 'Ongeldige prompt.');
+    }
     $aiGradingEnabled = isset($_POST['ai_grading_enabled']) ? 1 : 0;
     $shared = isset($_POST['shared']) ? 1 : 0;
+    $published = isset($_POST['published']) ? 1 : 0;
 
     Exam::create(
-		 $_POST['title'],
-		 $_POST['description'],
+		 $title,
+		 $description,
 		 $_SESSION['user_id'],
          $promptId,
          $aiGradingEnabled,
-         $shared
+         $shared,
+         $published
 		 );
     AuditLog::log('exam_create', [
-        'title' => $_POST['title'],
-        'description' => $_POST['description'],
+        'title' => $title,
+        'description' => $description,
         'prompt_id' => $promptId,
         'ai_grading_enabled' => $aiGradingEnabled,
-        'shared' => $shared
+        'shared' => $shared,
+        'published' => $published
     ]);
     
     header('Location: /?action=docent_dashboard');
@@ -87,12 +96,12 @@ class DocentController {
    * Shows the form to edit an existing exam.
    */
   public function editExam() {
-    requireLogin();
     requireRole('docent');
     
-    $this->checkExamOwnership($_GET['id']);
+    $id = requestInt($_GET, 'id');
+    $this->checkExamOwnership($id, true);
     
-    $exam = Exam::find($_GET['id']);
+    $exam = Exam::find($id);
     $action = 'exam_update';
     $title = 'Toets bewerken';
     $prompts = Prompt::all();
@@ -104,44 +113,57 @@ class DocentController {
    */
   public function updateExam() {
     validateCsrfToken();
-    requireLogin();
     requireRole('docent');
     
-    $this->checkExamOwnership($_POST['id']);
+    $id = requestInt($_POST, 'id');
+    $this->checkExamOwnership($id, true);
     
-    $currentExam = Exam::find($_POST['id']);
-    $promptId = !empty($_POST['prompt_id']) ? $_POST['prompt_id'] : null;
+    $currentExam = Exam::find($id);
+    $title = trim(requestString($_POST, 'title', 255));
+    $description = requestString($_POST, 'description');
+    if ($title === '') {
+        abort(400, 'Titel is verplicht.');
+    }
+    $promptId = requestInt($_POST, 'prompt_id');
+    if ($promptId !== null && !Prompt::find($promptId)) {
+        abort(400, 'Ongeldige prompt.');
+    }
     $aiGradingEnabled = isset($_POST['ai_grading_enabled']) ? 1 : 0;
     $shared = isset($_POST['shared']) ? 1 : 0;
+    $published = isset($_POST['published']) ? 1 : 0;
     
     Exam::update(
-		 $_POST['id'],
-		 $_POST['title'],
-		 $_POST['description'],
+		 $id,
+		 $title,
+		 $description,
          $promptId,
          $aiGradingEnabled,
-         $shared
+         $shared,
+         $published
 		 );
 
-    $changes = ['id' => $_POST['id']];
-    if ($currentExam['title'] !== $_POST['title']) {
-        $changes['title'] = ['old' => $currentExam['title'], 'new' => $_POST['title']];
+    $changes = ['id' => $id];
+    if ($currentExam['title'] !== $title) {
+        $changes['title'] = ['old' => $currentExam['title'], 'new' => $title];
     }
-    if ($currentExam['description'] !== $_POST['description']) {
-        $changes['description'] = ['old' => $currentExam['description'], 'new' => $_POST['description']];
+    if ($currentExam['description'] !== $description) {
+        $changes['description'] = ['old' => $currentExam['description'], 'new' => $description];
     }
     if ($currentExam['prompt_id'] != $promptId) {
         $changes['prompt_id'] = ['old' => $currentExam['prompt_id'], 'new' => $promptId];
         
         // Reset AI feedback for all students for this exam to ensure consistency
-        StudentAnswer::clearAiFeedbackByExam($_POST['id']);
-        AuditLog::log('exam_ai_feedback_cleared', ['exam_id' => $_POST['id'], 'reason' => 'prompt_change']);
+        StudentAnswer::clearAiFeedbackByExam($id);
+        AuditLog::log('exam_ai_feedback_cleared', ['exam_id' => $id, 'reason' => 'prompt_change']);
     }
     if ($currentExam['ai_grading_enabled'] != $aiGradingEnabled) {
         $changes['ai_grading_enabled'] = ['old' => $currentExam['ai_grading_enabled'], 'new' => $aiGradingEnabled];
     }
     if ($currentExam['shared'] != $shared) {
         $changes['shared'] = ['old' => $currentExam['shared'], 'new' => $shared];
+    }
+    if (($currentExam['published'] ?? 0) != $published) {
+        $changes['published'] = ['old' => $currentExam['published'] ?? 0, 'new' => $published];
     }
 
     AuditLog::log('exam_update', $changes);
@@ -155,13 +177,13 @@ class DocentController {
    */
   public function deleteExam() {
     validateCsrfToken();
-    requireLogin();
     requireRole('docent');
     
-    $this->checkExamOwnership($_GET['id']);
+    $id = requestInt($_GET, 'id') ?? requestInt($_POST, 'id');
+    $this->checkExamOwnership($id, true);
     
-    AuditLog::log('exam_delete', ['id' => $_GET['id']]);
-    Exam::delete($_GET['id']);
+    AuditLog::log('exam_delete', ['id' => $id]);
+    Exam::delete($id);
     header('Location: /?action=docent_dashboard');
     exit;
   }
@@ -171,15 +193,17 @@ class DocentController {
    */
   public function duplicateExam() {
     validateCsrfToken();
-    requireLogin();
     requireRole('docent');
     
-    $this->checkExamOwnership($_GET['id']);
+    $id = requestInt($_GET, 'id') ?? requestInt($_POST, 'id');
+    $this->checkExamOwnership($id, true);
     
     try {
-        Exam::duplicate($_GET['id']);
+        $newId = Exam::duplicate($id);
+        AuditLog::log('exam_duplicate', ['source_id' => $id, 'new_id' => $newId]);
     } catch (Exception $e) {
-        // Foutafhandeling (optioneel: logging of sessie bericht)
+        error_log('Exam duplicate failed: ' . $e->getMessage());
+        $_SESSION['error'] = 'Dupliceren is mislukt.';
     }
     
     header('Location: /?action=docent_dashboard');
@@ -191,12 +215,12 @@ class DocentController {
    * @param int $examId
    */
   public function questions($examId) {
-    requireLogin();
     requireRole('docent');
     
     $this->checkExamOwnership($examId);
     
     $exam = Exam::find($examId);
+    $canEdit = $this->canEditExam($exam);
     $questions = Question::allByExam($examId);
     
     // Nummer de vragen voor weergave
@@ -212,12 +236,10 @@ class DocentController {
    * Shows the form to create a new question.
    */
   public function createQuestion() {
-    requireLogin();
     requireRole('docent');
     
-    $this->checkExamOwnership($_GET['exam_id']);
-    
-    $examId = $_GET['exam_id'];
+    $examId = requestInt($_GET, 'exam_id');
+    $this->checkExamOwnership($examId, true);
     $question = null;
     $action = 'question_store';
     $title = 'Nieuwe vraag';
@@ -229,23 +251,25 @@ class DocentController {
    */
   public function storeQuestion() {
     validateCsrfToken();
-    requireLogin();
     requireRole('docent');
     
-    $this->checkExamOwnership($_POST['exam_id']);
+    $examId = requestInt($_POST, 'exam_id');
+    $this->checkExamOwnership($examId, true);
+
+    $questionText = trim(requestString($_POST, 'question_text'));
+    $criteria = requestString($_POST, 'criteria');
+    if ($questionText === '') {
+        abort(400, 'Vraagtekst is verplicht.');
+    }
     
-    Question::create(
-		     $_POST['exam_id'],
-		     $_POST['question_text'],
-		     $_POST['criteria']
-		     );
+    Question::create($examId, $questionText, $criteria);
     AuditLog::log('question_create', [
-        'exam_id' => $_POST['exam_id'], 
-        'question_text' => $_POST['question_text'],
-        'criteria' => $_POST['criteria']
+        'exam_id' => $examId, 
+        'question_text' => $questionText,
+        'criteria' => $criteria
     ]);
     
-    header('Location: /?action=questions&exam_id=' . $_POST['exam_id']);
+    header('Location: /?action=questions&exam_id=' . $examId);
     exit;
   }
   
@@ -253,11 +277,14 @@ class DocentController {
    * Shows the form to edit a question.
    */
   public function editQuestion() {
-    requireLogin();
     requireRole('docent');
     
-    $question = Question::find($_GET['id']);
-    $this->checkExamOwnership($question['exam_id']);
+    $id = requestInt($_GET, 'id');
+    $question = $id !== null ? Question::find($id) : null;
+    if (!$question) {
+        abort(404, 'Vraag niet gevonden.');
+    }
+    $this->checkExamOwnership($question['exam_id'], true);
     $examId = $question['exam_id'];
     $action = 'question_update';
     $title = 'Vraag bewerken';
@@ -269,29 +296,34 @@ class DocentController {
    */
   public function updateQuestion() {
     validateCsrfToken();
-    requireLogin();
     requireRole('docent');
     
-    $currentQuestion = Question::find($_POST['id']);
-    $this->checkExamOwnership($currentQuestion['exam_id']);
-
-    Question::update(
-		     $_POST['id'],
-		     $_POST['question_text'],
-		     $_POST['criteria']
-		     );
-
-    $changes = ['id' => $_POST['id']];
-    if ($currentQuestion['question_text'] !== $_POST['question_text']) {
-        $changes['question_text'] = ['old' => $currentQuestion['question_text'], 'new' => $_POST['question_text']];
+    $id = requestInt($_POST, 'id');
+    $currentQuestion = $id !== null ? Question::find($id) : null;
+    if (!$currentQuestion) {
+        abort(404, 'Vraag niet gevonden.');
     }
-    if ($currentQuestion['criteria'] !== $_POST['criteria']) {
-        $changes['criteria'] = ['old' => $currentQuestion['criteria'], 'new' => $_POST['criteria']];
+    $this->checkExamOwnership($currentQuestion['exam_id'], true);
+
+    $questionText = trim(requestString($_POST, 'question_text'));
+    $criteria = requestString($_POST, 'criteria');
+    if ($questionText === '') {
+        abort(400, 'Vraagtekst is verplicht.');
+    }
+
+    Question::update($id, $questionText, $criteria);
+
+    $changes = ['id' => $id];
+    if ($currentQuestion['question_text'] !== $questionText) {
+        $changes['question_text'] = ['old' => $currentQuestion['question_text'], 'new' => $questionText];
+    }
+    if ($currentQuestion['criteria'] !== $criteria) {
+        $changes['criteria'] = ['old' => $currentQuestion['criteria'], 'new' => $criteria];
     }
 
     AuditLog::log('question_update', $changes);
     
-    header('Location: /?action=questions&exam_id=' . $_POST['exam_id']);
+    header('Location: /?action=questions&exam_id=' . $currentQuestion['exam_id']);
     exit;
   }
   
@@ -300,17 +332,20 @@ class DocentController {
    */
   public function deleteQuestion() {
     validateCsrfToken();
-    requireLogin();
     requireRole('docent');
     
-    $question = Question::find($_GET['id']);
-    $this->checkExamOwnership($question['exam_id']);
+    $id = requestInt($_GET, 'id') ?? requestInt($_POST, 'id');
+    $question = $id !== null ? Question::find($id) : null;
+    if (!$question) {
+        abort(404, 'Vraag niet gevonden.');
+    }
+    $this->checkExamOwnership($question['exam_id'], true);
     $examId = $question['exam_id'];
     AuditLog::log('question_delete', [
-        'id' => $_GET['id'],
+        'id' => $id,
         'question_text' => $question['question_text']
     ]);
-    Question::delete($_GET['id']);
+    Question::delete($id);
     
     header('Location: /?action=questions&exam_id=' . $examId);
     exit;
@@ -321,11 +356,12 @@ class DocentController {
    * @param int $examId
    */
 public function viewExamResults($examId) {
-    requireLogin();
     requireRole('docent');
     
     $this->checkExamOwnership($examId);
 
+    $exam = Exam::find($examId);
+    $canEdit = $this->canEditExam($exam);
     $studentExams = StudentExam::findWithStudentDetailsByExam($examId);
     require __DIR__ . '/../views/docent/exam_results.php';
 }
@@ -335,17 +371,19 @@ public function viewExamResults($examId) {
    * @param int $studentExamId
    */
 public function viewStudentAnswers($studentExamId) {
-    requireLogin();
-        requireRole('docent');
+    requireRole('docent');
 
-    $studentExam = StudentExam::find($studentExamId);
+    $studentExam = $studentExamId !== null ? StudentExam::find($studentExamId) : null;
+    if (!$studentExam) {
+        abort(404, 'Toetspoging niet gevonden.');
+    }
     $this->checkExamOwnership($studentExam['exam_id']);
+    $canEdit = $this->canEditExam(Exam::find($studentExam['exam_id']));
 
     // Genereer een deelbare link voor gaststudenten zodat zij hun resultaat kunnen inzien
     $shareableLink = null;
     if ($studentExam['student_id'] === null && !empty($studentExam['access_token'])) {
-        $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') ? "https" : "http";
-        $shareableLink = "{$protocol}://{$_SERVER['HTTP_HOST']}/?action=student_view_results&student_exam_id={$studentExamId}&token={$studentExam['access_token']}";
+        $shareableLink = appBaseUrl() . "/?action=student_view_results&student_exam_id={$studentExamId}&token={$studentExam['access_token']}";
     }
 
     $pdo = Database::connect();
@@ -399,10 +437,12 @@ public function viewStudentAnswers($studentExamId) {
    * @param int $studentExamId
    */
   public function gradeStudentExam($studentExamId) {
-    requireLogin();
     requireRole('beoordelaar');
 
-    $studentExam = StudentExam::find($studentExamId);
+    $studentExam = $studentExamId !== null ? StudentExam::find($studentExamId) : null;
+    if (!$studentExam) {
+        abort(404, 'Toetspoging niet gevonden.');
+    }
     $this->checkGradingPermission($studentExam['exam_id']);
 
     $pdo = Database::connect();
@@ -423,24 +463,46 @@ public function viewStudentAnswers($studentExamId) {
    */
   public function saveTeacherFeedback() {
     validateCsrfToken();
-    requireLogin();
     requireRole('beoordelaar');
 
-    $studentAnswerId = $_POST['student_answer_id'];
-    $score = $_POST['teacher_score'] === '' ? null : $_POST['teacher_score'];
-    $feedback = $_POST['teacher_feedback'];
-    $studentExamId = $_POST['student_exam_id'];
-    
-    $studentExam = StudentExam::find($studentExamId);
-    if ($studentExam) {
-        $this->checkGradingPermission($studentExam['exam_id']);
+    // Autorisatie uitsluitend op basis van het antwoord zelf (niet op POST-input)
+    $studentAnswerId = requestInt($_POST, 'student_answer_id');
+    $answer = $studentAnswerId !== null ? StudentAnswer::findWithExam($studentAnswerId) : null;
+    if (!$answer) {
+        abort(404, 'Antwoord niet gevonden.');
+    }
+    $this->checkGradingPermission($answer['exam_id']);
+    $studentExamId = (int)$answer['student_exam_id'];
+
+    $scoreRaw = trim(requestString($_POST, 'teacher_score', 10));
+    if ($scoreRaw === '') {
+        $score = null;
+    } elseif (preg_match('/^(10|[0-9])$/', $scoreRaw)) {
+        $score = (int)$scoreRaw;
+    } else {
+        abort(400, 'Score moet een geheel getal van 0 t/m 10 zijn.');
+    }
+    $feedback = requestString($_POST, 'teacher_feedback');
+
+    $redirectAction = requestString($_POST, 'redirect_action', 40, 'view_student_answers');
+    if (!in_array($redirectAction, ['view_student_answers', 'grade_student_exam'], true)) {
+        $redirectAction = 'view_student_answers';
+    }
+    // Docenten mogen alleen via de blinde beoordeling naar de docentweergave als ze de toets mogen inzien
+    if ($redirectAction === 'view_student_answers' && $_SESSION['role'] === 'beoordelaar') {
+        $redirectAction = 'grade_student_exam';
     }
 
-    $redirectAction = $_POST['redirect_action'] ?? 'view_student_answers';
+    StudentAnswer::updateTeacherGrade($studentAnswerId, $score, $feedback);
 
-    $pdo = Database::connect();
-    $stmt = $pdo->prepare("UPDATE student_answers SET teacher_score = ?, teacher_feedback = ? WHERE id = ?");
-    $stmt->execute([$score, $feedback, $studentAnswerId]);
+    $changes = ['student_answer_id' => $studentAnswerId, 'student_exam_id' => $studentExamId];
+    if ((string)($answer['teacher_score'] ?? '') !== (string)($score ?? '')) {
+        $changes['teacher_score'] = ['old' => $answer['teacher_score'], 'new' => $score];
+    }
+    if (($answer['teacher_feedback'] ?? '') !== $feedback) {
+        $changes['teacher_feedback'] = ['old' => $answer['teacher_feedback'] ?? '', 'new' => $feedback];
+    }
+    AuditLog::log('teacher_grade', $changes);
 
     header('Location: /?action=' . $redirectAction . '&student_exam_id=' . $studentExamId . '#answer-' . $studentAnswerId);
     exit;
@@ -451,17 +513,16 @@ public function viewStudentAnswers($studentExamId) {
    */
   public function updateGuestName() {
     validateCsrfToken();
-    requireLogin();
     requireRole('docent');
 
-    $studentExamId = $_POST['student_exam_id'] ?? null;
-    $guestName = trim($_POST['guest_name'] ?? '');
+    $studentExamId = requestInt($_POST, 'student_exam_id');
+    $guestName = trim(requestString($_POST, 'guest_name', MAX_NAME_LENGTH));
 
-    if ($studentExamId && $guestName) {
+    if ($studentExamId !== null && $guestName !== '') {
         $studentExam = StudentExam::find($studentExamId);
         
         if ($studentExam) {
-            $this->checkExamOwnership($studentExam['exam_id']);
+            $this->checkExamOwnership($studentExam['exam_id'], true);
             
             $oldName = $studentExam['guest_name'];
             $updated = StudentExam::updateGuestName($studentExamId, $guestName);
@@ -486,14 +547,13 @@ public function viewStudentAnswers($studentExamId) {
    */
   public function deleteStudentExam() {
     validateCsrfToken();
-    requireLogin();
     requireRole('docent');
     
-    $studentExamId = $_GET['student_exam_id'] ?? null;
-    $studentExam = $studentExamId ? StudentExam::find($studentExamId) : null;
+    $studentExamId = requestInt($_GET, 'student_exam_id') ?? requestInt($_POST, 'student_exam_id');
+    $studentExam = $studentExamId !== null ? StudentExam::find($studentExamId) : null;
     
     if ($studentExam) {
-        $this->checkExamOwnership($studentExam['exam_id']);
+        $this->checkExamOwnership($studentExam['exam_id'], true);
         AuditLog::log('student_exam_delete', ['id' => $studentExamId]);
         StudentExam::delete($studentExamId);
         header('Location: /?action=exam_results&exam_id=' . $studentExam['exam_id']);
@@ -508,7 +568,6 @@ public function viewStudentAnswers($studentExamId) {
    * Shows a list of assessments pending grading.
    */
   public function pendingAssessments() {
-    requireLogin();
     requireRole('beoordelaar');
 
     $pdo = Database::connect();
@@ -546,19 +605,31 @@ public function viewStudentAnswers($studentExamId) {
    * Displays the audit log.
    */
   public function auditLog() {
-    requireLogin();
     requireRole('docent');
     
-    $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+    $page = requestInt($_GET, 'page') ?? 1;
     if ($page < 1) $page = 1;
     $limit = 25;
     $offset = ($page - 1) * $limit;
 
+    // Admin ziet alles; een docent ziet uitsluitend zijn eigen acties.
+    $where = '';
+    $params = [];
+    if ($_SESSION['role'] !== 'admin') {
+        $where = ' WHERE user_id = :user_id';
+        $params[':user_id'] = (int)$_SESSION['user_id'];
+    }
+
     $pdo = Database::connect();
-    $totalRecords = $pdo->query("SELECT COUNT(*) FROM audit_log")->fetchColumn();
+    $countStmt = $pdo->prepare("SELECT COUNT(*) FROM audit_log" . $where);
+    $countStmt->execute($params);
+    $totalRecords = $countStmt->fetchColumn();
     $totalPages = ceil($totalRecords / $limit);
 
-    $stmt = $pdo->prepare("SELECT * FROM audit_log ORDER BY created_at DESC LIMIT :limit OFFSET :offset");
+    $stmt = $pdo->prepare("SELECT * FROM audit_log" . $where . " ORDER BY created_at DESC LIMIT :limit OFFSET :offset");
+    foreach ($params as $k => $v) {
+        $stmt->bindValue($k, $v, PDO::PARAM_INT);
+    }
     $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
     $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
     $stmt->execute();
@@ -572,11 +643,7 @@ public function viewStudentAnswers($studentExamId) {
    */
   public function clearAuditLog() {
     validateCsrfToken();
-    requireLogin();
-    
-    if ($_SESSION['role'] !== 'admin') {
-        die("Geen toegang. Alleen admins kunnen de log wissen.");
-    }
+    requireRole('admin');
 
     $pdo = Database::connect();
     $pdo->exec("DELETE FROM audit_log");
@@ -593,7 +660,6 @@ public function viewStudentAnswers($studentExamId) {
    * @param int $examId
    */
   public function compareExamResults($examId) {
-    requireLogin();
     requireRole('docent');
 
     $this->checkExamOwnership($examId);
@@ -742,7 +808,6 @@ public function viewStudentAnswers($studentExamId) {
    * @param int $examId
    */
   public function exportExamComparison($examId) {
-    requireLogin();
     requireRole('docent');
 
     $this->checkExamOwnership($examId);
@@ -806,8 +871,8 @@ public function viewStudentAnswers($studentExamId) {
     // Header rij
     $headers = ['Student', 'Vraag', 'Docent Score'];
     foreach ($modelNames as $model) {
-        $headers[] = $model . ' Score';
-        $headers[] = $model . ' Verschil';
+        $headers[] = csvSafe($model . ' Score');
+        $headers[] = csvSafe($model . ' Verschil');
     }
     fputcsv($output, $headers, ';');
 
@@ -819,8 +884,8 @@ public function viewStudentAnswers($studentExamId) {
         }
 
         $csvRow = [
-            $row['student_name'],
-            $row['question_text'],
+            csvSafe($row['student_name']),
+            csvSafe($row['question_text']),
             $row['teacher_score']
         ];
 
@@ -842,13 +907,13 @@ public function viewStudentAnswers($studentExamId) {
 
     $summaryHeaders = ['Student', 'Docent Gemiddelde'];
     foreach ($modelNames as $model) {
-        $summaryHeaders[] = $model . ' Gemiddelde';
-        $summaryHeaders[] = $model . ' Verschil';
+        $summaryHeaders[] = csvSafe($model . ' Gemiddelde');
+        $summaryHeaders[] = csvSafe($model . ' Verschil');
     }
     fputcsv($output, $summaryHeaders, ';');
 
     foreach ($studentScores as $student => $judges) {
-        $csvRow = [$student];
+        $csvRow = [csvSafe($student)];
         $docentAvg = isset($judges['Docent']) && count($judges['Docent']) > 0 ? array_sum($judges['Docent']) / count($judges['Docent']) : null;
         
         $csvRow[] = $docentAvg !== null ? number_format($docentAvg, 1, ',', '.') : '';
@@ -875,29 +940,45 @@ public function viewStudentAnswers($studentExamId) {
   }
 
   /**
-   * Checks if the current user is the owner of the exam (or admin).
-   * @param int $examId
+   * True als de huidige gebruiker de toets mag wijzigen/verwijderen (eigenaar of admin).
    */
-  private function checkExamOwnership($examId) {
-      if ($_SESSION['role'] === 'admin') return;
-      
-      $exam = Exam::find($examId);
-      if (!$exam || ($exam['docent_id'] != $_SESSION['user_id'] && !$exam['shared'])) {
-          die("Geen toegang: U bent niet de eigenaar van deze toets.");
+  private function canEditExam($exam): bool {
+      if (!$exam) return false;
+      if ($_SESSION['role'] === 'admin') return true;
+      return (int)$exam['docent_id'] === (int)$_SESSION['user_id'];
+  }
+
+  /**
+   * Checks whether the current user may access the exam.
+   * - lezen ($write = false): eigenaar, admin, of gedeelde toets (shared = 1)
+   * - schrijven ($write = true): alleen eigenaar of admin
+   * @param int|null $examId
+   * @param bool $write
+   */
+  private function checkExamOwnership($examId, bool $write = false) {
+      $exam = $examId !== null ? Exam::find($examId) : null;
+      if (!$exam) {
+          abort(404, 'Toets niet gevonden.');
       }
+      if ($this->canEditExam($exam)) return;
+      if (!$write && $exam['shared']) return;
+
+      abort(403, $write
+          ? 'Geen toegang: alleen de eigenaar van deze toets mag deze wijzigen.'
+          : 'Geen toegang: U bent niet de eigenaar van deze toets.');
   }
 
   /**
    * Checks if the current user is allowed to grade this exam.
-   * Docents can only grade their own exams. Beoordelaars and Admins can grade all.
-   * @param int $examId
+   * Docents can only grade their own or shared exams. Beoordelaars and Admins can grade all.
+   * @param int|null $examId
    */
   private function checkGradingPermission($examId) {
       if ($_SESSION['role'] === 'admin' || $_SESSION['role'] === 'beoordelaar') return;
       
-      $exam = Exam::find($examId);
-      if (!$exam || ($exam['docent_id'] != $_SESSION['user_id'] && !$exam['shared'])) {
-          die("Geen toegang: U mag deze toets niet beoordelen.");
+      $exam = $examId !== null ? Exam::find($examId) : null;
+      if (!$exam || ((int)$exam['docent_id'] !== (int)$_SESSION['user_id'] && !$exam['shared'])) {
+          abort(403, 'Geen toegang: U mag deze toets niet beoordelen.');
       }
   }
 

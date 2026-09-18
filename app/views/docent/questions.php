@@ -14,8 +14,10 @@ ob_start();
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2 class="mb-0">Vragen: <?= htmlspecialchars($exam['title']) ?></h2>
     <div data-html2canvas-ignore="true">
-        <button onclick="generatePDF()" class="btn btn-secondary me-2">Export PDF</button>
-        <a href="index.php?action=question_create&exam_id=<?= $exam['id'] ?>" class="btn btn-primary">Nieuwe vraag</a>
+        <button type="button" id="exportPdfBtn" class="btn btn-secondary me-2">Export PDF</button>
+        <?php if (!empty($canEdit)): ?>
+        <a href="index.php?action=question_create&exam_id=<?= (int)$exam['id'] ?>" class="btn btn-primary">Nieuwe vraag</a>
+        <?php endif; ?>
     </div>
 </div>
 
@@ -35,10 +37,14 @@ ob_start();
               <td><?= nl2br(htmlspecialchars($q['question_text'])) ?></td>
               <td><small class="text-muted"><?= nl2br(htmlspecialchars($q['criteria'])) ?></small></td>
               <td class="text-end" data-html2canvas-ignore="true">
+                <?php if (!empty($canEdit)): ?>
                 <div class="btn-group btn-group-sm">
-                    <a href="index.php?action=question_edit&id=<?= $q['id'] ?>" class="btn btn-outline-primary">Bewerken</a>
-                    <a href="index.php?action=question_delete&id=<?= $q['id'] ?>" class="btn btn-outline-danger" data-confirm="Weet je het zeker?">Verwijderen</a>
+                    <a href="index.php?action=question_edit&id=<?= (int)$q['id'] ?>" class="btn btn-outline-primary">Bewerken</a>
+                    <a href="index.php?action=question_delete&id=<?= (int)$q['id'] ?>" class="btn btn-outline-danger" data-confirm="Weet je het zeker?">Verwijderen</a>
                 </div>
+                <?php else: ?>
+                <span class="text-muted small">Alleen-lezen</span>
+                <?php endif; ?>
               </td>
             </tr>
             <?php endforeach; ?>
@@ -48,8 +54,13 @@ ob_start();
 </div>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-<script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"
+        integrity="sha384-Yv5O+t3uE3hunW8uyrbpPW3iw6/5/Y7HitWJBLgqfMoA36NogMmy+8wWZMpn3HWc" crossorigin="anonymous"></script>
+<script nonce="<?= e(cspNonce()) ?>">
+document.addEventListener('DOMContentLoaded', function() {
+    var pdfBtn = document.getElementById('exportPdfBtn');
+    if (pdfBtn) { pdfBtn.addEventListener('click', generatePDF); }
+});
 function generatePDF() {
     const element = document.getElementById('questions-content');
     const opt = {

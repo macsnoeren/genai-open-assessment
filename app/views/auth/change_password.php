@@ -22,7 +22,7 @@ ob_start();
 
                 <?php if (isset($_SESSION['error'])): ?>
                     <div class="alert alert-danger">
-                        <?= $_SESSION['error'] ?>
+                        <?= e($_SESSION['error']) ?>
                         <?php unset($_SESSION['error']); ?>
                     </div>
                 <?php endif; ?>
@@ -31,11 +31,12 @@ ob_start();
                     <?= csrfInput() ?>
                     <div class="mb-3">
                         <label class="form-label">Nieuw Wachtwoord</label>
-                        <input type="password" name="password" class="form-control" required autofocus>
+                        <input type="password" name="password" class="form-control" required autofocus minlength="<?= (int)PASSWORD_MIN_LENGTH ?>" autocomplete="new-password">
+                        <div class="form-text">Minimaal <?= (int)PASSWORD_MIN_LENGTH ?> tekens, met minimaal één letter en één cijfer.</div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Bevestig Wachtwoord</label>
-                        <input type="password" name="confirm_password" class="form-control" required>
+                        <input type="password" name="confirm_password" class="form-control" required minlength="<?= (int)PASSWORD_MIN_LENGTH ?>" autocomplete="new-password">
                     </div>
                     <div class="d-grid">
                         <button type="submit" class="btn btn-primary">Wachtwoord Opslaan</button>

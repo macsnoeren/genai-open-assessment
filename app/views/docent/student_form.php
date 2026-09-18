@@ -16,10 +16,10 @@ ob_start(); ?>
 
 <div class="card">
 <div class="card-body">
-<form action="/?action=<?= $action ?>" method="post">
+<form action="/?action=<?= e($action) ?>" method="post">
     <?= csrfInput() ?>
     <?php if ($student): ?>
-        <input type="hidden" name="id" value="<?= $student['id'] ?>">
+        <input type="hidden" name="id" value="<?= (int)$student['id'] ?>">
     <?php endif; ?>
 
     <div class="mb-3">
@@ -51,9 +51,18 @@ ob_start(); ?>
         <div class="mb-3"><label class="form-label">Rol</label><input type="text" class="form-control" value="<?= htmlspecialchars($student['role'] ?? '') ?>" disabled></div>
     <?php endif; ?>
 
+    <?php $isSelf = $student && (int)$student['id'] === (int)$_SESSION['user_id']; ?>
+    <?php if ($isSelf): ?>
+    <div class="mb-3">
+        <label class="form-label">Huidig wachtwoord <span class="text-muted fw-normal">(alleen nodig bij wachtwoordwijziging)</span></label>
+        <input type="password" name="current_password" class="form-control" autocomplete="current-password">
+    </div>
+    <?php endif; ?>
+
     <div class="mb-4">
-        <label class="form-label">Wachtwoord <?= $student ? '<span class="text-muted fw-normal">(laat leeg om niet te wijzigen)</span>' : '' ?></label>
-        <input type="password" name="password" class="form-control" <?= $student ? '' : 'required' ?>>
+        <label class="form-label"><?= $student ? 'Nieuw wachtwoord' : 'Wachtwoord' ?> <?= $student ? '<span class="text-muted fw-normal">(laat leeg om niet te wijzigen)</span>' : '' ?></label>
+        <input type="password" name="password" class="form-control" <?= $student ? '' : 'required' ?> minlength="<?= (int)PASSWORD_MIN_LENGTH ?>" autocomplete="new-password">
+        <div class="form-text">Minimaal <?= (int)PASSWORD_MIN_LENGTH ?> tekens, met minimaal één letter en één cijfer.</div>
     </div>
 
     <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin' && $student): ?>

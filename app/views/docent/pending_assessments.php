@@ -33,7 +33,7 @@ ob_start(); ?>
                 <td><?= htmlspecialchars($exam['student_name']) ?></td>
                 <td><?= htmlspecialchars($exam['exam_title']) ?></td>
                 <td><?= htmlspecialchars($exam['completed_at']) ?></td>
-                <td><?= $exam['graded_answers'] ?> / <?= $exam['total_answers'] ?> beoordeeld</td>
+                <td><?= (int)$exam['graded_answers'] ?> / <?= (int)$exam['total_answers'] ?> beoordeeld</td>
                 <td class="text-end">
                     <a href="/?action=grade_student_exam&student_exam_id=<?= $exam['id'] ?>" class="btn btn-sm btn-primary">Beoordelen</a>
                 </td>

@@ -16,11 +16,11 @@ ob_start(); ?>
 
 <div class="card">
 <div class="card-body">
-<form action="/?action=<?= $action ?>" method="post">
+<form action="/?action=<?= e($action) ?>" method="post">
     <?= csrfInput() ?>
-    <input type="hidden" name="exam_id" value="<?= $examId ?>">
+    <input type="hidden" name="exam_id" value="<?= (int)$examId ?>">
     <?php if ($question): ?>
-        <input type="hidden" name="id" value="<?= $question['id'] ?>">
+        <input type="hidden" name="id" value="<?= (int)$question['id'] ?>">
     <?php endif; ?>
 
     <div class="mb-3">

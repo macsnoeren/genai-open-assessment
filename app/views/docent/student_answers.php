@@ -12,16 +12,18 @@ ob_start();
 
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2 class="mb-0">Student antwoorden</h2>
-    <?php if (empty($studentExam['student_id'])): ?>
+    <?php if (empty($studentExam['student_id']) && !empty($canEdit)): ?>
         <form action="/?action=update_guest_name" method="POST" class="d-flex align-items-center">
             <?= csrfInput() ?>
-            <input type="hidden" name="student_exam_id" value="<?= $studentExam['id'] ?>">
+            <input type="hidden" name="student_exam_id" value="<?= (int)$studentExam['id'] ?>">
             <div class="input-group">
                 <span class="input-group-text bg-warning text-dark border-warning">Gast</span>
                 <input type="text" name="guest_name" class="form-control border-warning" value="<?= htmlspecialchars($studentExam['guest_name'] ?? '') ?>" required>
                 <button type="submit" class="btn btn-outline-warning text-dark">Wijzigen</button>
             </div>
         </form>
+    <?php elseif (empty($studentExam['student_id'])): ?>
+        <h4 class="text-muted mb-0"><span class="badge bg-warning text-dark">Gast</span> <?= htmlspecialchars($studentExam['guest_name'] ?? 'Gast') ?></h4>
     <?php elseif (isset($studentExam['name'])): ?>
         <h4 class="text-muted mb-0"><?= htmlspecialchars($studentExam['name']) ?></h4>
     <?php endif; ?>
@@ -39,8 +41,8 @@ ob_start();
     <div class="alert alert-info mb-4">
         <label class="form-label"><strong>Deelbare link voor de student:</strong></label>
         <div class="input-group mb-1">
-            <input type="text" id="shareableLink" class="form-control" value="<?= htmlspecialchars($shareableLink) ?>" readonly onclick="this.select();">
-            <button class="btn btn-outline-primary" type="button" onclick="copyLink('shareableLink')">Kopieer link</button>
+            <input type="text" id="shareableLink" class="form-control" value="<?= htmlspecialchars($shareableLink) ?>" readonly data-select-on-click>
+            <button class="btn btn-outline-primary" type="button" data-copy-target="shareableLink" data-copy-feedback="Link gekopieerd naar klembord!">Kopieer link</button>
         </div>
         <small>De student kan deze link gebruiken om zijn resultaten te bekijken, ook als hij zijn sessie/cookie is kwijtgeraakt.</small>
     </div>
@@ -64,7 +66,7 @@ ob_start();
 <?php endif; ?>
 
 <?php foreach ($answers as $a): ?>
-<div class="card mb-4" id="answer-<?= $a['id'] ?>">
+<div class="card mb-4" id="answer-<?= (int)$a['id'] ?>">
   <div class="card-header bg-light">
       <strong>Vraag:</strong> <?= htmlspecialchars($a['question_text']) ?>
   </div>
@@ -104,21 +106,6 @@ ob_start();
   </div>
 </div>
 <?php endforeach; ?>
-
-<script>
-function copyLink(elementId) {
-    var copyText = document.getElementById(elementId);
-    copyText.select();
-    copyText.setSelectionRange(0, 99999); // Voor mobiele apparaten
-    
-    if (navigator.clipboard && window.isSecureContext) {
-        navigator.clipboard.writeText(copyText.value);
-    } else {
-        document.execCommand('copy');
-    }
-    alert("Link gekopieerd naar klembord!");
-}
-</script>
 
 <?php
  $content = ob_get_clean();

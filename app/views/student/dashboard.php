@@ -52,7 +52,7 @@ ob_start(); ?>
                 <?php foreach ($studentExams as $se): ?>
                     <tr>
                         <td><?= htmlspecialchars($se['title']) ?></td>
-                        <td><?= $se['started_at'] ?></td>
+                        <td><?= e($se['started_at']) ?></td>
                         <td>
                             <?php if($se['completed_at']): ?>
                                 <span class="badge bg-success">Ingeleverd</span>

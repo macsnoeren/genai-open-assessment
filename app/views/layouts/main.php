@@ -8,11 +8,7 @@
  * (at your option) any later version.
  */
 
-// Content Security Policy configuration
-header("Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; img-src 'self' data:; font-src 'self' https://cdn.jsdelivr.net; connect-src 'self' https://cdn.jsdelivr.net;");
-header("X-Frame-Options: SAMEORIGIN");
-header("X-XSS-Protection: 1; mode=block");
-header("Strict-Transport-Security: max-age=31536000; includeSubDomains");
+// Security headers worden centraal gezet in htdocs/index.php (sendSecurityHeaders()).
 
 $parserStatus = 'inactive';
 $pingFile = __DIR__ . '/../../../database/last_api_ping.txt';
@@ -24,17 +20,22 @@ if (file_exists($pingFile) && is_readable($pingFile)) {
         $parserStatus = 'active';
     }
 }
+
+$flashError = $_SESSION['error'] ?? null;
+$flashSuccess = $_SESSION['success_message'] ?? null;
+unset($_SESSION['error'], $_SESSION['success_message']);
 ?>
 <!DOCTYPE html>
 <html lang="nl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?= $title ?? 'Openvragen kennistoetsing' ?></title>
+    <title><?= e($title ?? 'Openvragen kennistoetsing') ?></title>
     <!-- Bootstrap 5 CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"
+          integrity="sha384-9ndCyUaIbzAi2FUVXJi0CjmCapSmO7SnpJef0486qhLnuZ2cdeRhO02iuK6FUUVM" crossorigin="anonymous">
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="/style.css">
     <link rel="icon" type="image/png" href="/images/favicon-96x96.png" sizes="96x96" />
     <link rel="icon" type="image/svg+xml" href="/images/favicon.svg" />
     <link rel="shortcut icon" href="/images/favicon.ico" />
@@ -83,11 +84,11 @@ if (file_exists($pingFile) && is_readable($pingFile)) {
         </span>
         <?php if (isset($_SESSION['user_id'])): ?>
             <div class="text-white text-end lh-1 d-none d-lg-block">
-                <small class="d-block fw-bold"><?= htmlspecialchars($_SESSION['name']) ?></small>
-                <small class="opacity-75" style="font-size: 0.75rem;"><?= htmlspecialchars(ucfirst($_SESSION['role'])) ?></small>
+                <small class="d-block fw-bold"><?= e($_SESSION['name'] ?? '') ?></small>
+                <small class="opacity-75" style="font-size: 0.75rem;"><?= e(ucfirst($_SESSION['role'] ?? '')) ?></small>
             </div>
             <?php if (empty($_SESSION['force_password_change'])): ?>
-            <a href="/?action=student_edit&id=<?= $_SESSION['user_id'] ?>" class="btn btn-sm btn-outline-light ms-2">Profiel</a>
+            <a href="/?action=student_edit&id=<?= (int)$_SESSION['user_id'] ?>" class="btn btn-sm btn-outline-light ms-2">Profiel</a>
             <?php endif; ?>
             <a href="index.php?action=logout" class="btn btn-sm btn-outline-light ms-2">Uitloggen</a>
         <?php else: ?>
@@ -108,9 +109,9 @@ if (file_exists($pingFile) && is_readable($pingFile)) {
         <ol class="breadcrumb mb-0">
             <?php foreach ($breadcrumbs as $label => $url): ?>
                 <?php if ($url): ?>
-                    <li class="breadcrumb-item"><a href="<?= $url ?>" class="text-decoration-none"><?= htmlspecialchars($label) ?></a></li>
+                    <li class="breadcrumb-item"><a href="<?= e($url) ?>" class="text-decoration-none"><?= e($label) ?></a></li>
                 <?php else: ?>
-                    <li class="breadcrumb-item active" aria-current="page"><?= htmlspecialchars($label) ?></li>
+                    <li class="breadcrumb-item active" aria-current="page"><?= e($label) ?></li>
                 <?php endif; ?>
             <?php endforeach; ?>
         </ol>
@@ -124,11 +125,23 @@ if (file_exists($pingFile) && is_readable($pingFile)) {
     }
     ?>
     <?php if ($backUrl): ?>
-        <a href="<?= $backUrl ?>" class="btn btn-outline-secondary btn-sm">
+        <a href="<?= e($backUrl) ?>" class="btn btn-outline-secondary btn-sm">
             &larr; Terug
         </a>
     <?php endif; ?>
 </div>
+<?php endif; ?>
+<?php if ($flashError): ?>
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <?= e($flashError) ?>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+<?php endif; ?>
+<?php if ($flashSuccess): ?>
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <?= e($flashSuccess) ?>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
 <?php endif; ?>
 <?= $content ?? '' ?>
 </main>
@@ -143,7 +156,8 @@ if (file_exists($pingFile) && is_readable($pingFile)) {
 <?php endif; ?>
 
 <!-- Bootstrap JS Bundle -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-geWF76RCwLtnZ8qwWowPQNguL3RmwHVBC9FhGdlKrxdiJJigb/j/68SIy3Te4Bkz" crossorigin="anonymous"></script>
 
 <!-- Confirmation Modal -->
 <div class="modal fade" id="confirmationModal" tabindex="-1" aria-hidden="true">
@@ -177,7 +191,7 @@ if (file_exists($pingFile) && is_readable($pingFile)) {
     </div>
 </div>
 
-<script>
+<script nonce="<?= e(cspNonce()) ?>">
 // Global function to show confirmation modal
 window.showConfirmationModal = function(message, onConfirm) {
     var modalEl = document.getElementById('confirmationModal');
@@ -200,8 +214,35 @@ window.showConfirmationModal = function(message, onConfirm) {
     modal.show();
 };
 
+// Kopieert de waarde van een input naar het klembord (data-copy-target="<id>")
+window.copyLink = function(elementId) {
+    var copyText = document.getElementById(elementId);
+    if (!copyText) { return; }
+    copyText.select();
+    copyText.setSelectionRange(0, 99999); // Voor mobiele apparaten
+    if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(copyText.value);
+    } else {
+        document.execCommand('copy');
+    }
+};
+
 document.addEventListener('DOMContentLoaded', function() {
     document.body.addEventListener('click', function(e) {
+        var copyBtn = e.target.closest('[data-copy-target]');
+        if (copyBtn) {
+            e.preventDefault();
+            window.copyLink(copyBtn.getAttribute('data-copy-target'));
+            var label = copyBtn.getAttribute('data-copy-feedback');
+            if (label) { alert(label); }
+            return;
+        }
+        var selectEl = e.target.closest('[data-select-on-click]');
+        if (selectEl && typeof selectEl.select === 'function') {
+            selectEl.select();
+            return;
+        }
+
         var target = e.target.closest('[data-confirm]');
         if (target) {
             e.preventDefault();
@@ -217,7 +258,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     var csrfInput = document.createElement('input');
                     csrfInput.type = 'hidden';
                     csrfInput.name = 'csrf_token';
-                    csrfInput.value = '<?= generateCsrfToken() ?>';
+                    csrfInput.value = <?= json_encode(generateCsrfToken()) ?>;
                     
                     form.appendChild(csrfInput);
                     document.body.appendChild(form);

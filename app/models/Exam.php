@@ -11,16 +11,24 @@ class Exam {
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
   }
   
-  public static function create($title, $description, $docentId, $promptId = null, $aiGradingEnabled = 0, $shared = 0) {
+  public static function create($title, $description, $docentId, $promptId = null, $aiGradingEnabled = 0, $shared = 0, $published = 0) {
     $pdo = Database::connect();
     // Genereer een unieke publieke token
     $publicToken = bin2hex(random_bytes(16));
     $stmt = $pdo->prepare("
-			  INSERT INTO exams (title, description, docent_id, public_token, prompt_id, ai_grading_enabled, shared)
-			  VALUES (?, ?, ?, ?, ?, ?, ?)
+			  INSERT INTO exams (title, description, docent_id, public_token, prompt_id, ai_grading_enabled, shared, published)
+			  VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 			  ");
-    $stmt->execute([$title, $description, $docentId, $publicToken, $promptId, $aiGradingEnabled, $shared]);
+    $stmt->execute([$title, $description, $docentId, $publicToken, $promptId, $aiGradingEnabled, $shared, $published]);
   }
+
+    /** Toetsen die zichtbaar zijn voor ingelogde studenten. */
+    public static function allPublished() {
+      $pdo = Database::connect();
+      $stmt = $pdo->prepare("SELECT * FROM exams WHERE published = 1 ORDER BY created_at DESC");
+      $stmt->execute();
+      return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
 
     public static function all() {
       $pdo = Database::connect();
@@ -43,14 +51,14 @@ class Exam {
       return $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
-    public static function update($id, $title, $description, $promptId = null, $aiGradingEnabled = 0, $shared = 0) {
+    public static function update($id, $title, $description, $promptId = null, $aiGradingEnabled = 0, $shared = 0, $published = 0) {
       $pdo = Database::connect();
       $stmt = $pdo->prepare("
 			                UPDATE exams
-			    SET title = ?, description = ?, prompt_id = ?, ai_grading_enabled = ?, shared = ?, updated_at = CURRENT_TIMESTAMP
+			    SET title = ?, description = ?, prompt_id = ?, ai_grading_enabled = ?, shared = ?, published = ?, updated_at = CURRENT_TIMESTAMP
 			                WHERE id = ?
 			            ");
-      $stmt->execute([$title, $description, $promptId, $aiGradingEnabled, $shared, $id]);
+      $stmt->execute([$title, $description, $promptId, $aiGradingEnabled, $shared, $published, $id]);
     }
 
     public static function duplicate($id) {

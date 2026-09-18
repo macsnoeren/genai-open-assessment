@@ -34,7 +34,7 @@ ob_start();
     <tr>
       <td><?= htmlspecialchars($p['title']) ?></td>
       <td><?= htmlspecialchars($p['description']) ?></td>
-      <td><?= $p['updated_at'] ?></td>
+      <td><?= e($p['updated_at']) ?></td>
       <td class="text-end">
         <div class="btn-group btn-group-sm">
             <a href="/?action=prompt_edit&id=<?= $p['id'] ?>" class="btn btn-outline-primary">Bewerken</a>

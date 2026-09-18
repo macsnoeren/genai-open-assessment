@@ -8,28 +8,36 @@
  * (at your option) any later version.
  */
 
+require_once __DIR__ . '/../config/app.php';
+require_once __DIR__ . '/../app/helpers/security.php';
+
+registerErrorHandling(false);
+sendSecurityHeaders(true);
+
 // Configure session cookie parameters for security
-$secure = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on';
 session_set_cookie_params([
     'lifetime' => 0,
     'path' => '/',
     'domain' => '',
-    'secure' => $secure,
+    'secure' => isHttps(),
     'httponly' => true,
     'samesite' => 'Strict'
 ]);
 session_start();
 
-require_once __DIR__ . '/../app/controllers/AuthController.php';
 require_once __DIR__ . '/../app/helpers/csrf.php';
+require_once __DIR__ . '/../app/helpers/auth.php';
+require_once __DIR__ . '/../app/controllers/AuthController.php';
 require_once __DIR__ . '/../app/controllers/StudentController.php';
 require_once __DIR__ . '/../app/controllers/DocentController.php';
 require_once __DIR__ . '/../app/controllers/StudentExamController.php';
 require_once __DIR__ . '/../app/controllers/ApiKeyController.php';
 require_once __DIR__ . '/../app/controllers/PromptController.php';
-require_once __DIR__ . '/../app/controllers/ApiController.php';
 
 $action = $_GET['action'] ?? 'login';
+if (!is_string($action)) {
+    $action = 'login';
+}
 
 $auth = new AuthController();
 $docent = new DocentController();
@@ -37,7 +45,6 @@ $studentController = new StudentController();
 $studentExamController = new StudentExamController();
 $apiKeyController = new ApiKeyController();
 $promptController = new PromptController();
-$apiController = new ApiController();
 
 switch ($action) {
  case 'login':
@@ -97,7 +104,7 @@ switch ($action) {
    break;
    
  case 'questions':
-   $docent->questions($_GET['exam_id']);
+   $docent->questions(requestInt($_GET, 'exam_id'));
    break;
    
  case 'question_create':
@@ -185,23 +192,23 @@ switch ($action) {
    break;
 
  case 'exam_results':
-   $docent->viewExamResults($_GET['exam_id']);
+   $docent->viewExamResults(requestInt($_GET, 'exam_id'));
    break;
 
  case 'exam_comparison':
-   $docent->compareExamResults($_GET['exam_id']);
+   $docent->compareExamResults(requestInt($_GET, 'exam_id'));
    break;
 
  case 'exam_comparison_export':
-   $docent->exportExamComparison($_GET['exam_id']);
+   $docent->exportExamComparison(requestInt($_GET, 'exam_id'));
    break;
 
  case 'view_student_answers':
-   $docent->viewStudentAnswers($_GET['student_exam_id']);
+   $docent->viewStudentAnswers(requestInt($_GET, 'student_exam_id'));
    break;
 
  case 'grade_student_exam':
-   $docent->gradeStudentExam($_GET['student_exam_id']);
+   $docent->gradeStudentExam(requestInt($_GET, 'student_exam_id'));
    break;
 
  case 'save_teacher_feedback':
@@ -272,20 +279,10 @@ switch ($action) {
     $promptController->help();
     break;
 
- case 'open_student_answers':
-    $apiController->getOpenAnswers();
-    break;
-
- case 'submit_ai_feedback':
-    $apiController->submitAiFeedback();
-    break;
-
  case 'privacy':
     require __DIR__ . '/../app/views/pages/privacy.php';
     break;
    
  default:
-   echo "404";
+   abort(404, 'Pagina niet gevonden.');
  }
-
-?>

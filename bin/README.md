@@ -6,7 +6,7 @@ This component of the application is responsible for the asynchronous processing
 The `process_ai_feedback.py` script acts as a background worker. It ensures the web server is not burdened with heavy AI computations when students submit an exam.
 
 ### How it works
-1. **Poll**: The script periodically requests new, ungraded student answers via the API (`action=open_student_answers`).
+1. **Poll**: The script periodically requests new, ungraded student answers via the API (`action=open_student_answers`). The API key is sent as `Authorization: Bearer <key>`; keys are stored hashed in the web application, so a lost key must be regenerated in the admin panel.
 2. **Processing**: For each answer, the specific exam prompt (or a fallback) is combined with the question and criteria into the *system* message. The student's answer is sent separately as the *user* message, wrapped in `<student_answer>` tags and truncated to `MAX_ANSWER_CHARS`, so it is treated as data rather than instructions.
 3. **Injection check** (optional): a model configured via `INJECTION_CHECK_MODEL` first screens the answer for prompt-injection attempts (instructions aimed at the AI). If flagged, a warning is prepended to the AI feedback and, with `INJECTION_ZERO_SCORE`, the recorded AI score is set to 0 while the model's own score stays visible in the feedback text. Testing showed that small models (e.g. qwen3:4b) still follow injected instructions during grading despite role separation and repeated instructions, so this override is what keeps manipulated scores out of the statistics. The teacher's grade is never affected.
 4. **AI Assessment**: The data is sent to a local Ollama server with an enforced JSON schema. Multiple models can be consulted for comparison. The output is validated: the score must be one of 0, 1, 5 or 10, and the feedback text is length-limited and stripped of labels that the web app's parser relies on.
@@ -26,7 +26,7 @@ Student answers are untrusted input. The worker mitigates prompt injection in la
 
 ```python
 API_KEY = "your_api_key" # Generate this in the Admin panel of the webapp
-BASE_URL = "http://localhost/index.php"
+BASE_URL = "http://localhost:8080/api/index.php" # Buiten localhost is https:// verplicht
 OLLAMA_URL = "http://localhost:11434/api/generate"
 LLM_MODELS = ["llama3", "phi3"] # List of models you want to use
 POLL_INTERVAL = 30 # Interval in seconds between checks

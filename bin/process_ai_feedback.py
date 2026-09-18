@@ -9,9 +9,34 @@ import requests
 import json
 import time
 from typing import List, Dict, Optional, Tuple
+from urllib.parse import urlparse
 import re
 import config
 from config import API_KEY, BASE_URL, OLLAMA_URL, LLM_MODELS, POLL_INTERVAL
+
+# =========================
+# API-AUTHENTICATIE
+# =========================
+
+# De API-key gaat uitsluitend via de Authorization-header, nooit via de URL
+# (query strings belanden in access logs en proxy-logs).
+API_HEADERS = {"Authorization": f"Bearer {API_KEY}"}
+
+# Buiten localhost is HTTPS verplicht, anders reist de API-key in het klare.
+# Alleen voor lokale tests uit te zetten via ALLOW_INSECURE_BASE_URL = True in config.py.
+ALLOW_INSECURE_BASE_URL = getattr(config, "ALLOW_INSECURE_BASE_URL", False)
+
+
+def check_base_url() -> None:
+    parsed = urlparse(BASE_URL)
+    host = (parsed.hostname or "").lower()
+    is_local = host in ("localhost", "127.0.0.1", "::1")
+    if parsed.scheme != "https" and not is_local and not ALLOW_INSECURE_BASE_URL:
+        raise SystemExit(
+            f"BASE_URL {BASE_URL!r} gebruikt geen HTTPS. De API-key zou onversleuteld worden "
+            "verstuurd. Gebruik https:// of zet ALLOW_INSECURE_BASE_URL = True in config.py "
+            "(alleen voor lokale tests)."
+        )
 
 # =========================
 # INSTELLINGEN
@@ -46,6 +71,11 @@ INJECTION_ZERO_SCORE = getattr(config, "INJECTION_ZERO_SCORE", True)
 # dit is een bovengrens tegen een model dat doorratelt, geen redactiemiddel.
 MAX_FEEDBACK_CHARS = getattr(config, "MAX_FEEDBACK_CHARS", 1500)
 
+# Maximaal aantal zinnen per tekstveld (feedback, uitleg). Wordt zowel aan het
+# model gevraagd als hard afgedwongen in de code: cloud-modellen houden zich
+# niet betrouwbaar aan lengte-instructies, en lange feedback helpt de student niet.
+MAX_FEEDBACK_SENTENCES = getattr(config, "MAX_FEEDBACK_SENTENCES", 4)
+
 # "think"-instelling per modelfamilie (prefix-match op de modelnaam).
 # gpt-oss negeert think=False en redeneert dan op "medium"-niveau; die
 # onzichtbare tokens tellen mee voor num_predict en kappen de JSON af.
@@ -53,6 +83,12 @@ MAX_FEEDBACK_CHARS = getattr(config, "MAX_FEEDBACK_CHARS", 1500)
 # alleen aan/uit, en daar betekent alles behalve False: denken AAN.
 THINK_LEVELS = getattr(config, "THINK_LEVELS", {"gpt-oss": "low"})
 THINK_DEFAULT = False
+
+# Tokenbudget (num_predict) per aanroep. Redeneertokens tellen hierin mee,
+# dus dit moet ruimer zijn dan de zichtbare JSON alleen. Bij afkapping wordt
+# het budget voor een volgende poging automatisch verdubbeld.
+NUM_PREDICT_FEEDBACK = getattr(config, "NUM_PREDICT_FEEDBACK", 1500)
+NUM_PREDICT_INJECTION = getattr(config, "NUM_PREDICT_INJECTION", 600)
 
 # Toegestane scores. Alles daarbuiten wordt afgekeurd.
 ALLOWED_SCORES = {0, 1, 5, 10}
@@ -104,7 +140,6 @@ REGELS:
 - Geef ALLEEN de onderstaande output.
 - Gebruik exact deze labels.
 - Voeg niets toe.
-- Gebruik maximaal 4 zinnen feedback.
 
 OUTPUTFORMAAT JSON exact (verplicht):
 {
@@ -132,6 +167,13 @@ BELANGRIJK OVER DE OUTPUT:
 - Geef UITSLUITEND het gevraagde JSON-object terug.
 - Geen uitleg, geen inleidende of afsluitende zin, geen markdown-opmaak,
   geen ```json codeblok. Alleen het kale JSON-object, niets ervoor of erna.
+
+BELANGRIJK OVER DE LENGTE:
+- Schrijf voor een student, niet voor een docent: kort, concreet, direct.
+- "feedback" en "uitleg" zijn elk MAXIMAAL {MAX_FEEDBACK_SENTENCES} zinnen
+  en ongeveer {MAX_FEEDBACK_SENTENCES * 15} woorden. Langere tekst wordt afgekapt.
+- Geen opsommingen, geen herhaling van de vraag of het antwoord, geen
+  inleiding zoals "Je antwoord is...". Begin meteen met het punt dat ertoe doet.
 """
 
 INJECTION_CHECK_SYSTEM_PROMPT = f"""Je bent een beveiligingsfilter voor een automatisch toetsbeoordelingssysteem.
@@ -260,6 +302,20 @@ def clean_output_text(text) -> str:
     return cut + ' […]'
 
 
+def limit_sentences(text: str, max_sentences: int = None) -> str:
+    """
+    Houdt alleen de eerste max_sentences zinnen over. Een zin eindigt op
+    . ! of ? gevolgd door witruimte. Afkortingen als "bijv." worden daardoor
+    soms als zinseinde gezien; dat levert hooguit iets kortere feedback op.
+    """
+    if max_sentences is None:
+        max_sentences = MAX_FEEDBACK_SENTENCES
+    if max_sentences <= 0 or not text:
+        return text
+    sentences = re.split(r'(?<=[.!?])\s+', text)
+    return ' '.join(sentences[:max_sentences])
+
+
 def validate_feedback(parsed: Dict) -> Optional[Dict]:
     """
     Controleert de modeluitvoer en geeft een opgeschoonde dict terug,
@@ -276,8 +332,8 @@ def validate_feedback(parsed: Dict) -> Optional[Dict]:
     if not isinstance(score, int) or score not in ALLOWED_SCORES:
         return None
 
-    feedback = clean_output_text(parsed.get("feedback"))
-    uitleg = clean_output_text(parsed.get("uitleg"))
+    feedback = limit_sentences(clean_output_text(parsed.get("feedback")))
+    uitleg = limit_sentences(clean_output_text(parsed.get("uitleg")))
     if not feedback:
         return None
 
@@ -426,7 +482,7 @@ def detect_prompt_injection(answer: str, model_name: str) -> Optional[Dict]:
         INJECTION_CHECK_SYSTEM_PROMPT,
         wrap_answer(answer),
         INJECTION_SCHEMA,
-        num_predict=600  # ruim, want bij sommige modellen tellen denk-tokens mee
+        num_predict=NUM_PREDICT_INJECTION
     )
     if not isinstance(parsed, dict) or not isinstance(parsed.get("injection"), bool):
         print(f"[{model_name}] Prompt-injection controle gaf geen bruikbaar resultaat.")
@@ -464,7 +520,7 @@ def get_feedback_from_model(
 
     system_prompt, user_prompt = build_prompts(q, injection_suspected)
 
-    parsed, duration = call_ollama(model_name, system_prompt, user_prompt, FEEDBACK_SCHEMA, num_predict=1500)
+    parsed, duration = call_ollama(model_name, system_prompt, user_prompt, FEEDBACK_SCHEMA, num_predict=NUM_PREDICT_FEEDBACK)
     if parsed is None:
         return None
 
@@ -489,17 +545,24 @@ def fetch_open_student_answers() -> List[Dict]:
         BASE_URL,
         params={
             "action": "open_student_answers",
-            "api_key": API_KEY,
             "limit": 5
         },
+        headers=API_HEADERS,
         timeout=30
     )
 
-    data = response.json()
-    if "answers" in data:
+    if response.status_code == 401:
+        print("API-key geweigerd (401). Controleer API_KEY in config.py en of de key actief is.")
+        return []
+    try:
+        data = response.json()
+    except json.JSONDecodeError:
+        print(f"Onverwacht antwoord van de API (status {response.status_code}).")
+        return []
+    if isinstance(data, dict) and "answers" in data:
         return data.get("answers", [])
     else:
-        print("Kan geen de studentantwoorden ophalen.")
+        print("Kan de studentantwoorden niet ophalen:", data)
         return []
 
 # =========================
@@ -515,19 +578,20 @@ def submit_ai_feedback(
     """
 
     payload = {
-        "api_key": API_KEY,
         "student_answer_id": student_answer_id,
         "ai_feedback": feedback_text
     }
 
-    requests.post(
+    response = requests.post(
         f"{BASE_URL}?action=submit_ai_feedback",
         json=payload,
+        headers=API_HEADERS,
         timeout=180,
-        params={
-            "api_key": API_KEY,
-        }
     )
+    if response.status_code != 200:
+        print(f"Feedback versturen mislukt voor {student_answer_id}: status {response.status_code} - {response.text[:200]}")
+        return False
+    return True
 
 
 # =========================
@@ -595,6 +659,7 @@ def run():
     - Markeert antwoorden die herhaaldelijk mislukken, zodat de wachtrij niet vastloopt
     """
 
+    check_base_url()
     print("AI feedback service gestart...")
     attempts: Dict[int, int] = {}
 
@@ -624,13 +689,12 @@ def run():
                         print(f"Antwoord {answer_id} wordt later opnieuw geprobeerd (poging {attempts[answer_id]}/{MAX_ATTEMPTS}).")
                         continue
 
-                submit_ai_feedback(
+                if submit_ai_feedback(
                     student_answer_id=answer_id,
                     feedback_text=final_feedback
-                )
-                attempts.pop(answer_id, None)
-
-                print(f"Feedback verstuurd voor student_answer_id {answer_id}")
+                ):
+                    attempts.pop(answer_id, None)
+                    print(f"Feedback verstuurd voor student_answer_id {answer_id}")
 
         except Exception as e:
             print("Onverwachte fout:", e)

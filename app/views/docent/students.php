@@ -38,7 +38,7 @@ ob_start();
             <?= htmlspecialchars($s['role']) ?>
           </span>
       </td>
-      <td><?= $s['created_at'] ?></td>
+      <td><?= e($s['created_at']) ?></td>
       <td class="text-end">
         <div class="btn-group btn-group-sm">
             <a href="/?action=student_edit&id=<?= $s['id'] ?>" class="btn btn-outline-primary">Bewerken</a>

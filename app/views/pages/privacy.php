@@ -66,8 +66,11 @@ ob_start();
 
             <h3>4. AI Verwerking</h3>
             <p>
-                De antwoorden die u geeft, worden verwerkt door een lokaal of extern AI-model om feedback te genereren. 
-                De prompts die naar de AI worden gestuurd bevatten uw antwoord, maar worden waar mogelijk geanonimiseerd verstuurd.
+                De antwoorden die u geeft, worden verwerkt door een AI-model om feedback te genereren. Afhankelijk van de
+                configuratie van deze installatie draait dat model lokaal bij de onderwijsinstelling of bij een externe
+                aanbieder (zoals Ollama Cloud). In het laatste geval verlaten uw antwoord, de vraag en de beoordelingscriteria
+                de instelling; uw naam of e-mailadres wordt daarbij niet meegestuurd. De beheerder van deze installatie is
+                verantwoordelijk voor de afspraken met die aanbieder en kan u vertellen welke verwerker wordt gebruikt.
             </p>
 
             <h3>5. Uw Rechten</h3>

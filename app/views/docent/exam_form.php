@@ -16,10 +16,10 @@ ob_start(); ?>
 
 <div class="card">
 <div class="card-body">
-<form action="/?action=<?= $action ?>" method="post">
+<form action="/?action=<?= e($action) ?>" method="post">
     <?= csrfInput() ?>
     <?php if ($exam): ?>
-        <input type="hidden" name="id" value="<?= $exam['id'] ?>">
+        <input type="hidden" name="id" value="<?= (int)$exam['id'] ?>">
     <?php endif; ?>
 
     <div class="mb-3">
@@ -34,7 +34,7 @@ ob_start(); ?>
 
     <div class="mb-3">
         <label class="form-label">AI Prompt</label>
-        <select name="prompt_id" class="form-select" id="promptSelect" data-original="<?= $exam['prompt_id'] ?? '' ?>">
+        <select name="prompt_id" class="form-select" id="promptSelect" data-original="<?= e($exam['prompt_id'] ?? '') ?>">
             <option value="">-- Standaard prompt (indien geen geselecteerd) --</option>
             <?php foreach ($prompts as $prompt): ?>
                 <option value="<?= $prompt['id'] ?>" <?= ($exam && $exam['prompt_id'] == $prompt['id']) ? 'selected' : '' ?>><?= htmlspecialchars($prompt['title']) ?></option>
@@ -56,7 +56,15 @@ ob_start(); ?>
             <input class="form-check-input" type="checkbox" id="shared" name="shared" value="1" <?= ($exam && $exam['shared']) ? 'checked' : '' ?>>
             <label class="form-check-label" for="shared">Delen met andere docenten</label>
         </div>
-        <div class="form-text">Als dit is ingeschakeld, kunnen andere docenten deze toets zien, gebruiken en beoordelen.</div>
+        <div class="form-text">Als dit is ingeschakeld, kunnen andere docenten deze toets inzien en beoordelen. Wijzigen en verwijderen blijft voorbehouden aan de eigenaar.</div>
+    </div>
+
+    <div class="mb-4">
+        <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" id="published" name="published" value="1" <?= ($exam && !empty($exam['published'])) ? 'checked' : '' ?>>
+            <label class="form-check-label" for="published">Publiceren voor ingelogde studenten</label>
+        </div>
+        <div class="form-text">Alleen gepubliceerde toetsen verschijnen in het studentdashboard. De gastlink werkt onafhankelijk van deze instelling.</div>
     </div>
 
     <div class="d-flex gap-2">
@@ -69,7 +77,7 @@ ob_start(); ?>
 </div>
 </div>
 
-<script>
+<script nonce="<?= e(cspNonce()) ?>">
 document.addEventListener('DOMContentLoaded', function() {
     const form = document.querySelector('form');
     const promptSelect = document.getElementById('promptSelect');

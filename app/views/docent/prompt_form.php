@@ -16,10 +16,10 @@ ob_start(); ?>
 
 <div class="card">
 <div class="card-body">
-<form action="/?action=<?= $action ?>" method="post">
+<form action="/?action=<?= e($action) ?>" method="post">
     <?= csrfInput() ?>
     <?php if ($prompt): ?>
-        <input type="hidden" name="id" value="<?= $prompt['id'] ?>">
+        <input type="hidden" name="id" value="<?= (int)$prompt['id'] ?>">
     <?php endif; ?>
 
     <div class="mb-3">

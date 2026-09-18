@@ -30,9 +30,11 @@ Er zijn vier rollen in het systeem:
 
 ## 3. Inloggen en Registreren
 
-### Registratie
-Wanneer de applicatie voor het eerst wordt opgestart en er nog geen gebruikers zijn, kan de eerste gebruiker zich registreren. Dit account krijgt automatisch **Admin** rechten.
-Daarna kunnen alleen Admins nieuwe gebruikers aanmaken via het beheerderspaneel.
+### Accounts
+Bij de eerste start wordt automatisch een beheerdersaccount aangemaakt (`admin@school.nl` / `admin123`); bij de eerste login moet dit wachtwoord direct worden gewijzigd.
+Zelfregistratie is standaard uitgeschakeld: alleen Admins maken nieuwe gebruikers aan via het beheerderspaneel. (Instelbaar via `ALLOW_SELF_REGISTRATION` in `config/app.php`.)
+
+Wachtwoorden moeten minimaal 12 tekens lang zijn en minimaal één letter en één cijfer bevatten. Wie het eigen wachtwoord wijzigt via het profiel, moet het huidige wachtwoord opgeven. Na 30 minuten inactiviteit word je automatisch uitgelogd.
 
 ### Inloggen
 Ga naar de startpagina en voer je e-mailadres en wachtwoord in.
@@ -76,6 +78,8 @@ Bij het maken of bewerken van een toets zijn de volgende instellingen belangrijk
 *   **Titel & Omschrijving**: Zichtbaar voor de student.
 *   **AI Prompt**: Selecteer welke systeem-instructie de AI moet gebruiken. (Standaard of een specifieke prompt).
 *   **AI Beoordeling inschakelen**: Vink dit aan als je wilt dat het systeem automatisch feedback genereert zodra een student inlevert.
+*   **Delen met andere docenten**: Andere docenten kunnen de toets dan inzien en beoordelen. Wijzigen, verwijderen en vragenbeheer blijven voorbehouden aan de eigenaar (en Admins).
+*   **Publiceren voor ingelogde studenten**: Alleen gepubliceerde toetsen verschijnen in het studentdashboard en kunnen daar gestart worden. De gastlink werkt onafhankelijk van dit vinkje.
 
 > **Let op:** Als je de prompt van een bestaande toets wijzigt, wordt alle reeds gegenereerde AI-feedback verwijderd om consistentie te garanderen. Je moet dit bevestigen.
 

@@ -8,6 +8,7 @@
  * (at your option) any later version.
  */
 
+require_once __DIR__ . '/../../config/app.php';
 require_once __DIR__ . '/../helpers/auth.php';
 require_once __DIR__ . '/../models/Exam.php';
 require_once __DIR__ . '/../models/Questions.php';
@@ -20,52 +21,170 @@ require_once __DIR__ . '/../models/StudentAnswer.php';
  * Handles the student's perspective of taking exams.
  */
 class StudentExamController {
+
+  // ---------------------------------------------------------------------
+  // Gast-cookie helpers
+  // ---------------------------------------------------------------------
+
+  private function setGuestCookie(string $name, string $value, int $lifetime): void {
+      setcookie($name, $value, [
+          'expires' => $lifetime > 0 ? time() + $lifetime : time() - 3600,
+          'path' => '/',
+          'domain' => '',
+          'secure' => isHttps(),
+          'httponly' => true,
+          'samesite' => 'Strict',
+      ]);
+  }
+
+  private static function isValidToken($token): bool {
+      return is_string($token) && preg_match('/^[a-f0-9]{64}$/', $token) === 1;
+  }
+
+  /** Gevalideerde lijst van toegangstokens uit de guest_history cookie. */
+  private function guestHistory(): array {
+      $raw = $_COOKIE['guest_history'] ?? '';
+      if (!is_string($raw) || $raw === '') {
+          return [];
+      }
+      $history = json_decode($raw, true);
+      if (!is_array($history)) {
+          return [];
+      }
+      $history = array_values(array_unique(array_filter($history, [self::class, 'isValidToken'])));
+      return array_slice($history, -20);
+  }
+
+  private function addToGuestHistory(string $token): void {
+      $history = $this->guestHistory();
+      if (!in_array($token, $history, true)) {
+          $history[] = $token;
+          $history = array_slice($history, -20);
+          $this->setGuestCookie('guest_history', json_encode($history), GUEST_COOKIE_LIFETIME);
+          $_COOKIE['guest_history'] = json_encode($history);
+      }
+  }
+
+  private function currentGuestToken(): ?string {
+      $token = $_COOKIE['guest_access_token'] ?? null;
+      return self::isValidToken($token) ? $token : null;
+  }
+
+  /**
+   * Als er een geldig token in de URL staat: opslaan in een cookie en redirecten
+   * naar dezelfde URL zonder token, zodat het token niet in logs/history blijft.
+   */
+  private function absorbUrlToken(array $studentExam, bool $asCurrent): void {
+      if (!isset($_GET['token'])) {
+          return;
+      }
+      $urlToken = $_GET['token'];
+      if (!self::isValidToken($urlToken) || !hash_equals((string)$studentExam['access_token'], $urlToken)) {
+          abort(403, 'Geen toegang (ongeldig token).');
+      }
+      if ($asCurrent) {
+          $this->setGuestCookie('guest_access_token', $urlToken, GUEST_COOKIE_LIFETIME);
+      }
+      $this->addToGuestHistory($urlToken);
+
+      $query = $_GET;
+      unset($query['token']);
+      header('Location: /?' . http_build_query($query));
+      exit;
+  }
+
+  /** Controleert of de huidige gast toegang heeft tot deze poging. */
+  private function guestHasAccess(array $studentExam, bool $allowHistory): bool {
+      $token = (string)$studentExam['access_token'];
+      if ($token === '') {
+          return false;
+      }
+      $current = $this->currentGuestToken();
+      if ($current !== null && hash_equals($token, $current)) {
+          return true;
+      }
+      return $allowHistory && in_array($token, $this->guestHistory(), true);
+  }
+
+  private function redirectToDashboard(): void {
+      $role = $_SESSION['role'] ?? 'student';
+      if ($role === 'docent' || $role === 'admin') {
+          header('Location: /?action=docent_dashboard');
+      } elseif ($role === 'beoordelaar') {
+          header('Location: /?action=pending_assessments');
+      } else {
+          header('Location: /?action=student_dashboard');
+      }
+      exit;
+  }
+
+  // ---------------------------------------------------------------------
+  // Ingelogde studenten
+  // ---------------------------------------------------------------------
   
   /**
-   * Lists available exams for the student.
+   * Lists available (published) exams for the student.
    */
   public function listExams() {
-    requireLogin();
     requireRole('student');
     
-    $exams = Exam::all();
+    $exams = Exam::allPublished();
     require __DIR__ . '/../views/student/exams_list.php';
   }
   
   /**
-   * Starts an exam attempt for a student.
+   * Starts an exam attempt for a logged-in user.
+   * Studenten: alleen gepubliceerde toetsen. Docenten: eigen of gedeelde toetsen (testen).
    */
   public function startExam() {
     requireLogin();
     
-    $examId = $_GET['exam_id'];
-    $studentId = $_SESSION['user_id'];
+    $examId = requestInt($_GET, 'exam_id') ?? requestInt($_POST, 'exam_id');
+    $exam = $examId !== null ? Exam::find($examId) : null;
+    if (!$exam) {
+        abort(404, 'Toets niet gevonden.');
+    }
+
+    $role = $_SESSION['role'] ?? 'student';
+    $userId = (int)$_SESSION['user_id'];
+    $allowed = false;
+    if ($role === 'admin') {
+        $allowed = true;
+    } elseif ($role === 'docent') {
+        $allowed = ((int)$exam['docent_id'] === $userId) || !empty($exam['shared']) || !empty($exam['published']);
+    } else {
+        $allowed = !empty($exam['published']);
+    }
+    if (!$allowed) {
+        abort(403, 'Deze toets is niet beschikbaar.');
+    }
     
-    $studentExamId = StudentExam::start($studentId, $examId);
+    $studentExamId = StudentExam::start($userId, $examId);
     AuditLog::log('exam_start', ['exam_id' => $examId, 'student_exam_id' => $studentExamId]);
     header("Location: /?action=take_exam&student_exam_id={$studentExamId}");
     exit;
   }
+
+  // ---------------------------------------------------------------------
+  // Gasten
+  // ---------------------------------------------------------------------
 
   /**
    * Handles the entry point for a guest link.
    */
   public function guestEntry() {
       $token = $_GET['token'] ?? '';
-      $exam = Exam::findByPublicToken($token);
+      $exam = is_string($token) && $token !== '' ? Exam::findByPublicToken($token) : null;
 
       if (!$exam) {
-          die("Ongeldige link.");
+          abort(404, 'Ongeldige link.');
       }
 
-      // Check of er al een cookie is voor DEZE specifieke toets (of algemeen)
-      // Voor eenvoud checken we nu 1 cookie 'guest_access_token'. 
-      // Als de student meerdere toetsen tegelijk wil doen als gast, overschrijft dit elkaar.
-      // In een productieomgeving zou je een array in de cookie of meerdere cookies gebruiken.
-      if (isset($_COOKIE['guest_access_token'])) {
-          $studentExam = StudentExam::findByAccessToken($_COOKIE['guest_access_token']);
-          // Check of de cookie bij DEZE toets hoort
-          if ($studentExam && $studentExam['exam_id'] == $exam['id']) {
+      // Bestaande gastpoging voor DEZE toets hervatten
+      $current = $this->currentGuestToken();
+      if ($current !== null) {
+          $studentExam = StudentExam::findByAccessToken($current);
+          if ($studentExam && (int)$studentExam['exam_id'] === (int)$exam['id']) {
               header("Location: /?action=take_exam&student_exam_id={$studentExam['id']}");
               exit;
           }
@@ -81,26 +200,26 @@ class StudentExamController {
    */
   public function guestStart() {
       validateCsrfToken();
-      $token = $_POST['token'] ?? '';
-      $name = trim($_POST['name'] ?? '');
+      $token = requestString($_POST, 'token', 64);
+      $name = trim(requestString($_POST, 'name', MAX_NAME_LENGTH));
       
-      $exam = Exam::findByPublicToken($token);
-      if (!$exam || empty($name)) {
-          die("Ongeldige aanvraag.");
+      $exam = $token !== '' ? Exam::findByPublicToken($token) : null;
+      if (!$exam || $name === '') {
+          abort(400, 'Ongeldige aanvraag.');
+      }
+
+      // Rate limiting per IP (kosten-/spam-bescherming)
+      $ip = $_SERVER['REMOTE_ADDR'] ?? 'Unknown';
+      if (AuditLog::countRecent('guest_start', GUEST_START_WINDOW_MINUTES, $ip) >= GUEST_START_MAX_PER_IP) {
+          AuditLog::log('guest_start_blocked', ['exam_id' => $exam['id']], 'Gast');
+          abort(429, 'Te veel toetsstarts vanaf dit adres. Probeer het later opnieuw.');
       }
 
       $result = StudentExam::startGuest($exam['id'], $name);
+      AuditLog::log('guest_start', ['exam_id' => $exam['id'], 'student_exam_id' => $result['id'], 'guest_name' => $name], 'Gast');
       
-      // Zet cookie voor 30 dagen
-      $secure = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on';
-      setcookie('guest_access_token', $result['access_token'], time() + (86400 * 30), "/", "", $secure, true);
-
-      // Update gast-geschiedenis cookie zodat de student meerdere resultaten kan inzien
-      $history = isset($_COOKIE['guest_history']) ? json_decode($_COOKIE['guest_history'], true) : [];
-      if (!in_array($result['access_token'], $history)) {
-          $history[] = $result['access_token'];
-          setcookie('guest_history', json_encode($history), time() + (86400 * 30), "/", "", $secure, true);
-      }
+      $this->setGuestCookie('guest_access_token', $result['access_token'], GUEST_COOKIE_LIFETIME);
+      $this->addToGuestHistory($result['access_token']);
 
       header("Location: /?action=take_exam&student_exam_id={$result['id']}");
       exit;
@@ -110,13 +229,11 @@ class StudentExamController {
    * Logs out a guest user (clears cookie) so they can change their name/start over.
    */
   public function guestLogout() {
-      $studentExamId = $_GET['student_exam_id'] ?? null;
+      $studentExamId = requestInt($_GET, 'student_exam_id');
       
-      // Verwijder de cookie
-      $secure = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on';
-      setcookie('guest_access_token', '', time() - 3600, "/", "", $secure, true);
+      $this->setGuestCookie('guest_access_token', '', 0);
 
-      if ($studentExamId) {
+      if ($studentExamId !== null) {
           $studentExam = StudentExam::find($studentExamId);
           if ($studentExam) {
               $exam = Exam::find($studentExam['exam_id']);
@@ -130,32 +247,33 @@ class StudentExamController {
       header("Location: /");
       exit;
   }
+
+  // ---------------------------------------------------------------------
+  // Toets maken en inleveren (student + gast)
+  // ---------------------------------------------------------------------
   
   /**
    * Displays the exam form for taking the exam.
    */
   public function takeExam() {
-    $studentExamId = $_GET['student_exam_id'];
-    $studentExam = StudentExam::find($studentExamId);
+    $studentExamId = requestInt($_GET, 'student_exam_id');
+    $studentExam = $studentExamId !== null ? StudentExam::find($studentExamId) : null;
     if (!$studentExam) {
-        die("Toetspoging niet gevonden.");
+        abort(404, 'Toetspoging niet gevonden.');
     }
 
     // Bepaal of dit een gastpoging is of een geregistreerde student
     $isGuest = ($studentExam['student_id'] === null);
 
     if ($isGuest) {
-        // Check of er toegang is via een cookie OF via een token in de URL
-        $urlToken = $_GET['token'] ?? null;
-        $cookieToken = $_COOKIE['guest_access_token'] ?? null;
-
-        if ($studentExam['access_token'] !== $urlToken && $studentExam['access_token'] !== $cookieToken) {
-            die("Geen toegang (ongeldig token).");
+        $this->absorbUrlToken($studentExam, true);
+        if (!$this->guestHasAccess($studentExam, false)) {
+            abort(403, 'Geen toegang (ongeldig token).');
         }
     } else {
         requireLogin();
-        if ($studentExam['student_id'] != $_SESSION['user_id']) {
-            die("Geen toegang.");
+        if ((int)$studentExam['student_id'] !== (int)$_SESSION['user_id']) {
+            abort(403, 'Geen toegang.');
         }
     }
 
@@ -188,50 +306,68 @@ class StudentExamController {
   public function submitExam() {
     validateCsrfToken();
     
-    $studentExamId = $_POST['student_exam_id'];
-    $se = StudentExam::find($studentExamId);
+    $studentExamId = requestInt($_POST, 'student_exam_id');
+    $se = $studentExamId !== null ? StudentExam::find($studentExamId) : null;
     if (!$se) {
-        die("Toetspoging niet gevonden.");
+        abort(404, 'Toetspoging niet gevonden.');
     }
 
-    $actionType = $_POST['action_type'] ?? 'submit'; // 'submit' is de standaard
+    $actionType = requestString($_POST, 'action_type', 10, 'submit') === 'save' ? 'save' : 'submit';
 
     $isGuest = ($se['student_id'] === null);
 
     if ($isGuest) {
-        if (!isset($_COOKIE['guest_access_token']) || $se['access_token'] !== $_COOKIE['guest_access_token']) {
-            die("Geen toegang.");
+        if (!$this->guestHasAccess($se, false)) {
+            abort(403, 'Geen toegang.');
         }
     } else {
         requireLogin();
-        if (!$se || $se['student_id'] != $_SESSION['user_id']) {
-            die("Geen toegang: Dit is niet jouw toetspoging.");
+        if ((int)$se['student_id'] !== (int)$_SESSION['user_id']) {
+            abort(403, 'Geen toegang: Dit is niet jouw toetspoging.');
         }
     }
-    
-    foreach ($_POST['answers'] as $questionId => $answer) {
+
+    // Na definitief inleveren mag er niets meer gewijzigd worden
+    if (!empty($se['completed_at'])) {
+        AuditLog::log('exam_submit_after_completion', ['student_exam_id' => $studentExamId], $isGuest ? 'Gast' : null);
+        abort(403, 'Deze toets is al ingeleverd en kan niet meer worden gewijzigd.');
+    }
+
+    // Alleen antwoorden op vragen die bij DEZE toets horen
+    $posted = $_POST['answers'] ?? [];
+    if (!is_array($posted)) {
+        abort(400, 'Ongeldige invoer.');
+    }
+    $validQuestionIds = Question::idsByExam($se['exam_id']);
+    foreach ($posted as $questionId => $answer) {
+      if (!is_string($answer) || !preg_match('/^\d{1,18}$/', (string)$questionId)) {
+          continue;
+      }
+      $questionId = (int)$questionId;
+      if (!in_array($questionId, $validQuestionIds, true)) {
+          continue;
+      }
+      if (strlen($answer) > MAX_ANSWER_LENGTH) {
+          $answer = substr($answer, 0, MAX_ANSWER_LENGTH);
+      }
       StudentAnswer::save($studentExamId, $questionId, $answer);
     }
     
     if ($actionType === 'submit') {
         // Toets markeren als ingeleverd
         $pdo = Database::connect();
-        AuditLog::log('exam_submit_final', ['student_exam_id' => $studentExamId]);
-        $stmt = $pdo->prepare("UPDATE student_exams SET completed_at = CURRENT_TIMESTAMP WHERE id = ?");
+        AuditLog::log('exam_submit_final', ['student_exam_id' => $studentExamId], $isGuest ? 'Gast' : null);
+        $stmt = $pdo->prepare("UPDATE student_exams SET completed_at = CURRENT_TIMESTAMP WHERE id = ? AND completed_at IS NULL");
         $stmt->execute([$studentExamId]);
         
         if ($isGuest) {
-             // Gasten hebben geen dashboard, toon bedankt pagina of resultaten (indien direct beschikbaar)
-             // Voor nu sturen we ze terug naar de toets pagina, die toont dan 'ingeleverd'.
-             // Of we kunnen een simpele 'bedankt' view maken.
-             // Laten we ze naar de take_exam sturen, die we kunnen aanpassen om status te tonen.
              header("Location: /?action=student_view_results&student_exam_id={$studentExamId}");
         } else {
             header("Location: /?action=my_exams");
         }
     } else {
         // Alleen opslaan en terugsturen naar de toetspagina
-        AuditLog::log('exam_save_interim', ['student_exam_id' => $studentExamId]);
+        AuditLog::log('exam_save_interim', ['student_exam_id' => $studentExamId], $isGuest ? 'Gast' : null);
         $_SESSION['success_message'] = 'Je antwoorden zijn tussentijds opgeslagen.';
         header("Location: /?action=take_exam&student_exam_id={$studentExamId}");
     }
@@ -255,13 +391,12 @@ class StudentExamController {
    * Displays the student dashboard.
    */
   public function dashboard() {
-    requireLogin();
     requireRole('student');
 
     $studentId = $_SESSION['user_id'];
 
-    // Alle examens
-    $exams = Exam::all();
+    // Gepubliceerde examens
+    $exams = Exam::allPublished();
 
     // Alle gemaakte examens door deze student
     $studentExams = StudentExam::allByStudent($studentId);
@@ -273,8 +408,8 @@ class StudentExamController {
    * Views the results of a specific exam attempt.
    */
   public function viewResults() {
-    $studentExamId = $_GET['student_exam_id'] ?? null;
-    $studentExam = StudentExam::find($studentExamId);
+    $studentExamId = requestInt($_GET, 'student_exam_id');
+    $studentExam = $studentExamId !== null ? StudentExam::find($studentExamId) : null;
 
     $isGuest = true;
     $currentStudentId = null;
@@ -284,32 +419,25 @@ class StudentExamController {
         $currentStudentId = $studentExam['student_id'];
 
         if ($isGuest) {
-            $urlToken = $_GET['token'] ?? null;
-            $cookieToken = $_COOKIE['guest_access_token'] ?? null;
-
-            if ($studentExam['access_token'] !== $urlToken && $studentExam['access_token'] !== $cookieToken) {
-                die("Geen toegang (ongeldig token).");
-            }
-
-            // Voeg token toe aan geschiedenis voor een centraal overzicht (dashboard)
-            $history = isset($_COOKIE['guest_history']) ? json_decode($_COOKIE['guest_history'], true) : [];
-            if (!in_array($studentExam['access_token'], $history)) {
-                $history[] = $studentExam['access_token'];
-                $secure = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on';
-                setcookie('guest_history', json_encode($history), time() + (86400 * 30), "/", "", $secure, true);
+            $this->absorbUrlToken($studentExam, false);
+            if (!$this->guestHasAccess($studentExam, true)) {
+                abort(403, 'Geen toegang (ongeldig token).');
             }
         } else {
             requireLogin();
-            if ($studentExam['student_id'] != $_SESSION['user_id']) {
-                die("Geen toegang.");
+            if ((int)$studentExam['student_id'] !== (int)$_SESSION['user_id']) {
+                abort(403, 'Geen toegang.');
             }
         }
+    } elseif ($studentExamId !== null) {
+        abort(404, 'Toetspoging niet gevonden.');
     } else {
         // Geen specifiek examen geselecteerd; dashboard modus op basis van login of cookies
-        if (isset($_SESSION['user_id']) && $_SESSION['role'] === 'student') {
+        if (isset($_SESSION['user_id']) && ($_SESSION['role'] ?? '') === 'student') {
+            requireLogin();
             $isGuest = false;
             $currentStudentId = $_SESSION['user_id'];
-        } elseif (isset($_COOKIE['guest_history']) || isset($_COOKIE['guest_access_token'])) {
+        } elseif (!empty($this->guestHistory()) || $this->currentGuestToken() !== null) {
             $isGuest = true;
         } else {
             header("Location: /?action=login");
@@ -322,9 +450,10 @@ class StudentExamController {
     if (!$isGuest) {
         $allStudentExams = StudentExam::allByStudent($currentStudentId);
     } else {
-        $history = isset($_COOKIE['guest_history']) ? json_decode($_COOKIE['guest_history'], true) : [];
-        if (isset($_COOKIE['guest_access_token']) && !in_array($_COOKIE['guest_access_token'], $history)) {
-            $history[] = $_COOKIE['guest_access_token'];
+        $history = $this->guestHistory();
+        $current = $this->currentGuestToken();
+        if ($current !== null && !in_array($current, $history, true)) {
+            $history[] = $current;
         }
         foreach ($history as $token) {
             $se = StudentExam::findByAccessToken($token);
@@ -390,4 +519,3 @@ class StudentExamController {
     require __DIR__ . '/../views/student/view_results.php';
   }
 }
-?>

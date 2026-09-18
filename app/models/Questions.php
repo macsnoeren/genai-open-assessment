@@ -11,6 +11,14 @@ class Question {
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
   }
   
+  /** Alle vraag-ids van een toets (voor validatie van ingezonden antwoorden). */
+  public static function idsByExam($examId) {
+    $pdo = Database::connect();
+    $stmt = $pdo->prepare("SELECT id FROM questions WHERE exam_id = ?");
+    $stmt->execute([$examId]);
+    return array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN));
+  }
+  
   public static function create($examId, $text, $criteria) {
     $pdo = Database::connect();
     $stmt = $pdo->prepare("

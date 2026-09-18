@@ -1,0 +1,655 @@
+KWETSBAARHEIDSONDERZOEK - genai-open-assessment (PHP webapplicatie + Python AI-worker)
+=====================================================================================
+
+Datum onderzoek : 2026-09-18
+Branch          : dev-take-exam-header (commit ac479e6)
+Scope           : htdocs/, app/, config/, docker/, bin/ (statische code-review, geen dynamische test)
+Doel            : input voor de volgende ontwikkelronde; per bevinding staat een concrete aanbeveling.
+
+Ernst-indeling:
+  HOOG    - direct misbruikbaar, raakt integriteit van toetsresultaten of toegang tot andermans data
+  MIDDEL  - misbruikbaar onder voorwaarden, of belangrijke verdedigingslaag ontbreekt
+  LAAG    - hygiene / defense-in-depth / beperkte impact
+  INFO    - geen kwetsbaarheid maar wel aandachtspunt
+
+Wat WEL goed is (ter referentie, niet opnieuw doen):
+  - Alle SQL gaat via PDO prepared statements; geen SQL-injectie gevonden.
+  - Wachtwoorden met password_hash/password_verify; session_regenerate_id() bij login.
+  - Sessiecookie: HttpOnly, SameSite=Strict, Secure bij HTTPS.
+  - Vrijwel alle view-output gaat door htmlspecialchars(); geen reflected XSS gevonden.
+  - CSRF-token op alle POST-formulieren; API-keys en tokens via random_bytes().
+  - Database staat buiten de webroot; bin/config.py staat in .gitignore en is niet getrackt.
+  - De AI-worker heeft gelaagde prompt-injection-mitigatie (rolscheiding, afbakening, schema, voorcontrole).
+
+
+-------------------------------------------------------------------------------
+SAMENVATTING
+-------------------------------------------------------------------------------
+ID    Ernst   Titel
+S-01  HOOG    Autorisatie-bypass bij opslaan docentscore (save_teacher_feedback)
+S-02  HOOG    Antwoorden kunnen na definitief inleveren nog gewijzigd worden
+S-03  HOOG    Open zelfregistratie geeft iedereen toegang tot alle toetsen
+S-04  MIDDEL  CSRF-validatie is een no-op voor GET; alle delete/toggle-acties werken via GET
+S-05  MIDDEL  SQLite foreign keys staan uit: cascade/restrict werken niet, verwijderde data blijft bestaan
+S-06  MIDDEL  Studenten kunnen antwoorden koppelen aan vragen van andere toetsen
+S-07  MIDDEL  Geen bescherming tegen brute-force op login; mislukte logins worden niet gelogd
+S-08  MIDDEL  Onbeperkt aanmaken van gastpogingen via publieke link (kosten/DoS en naamsimitatie)
+S-09  MIDDEL  Audit log is voor alle docenten zichtbaar en bevat data van andere docenten
+S-10  MIDDEL  Docentbeoordelingen worden niet in de audit log vastgelegd
+S-11  MIDDEL  PHP-foutmeldingen (stack traces) zichtbaar in de Docker-omgeving
+S-12  MIDDEL  Stored XSS via toetstitel in <title> van de resultatenpagina
+S-13  MIDDEL  CSV-export kwetsbaar voor formula injection (gastnaam is studentgestuurd)
+S-14  MIDDEL  API-key in query string; opgeslagen in platte tekst; geen rate limiting
+S-15  MIDDEL  Studentgegevens gaan naar Ollama Cloud terwijl README lokale verwerking belooft
+S-16  LAAG    Geen wachtwoordbeleid; wachtwoord wijzigen zonder huidig wachtwoord
+S-17  LAAG    Gast-toegangstoken in URL (share-link, resultatenlinks) lekt via logs/history
+S-18  LAAG    API submit_ai_feedback: geen validatie van id/lengte; scores spoofbaar via labelformaat
+S-19  LAAG    HTTP security headers: CSP met unsafe-inline, HSTS over HTTP, Referrer-Policy ontbreekt, geen SRI
+S-20  LAAG    Setup-map en schema.sql zijn via de webserver bereikbaar; directory listing
+S-21  LAAG    Gedeelde toets (shared=1) geeft andere docenten volledige controle incl. verwijderen
+S-22  LAAG    Onvoldoende invoervalidatie leidt tot TypeErrors/500 (answers[], guest_history-cookie, ontbrekende ids)
+S-23  LAAG    Sessiebeheer: geen idle-timeout, logout wist cookie niet, Secure-flag faalt achter reverse proxy
+S-24  LAAG    Gastcookies zonder expliciete SameSite; cookie-consentbanner terwijl cookies al gezet zijn
+S-25  INFO    Privacy: IP-adressen en volledige toetsinhoud in audit log zonder retentiebeleid
+S-26  INFO    Dode code / verwarrende beveiligingslogica (register "eerste user = admin", requireRole-dubbeling)
+
+
+
+-------------------------------------------------------------------------------
+STATUS NA FIXRONDE (2026-09-18)
+-------------------------------------------------------------------------------
+Alle bevindingen zijn behandeld; de belangrijkste wijzigingen per ID:
+
+S-01  OPGELOST  saveTeacherFeedback() autoriseert op basis van het antwoord zelf
+                (StudentAnswer::findWithExam), 404 bij onbekend id, score gevalideerd 0..10.
+S-02  OPGELOST  submitExam() weigert (403) zodra completed_at gezet is; poging wordt gelogd
+                als 'exam_submit_after_completion'.
+S-03  OPGELOST  Zelfregistratie uit (ALLOW_SELF_REGISTRATION in config/app.php). Nieuwe
+                kolom exams.published: studenten zien/starten alleen gepubliceerde toetsen
+                (checkbox in het toetsformulier; migratie automatisch, bestaande toetsen
+                staan op NIET gepubliceerd -> docenten moeten ze bewust publiceren).
+S-04  OPGELOST  validateCsrfToken() geeft 405 bij niet-POST en vergelijkt met hash_equals().
+                Alle muterende links gaan via het bestaande data-confirm -> POST-mechanisme
+                ("Inschakelen" API-key kreeg ook een bevestiging).
+S-05  OPGELOST  PRAGMA foreign_keys = ON in Database::connect(). Let op: wezen uit het
+                verleden worden niet automatisch opgeruimd (zie "Nog te doen").
+S-06  OPGELOST  Alleen question_ids van de eigen toets worden opgeslagen; lengtelimiet
+                MAX_ANSWER_LENGTH; is_array-check.
+S-07  OPGELOST  'login_failed'/'login_blocked' in de audit log; lockout na
+                LOGIN_MAX_FAILURES pogingen per e-mail of IP binnen LOGIN_LOCKOUT_MINUTES.
+S-08  DEELS     Rate limiting op guest_start per IP (GUEST_START_MAX_PER_IP) + logging van
+                elke gaststart. Vervaldatum/aan-uit van de publieke link is NIET gebouwd.
+S-09  OPGELOST  Docenten zien in de audit log alleen hun eigen acties; admin ziet alles.
+S-10  OPGELOST  'teacher_grade' (oud/nieuw), 'api_open_answers', 'ai_feedback_submit' met
+                api_key_id, 'api_auth_failed', 'exam_duplicate', 'guest_start' gelogd.
+S-11  OPGELOST  Dockerfile gebruikt php.ini-production; registerErrorHandling() zet
+                display_errors uit en toont een generieke 500-pagina; ids worden via
+                requestInt() gevalideerd (400/404 i.p.v. warnings).
+S-12  OPGELOST  <title> en alle flash-berichten/datums ge-escaped (helper e()).
+S-13  OPGELOST  csvSafe() op alle tekstkolommen in de CSV-export.
+S-14  OPGELOST  Key via Authorization: Bearer (of X-Api-Key), niet meer via query string;
+                opslag als SHA-256 (bestaande platte keys worden bij eerste gebruik
+                automatisch omgezet); de worker stuurt de header. Query-param wordt
+                geweigerd (401).
+S-15  DEELS     Privacypagina beschrijft nu eerlijk lokale vs. externe (cloud) verwerking;
+                worker weigert een http:// BASE_URL buiten localhost (ALLOW_INSECURE_BASE_URL
+                voor lokale tests). De keuze voor cloud-modellen zelf blijft een
+                configuratie-/contractuele beslissing.
+S-16  OPGELOST  Wachtwoordbeleid (PASSWORD_MIN_LENGTH=12, letter + cijfer) op alle paden;
+                eigen wachtwoord wijzigen vereist het huidige wachtwoord;
+                session_regenerate_id() na wijziging.
+S-17  OPGELOST  Token in URL wordt in een cookie gezet en de pagina redirect zonder token;
+                gastlinks in het resultatenoverzicht bevatten geen token meer
+                (toegang via de guest_history-cookie); Referrer-Policy: same-origin.
+S-18  DEELS     student_answer_id gevalideerd + bestaanscheck, lengtelimiet, POST-only,
+                ai_updated_at gezet. Het tekstformaat "Model: ... Aantal punten: N" is
+                NIET vervangen door gestructureerde JSON (grotere refactor, zie "Nog te doen").
+S-19  OPGELOST  Headers centraal in sendSecurityHeaders(): CSP met per-request nonce
+                (geen 'unsafe-inline' voor scripts meer; alle inline handlers omgezet naar
+                data-attributen), Referrer-Policy, nosniff, Permissions-Policy, HSTS alleen
+                over HTTPS, X-XSS-Protection verwijderd. CDN-scripts gepind met SRI.
+S-20  OPGELOST  setup/ verplaatst naar de projectroot (buiten htdocs), init_db.php alleen
+                via CLI; Apache: Options -Indexes, ServerTokens Prod, expose_php Off.
+S-21  OPGELOST  checkExamOwnership($id, $write): gedeeld = inzien + beoordelen; wijzigen,
+                verwijderen, dupliceren en vragenbeheer alleen eigenaar/admin (knoppen
+                verborgen voor niet-eigenaren).
+S-22  OPGELOST  requestInt()/requestString()-helpers, gevalideerde cookie-JSON, abort()
+                met 400/403/404 in plaats van die().
+S-23  OPGELOST  Idle-timeout (SESSION_IDLE_TIMEOUT), destroySession() bij logout wist
+                cookie + $_SESSION, Secure-flag via X-Forwarded-Proto (isHttps()).
+                Rolwijziging door admin wordt nog steeds pas bij herlogin actief.
+S-24  OPGELOST  Gastcookies met SameSite=Strict/HttpOnly/Secure; history beperkt tot 20
+                gevalideerde tokens.
+S-25  INFO      Ongewijzigd (retentiebeleid is een organisatorische keuze).
+S-26  OPGELOST  Dode registratie-tak verwijderd, rol-whitelist, dubbele requireLogin()
+                weg, modal.js verwijderd, API-acties alleen nog via /api/index.php.
+
+Verificatie: php -l op alle bestanden en een end-to-end smoke-test (42 checks: login,
+wachtwoordbeleid, lockout, headers, CSRF-405, gastflow, hertoets na inleveren, IDOR op
+scores, API Bearer/hash, CSV-escaping, cascade delete, setup-afscherming) slagen op
+php:8.2.
+
+Nog te doen (buiten deze ronde):
+  - S-05: eenmalige opschoonquery voor bestaande wezen in oudere databases.
+  - S-08: vervaldatum en aan/uit-schakelaar voor de publieke gastlink.
+  - S-18: AI-feedback als gestructureerde data opslaan i.p.v. regex-parsing van tekst.
+  - S-14: bestaande API-keys werken dankzij de automatische hash-upgrade; na de eerste
+    succesvolle aanroep is de platte key uit de database verdwenen.
+  - Bestaande toetsen expliciet publiceren (nieuw vinkje) als studenten ze via hun
+    dashboard moeten kunnen starten.
+  - Worker-deployments: config.py hoeft niet te wijzigen (zelfde API_KEY), maar een
+    http:// BASE_URL buiten localhost vereist nu ALLOW_INSECURE_BASE_URL = True.
+
+-------------------------------------------------------------------------------
+S-01  HOOG  Autorisatie-bypass bij opslaan docentscore
+-------------------------------------------------------------------------------
+Locatie : app/controllers/DocentController.php, saveTeacherFeedback() (regel ~447-470)
+
+Probleem:
+  1. De permissiecheck wordt alleen uitgevoerd als StudentExam::find($_POST['student_exam_id'])
+     iets oplevert:  if ($studentExam) { $this->checkGradingPermission(...) }
+     Een niet-bestaand student_exam_id (bijv. 999999) slaat de check volledig over.
+  2. student_answer_id wordt nooit gecontroleerd tegen student_exam_id. Het UPDATE-statement
+     gebruikt uitsluitend student_answer_id.
+  Gevolg: elke ingelogde docent (rol 'docent') kan teacher_score en teacher_feedback van
+  IEDER antwoord in het systeem overschrijven, ook van toetsen van andere docenten.
+  (Beoordelaar/admin mogen al alles; de bypass raakt de docent-scheiding.)
+
+Aanbeveling:
+  - Haal het antwoord op via student_answer_id, lees daar student_exam_id -> exam_id uit
+    en voer checkGradingPermission(exam_id) uit op basis van DIE waarde, niet op POST-input.
+  - Weiger het verzoek (403) als het antwoord of de toetspoging niet bestaat.
+  - Valideer teacher_score (integer 0..10 of null).
+  - Zie ook S-10 (audit logging van deze actie).
+
+
+-------------------------------------------------------------------------------
+S-02  HOOG  Antwoorden kunnen na definitief inleveren nog gewijzigd worden
+-------------------------------------------------------------------------------
+Locatie : app/controllers/StudentExamController.php, submitExam() (regel ~178-230)
+
+Probleem:
+  submitExam() controleert nergens of $se['completed_at'] al gezet is. takeExam() redirect
+  weliswaar naar de resultaten als de toets is ingeleverd, maar een directe POST naar
+  /?action=submit_exam met student_exam_id + answers[] + csrf_token werkt gewoon. Het
+  CSRF-token staat in elke pagina (layouts/main.php, generateCsrfToken() in de JS), dus
+  de student heeft het altijd.
+  Gevolg: een student of gast kan na inlevering (en zelfs nadat de docent heeft nagekeken)
+  zijn antwoorden aanpassen. De AI-feedback wordt niet opnieuw gegenereerd, de docentscore
+  blijft staan; het antwoord dat in het dossier staat klopt dan niet meer met de beoordeling.
+  Ook wordt completed_at bij een tweede 'submit' opnieuw gezet (tijdstip vervalst).
+
+Aanbeveling:
+  - In submitExam(): als completed_at niet NULL is -> weigeren (403) en niets schrijven.
+  - Overweeg StudentAnswer::save() alleen toe te staan zolang de poging open is
+    (extra WHERE-check in de query of check in de model-laag).
+  - Log de poging als 'exam_submit_after_completion' in de audit log.
+
+
+-------------------------------------------------------------------------------
+S-03  HOOG  Open zelfregistratie geeft iedereen toegang tot alle toetsen
+-------------------------------------------------------------------------------
+Locatie : htdocs/index.php (cases register/do_register)
+          app/controllers/AuthController.php, showRegister()/register()
+          app/controllers/StudentExamController.php, listExams()/dashboard()/startExam()
+
+Probleem:
+  - De docblock zegt "only if no users exist", maar de code controleert dat niet:
+    /?action=register is altijd bereikbaar en maakt een account met rol 'student' aan.
+    (De "eerste user wordt admin"-tak is dode code: Database::connect() maakt al een
+    default admin aan zodra de users-tabel leeg is.)
+  - Een student ziet via Exam::all() ALLE toetsen van ALLE docenten (ongeacht 'shared') en
+    kan met start_exam elke toets starten en dus alle vraagteksten lezen. Er is geen
+    publicatiestatus of koppeling student<->toets.
+  - Geen validatie van naam/e-mail; dubbele e-mail geeft een PDOException (zie S-11).
+  Gevolg: een onbekende kan zonder enige autorisatie een account maken en de inhoud van
+  elke toets inzien voordat deze wordt afgenomen.
+
+Aanbeveling:
+  - Zelfregistratie uitzetten (admin maakt accounts aan; die flow bestaat al) of achter
+    een uitnodigingscode/e-mailverificatie zetten.
+  - Introduceer een "gepubliceerd/actief"-vlag op exams en/of een expliciete toewijzing
+    (student of klas -> toets). listExams/dashboard/startExam alleen op die set.
+  - Valideer e-mail (filter_var) en vang het unique-constraint-geval netjes af.
+
+
+-------------------------------------------------------------------------------
+S-04  MIDDEL  CSRF-validatie is een no-op voor GET; state-changing acties via GET
+-------------------------------------------------------------------------------
+Locatie : app/helpers/csrf.php, validateCsrfToken()
+          Handlers: exam_delete, exam_duplicate, question_delete, student_delete,
+          api_key_toggle, api_key_delete, prompt_delete, delete_student_exam, clear_audit_log
+
+Probleem:
+  validateCsrfToken() begint met: if (REQUEST_METHOD !== 'POST') return;
+  Alle bovengenoemde handlers lezen hun id uit $_GET en zijn dus met een simpele GET
+  (bijv. <img src="/?action=clear_audit_log">) uit te voeren zonder token. De JS in
+  layouts/main.php zet de links wel om naar POST-formulieren, maar de server dwingt dat
+  niet af. Op dit moment voorkomt alleen SameSite=Strict op de sessiecookie cross-site
+  misbruik; die enkele laag is de volledige verdediging. Een link/redirect binnen dezelfde
+  site (same-site) omzeilt SameSite volledig.
+
+Aanbeveling:
+  - Laat validateCsrfToken() bij niet-POST verzoeken een 405 geven (of vereis expliciet
+    POST in elke muterende handler) in plaats van stilzwijgend te slagen.
+  - Lees ids in muterende handlers uit $_POST, niet uit $_GET.
+  - Vergelijk tokens met hash_equals().
+
+
+-------------------------------------------------------------------------------
+S-05  MIDDEL  SQLite foreign keys staan uit
+-------------------------------------------------------------------------------
+Locatie : config/database.php, Database::connect()
+          htdocs/setup/schema.sql (ON DELETE CASCADE / RESTRICT / SET NULL)
+
+Probleem:
+  SQLite dwingt foreign keys alleen af na "PRAGMA foreign_keys = ON" per verbinding.
+  Dat gebeurt nergens. Gevolgen:
+  - Exam::delete() laat questions, student_exams en student_answers als wezen achter.
+    Verwijderde toetsen en studentantwoorden blijven dus fysiek in de database.
+  - StudentExam::delete() laat student_answers achter; user-delete laat exams achter met
+    een ongeldige docent_id (RESTRICT wordt genegeerd) en student_exams van die gebruiker.
+  - Het "SET NULL" op audit_log.user_id werkt niet.
+  Privacy-impact: "verwijderen" van studentresultaten verwijdert de antwoorden niet.
+
+Aanbeveling:
+  - Direct na het aanmaken van de PDO: $pdo->exec('PRAGMA foreign_keys = ON');
+  - Eenmalige opschoonquery voor reeds bestaande wezen (questions/student_exams/
+    student_answers zonder bestaand ouder-record).
+  - Test dat verwijderen van een toets alle gekoppelde rijen opruimt.
+
+
+-------------------------------------------------------------------------------
+S-06  MIDDEL  Studenten kunnen antwoorden koppelen aan vragen van andere toetsen
+-------------------------------------------------------------------------------
+Locatie : app/controllers/StudentExamController.php, submitExam()
+          app/models/StudentAnswer.php, save()
+
+Probleem:
+  foreach ($_POST['answers'] as $questionId => $answer) slaat elk (question_id, answer)
+  op onder de eigen student_exam_id, zonder te controleren of question_id bij de toets
+  van deze poging hoort. Een student kan zo:
+  - antwoorden op willekeurige question_ids van andere toetsen aan zijn poging hangen;
+    die verschijnen bij de docent in view_student_answers (JOIN op questions) inclusief
+    de vraagtekst van de andere toets;
+  - AI-beoordelingsjobs genereren voor vragen van andere toetsen (kosten).
+
+Aanbeveling:
+  - Haal de vraag-ids van de toets op en negeer/weiger alle keys die daar niet in zitten.
+  - Cast question_id naar int; begrens de lengte van een antwoord (bijv. 20.000 tekens).
+
+
+-------------------------------------------------------------------------------
+S-07  MIDDEL  Geen brute-force-bescherming; mislukte logins niet gelogd
+-------------------------------------------------------------------------------
+Locatie : app/controllers/AuthController.php, login()
+
+Probleem:
+  - Onbeperkt aantal loginpogingen per account/IP. Gecombineerd met het gedocumenteerde
+    standaardaccount admin@school.nl / admin123 en het ontbreken van een wachtwoordbeleid
+    (S-16) is dit realistisch misbruikbaar.
+  - Alleen 'login_success' wordt gelogd; mislukte pogingen zijn onzichtbaar in de audit log.
+
+Aanbeveling:
+  - Log 'login_failed' (e-mail + IP) in de audit log.
+  - Tijdelijke blokkade/backoff na N mislukte pogingen per account en per IP
+    (bijv. tabel login_attempts of rate limiting op de webserver).
+  - Overweeg verplicht wijzigen van het standaardwachtwoord bij eerste start
+    (force_password_change staat al op 1; goed) plus een sterkte-eis.
+
+
+-------------------------------------------------------------------------------
+S-08  MIDDEL  Onbeperkt gastpogingen via publieke link
+-------------------------------------------------------------------------------
+Locatie : app/controllers/StudentExamController.php, guestEntry()/guestStart()
+
+Probleem:
+  Iedereen met de publieke link kan onbeperkt pogingen aanmaken met een willekeurige naam.
+  - Resource/kosten-DoS: elke ingeleverde poging met ai_grading_enabled=1 levert per
+    antwoord meerdere LLM-aanroepen op (twee cloud-modellen + injection-check).
+  - Naamsimitatie: een gast kan zich als medestudent voordoen; de docent kan echte en
+    valse pogingen niet onderscheiden.
+  - Er is geen mogelijkheid om een publieke link te sluiten/roteren of te laten verlopen.
+
+Aanbeveling:
+  - Vervalmoment en aan/uit-schakelaar voor public_token; mogelijkheid om te roteren.
+  - Rate limiting op guest_start per IP; max. aantal pogingen per link.
+  - Overweeg per-student eenmalige codes in plaats van een gedeelde link, of ten minste
+    een docent-goedkeuring voordat AI-beoordeling start.
+
+
+-------------------------------------------------------------------------------
+S-09  MIDDEL  Audit log zichtbaar voor alle docenten
+-------------------------------------------------------------------------------
+Locatie : app/controllers/DocentController.php, auditLog() -> requireRole('docent')
+
+Probleem:
+  Elke docent ziet de volledige log: vraagteksten en criteria van andere docenten
+  (question_create/question_update loggen de volledige tekst, inclusief oud/nieuw),
+  namen van gebruikers, IP-adressen, API-key-namen en admin-acties.
+
+Aanbeveling:
+  - Audit log alleen voor admin, of filter voor docenten op eigen exam_id/user_id.
+  - Log geen volledige vraag- en criteriateksten; een id + hash/samenvatting volstaat.
+
+
+-------------------------------------------------------------------------------
+S-10  MIDDEL  Docentbeoordelingen niet in audit log
+-------------------------------------------------------------------------------
+Locatie : app/controllers/DocentController.php, saveTeacherFeedback()
+
+Probleem:
+  Het wijzigen van teacher_score/teacher_feedback wordt niet gelogd, terwijl dit de
+  meest gevoelige mutatie in een toetssysteem is. Ook getOpenAnswers() (API-uitlezing
+  van studentantwoorden) wordt niet gelogd. Niet-traceerbaar wie welke score wanneer heeft
+  gezet of gewijzigd (relevant in combinatie met S-01).
+
+Aanbeveling:
+  - AuditLog::log('teacher_grade', [student_answer_id, old/new score, old/new feedback]).
+  - Log ook API-uitlezingen met api_key-id (niet de key zelf) en aantal records.
+
+
+-------------------------------------------------------------------------------
+S-11  MIDDEL  PHP-foutmeldingen zichtbaar (Docker)
+-------------------------------------------------------------------------------
+Locatie : docker/Dockerfile (geen php.ini), diverse controllers
+
+Probleem:
+  De php:8.2-apache image bevat standaard geen php.ini; PHP's ingebouwde default is
+  display_errors=On. Uncaught exceptions (dubbele e-mail bij register/student_store,
+  ongeldige rol via CHECK-constraint, TypeErrors uit S-22) en "Undefined index"-warnings
+  (bijv. /?action=questions zonder exam_id) tonen dan padnamen, stack traces en
+  queryfragmenten aan de gebruiker.
+
+Aanbeveling:
+  - In Dockerfile: RUN mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini"
+    (display_errors=Off, log_errors=On, expose_php=Off).
+  - Een centrale exception handler in htdocs/index.php die een generieke foutpagina toont
+    en de details naar error_log schrijft.
+
+
+-------------------------------------------------------------------------------
+S-12  MIDDEL  Stored XSS via toetstitel in <title>
+-------------------------------------------------------------------------------
+Locatie : app/views/layouts/main.php regel 33:  <title><?= $title ?? '...' ?></title>
+          app/views/student/view_results.php regel 127: $title = "Resultaten - " . $exam['title']
+
+Probleem:
+  $title wordt zonder escaping geprint. In view_results.php bevat $title de toetstitel.
+  Een docent (of iemand met een docent-/adminsessie, of via een gedeelde toets) kan met
+  een titel als  </title><script>...</script>  JavaScript uitvoeren bij elke student en
+  gast die de resultaten bekijkt. CSP staat 'unsafe-inline' toe (S-19), dus dit wordt
+  niet geblokkeerd.
+  Overige onge-escapete plekken zijn nu constanten ($_SESSION['error'],
+  $_SESSION['success_message'], created_at/started_at kolommen) maar horen ook door
+  htmlspecialchars() te gaan zodat een toekomstige wijziging geen XSS introduceert.
+
+Aanbeveling:
+  - <title><?= htmlspecialchars($title ?? '...') ?></title>
+  - Escape consequent ALLE dynamische output, ook sessieberichten en datums.
+  - Overweeg een kleine helper e($x) = htmlspecialchars($x, ENT_QUOTES, 'UTF-8').
+
+
+-------------------------------------------------------------------------------
+S-13  MIDDEL  CSV formula injection in export
+-------------------------------------------------------------------------------
+Locatie : app/controllers/DocentController.php, exportExamComparison()
+
+Probleem:
+  De CSV bevat student_name (bij gasten vrij invulbaar door de student, S-08),
+  question_text en scores. Een gastnaam als  =HYPERLINK("http://evil";"klik")  of
+  =cmd|'/C calc'!A0  wordt door Excel/LibreOffice als formule uitgevoerd wanneer de docent
+  het bestand opent.
+
+Aanbeveling:
+  - Velden die beginnen met = + - @ TAB CR voorzien van een voorloop-apostrof (') of
+    escapen met een spatie; toepassen op alle tekstkolommen in fputcsv().
+
+
+-------------------------------------------------------------------------------
+S-14  MIDDEL  API-key in query string, platte opslag, geen rate limiting
+-------------------------------------------------------------------------------
+Locatie : app/controllers/ApiController.php, verifyApiKey() ($_GET['api_key'])
+          app/models/ApiKey.php (opslag), bin/process_ai_feedback.py (params=api_key)
+
+Probleem:
+  - De key staat in de URL en komt daardoor in Apache access logs, proxy-logs en
+    browser/tool-history terecht. De worker stuurt hem zowel als query-param als in de
+    JSON-body (dubbel).
+  - Keys worden in platte tekst opgeslagen; een database-lek geeft direct werkende keys.
+  - Geen rate limiting of IP-restrictie op de API; brute force op een 64-hex key is niet
+    realistisch, maar misbruik van een gelekte key is onbeperkt.
+  - De API geeft bij een geldige key ALLE openstaande antwoorden, criteria en prompts
+    van alle docenten terug (by design, maar wel benoemen: de key is een systeemsleutel).
+
+Aanbeveling:
+  - Key via header (Authorization: Bearer ...) en de worker daarop aanpassen.
+  - Opslaan als hash (sha256 volstaat voor random 256-bit keys); vergelijk met hash_equals.
+  - last_used_at bijhouden en tonen; log API-gebruik (S-10).
+
+
+-------------------------------------------------------------------------------
+S-15  MIDDEL  Studentantwoorden naar Ollama Cloud (privacy/config)
+-------------------------------------------------------------------------------
+Locatie : bin/config.py, bin/config.py.sample (LLM_MODELS = gpt-oss:*-cloud)
+          README.md ("compatible with local deployment to support data privacy")
+
+Probleem:
+  De standaardconfiguratie stuurt studentantwoorden, vraagteksten en criteria naar
+  ollama.com. De privacyverklaring/README suggereert lokale verwerking. Dit is een
+  verwerkersrelatie (AVG) die expliciet gedocumenteerd en gecontracteerd moet zijn.
+  Tevens: de worker doet HTTP-calls naar de webapp (BASE_URL http://localhost:8080 in de
+  lokale config); in productie moet dit TLS zijn, anders reist de API-key in het klare.
+
+Aanbeveling:
+  - Maak de keuze lokaal/cloud expliciet in config en in de privacypagina.
+  - Documenteer welke data de instantie verlaat; overweeg pseudonimisering
+    (student_answer_id is al voldoende; er gaat geen naam mee, dat is goed).
+  - Vereis https voor BASE_URL buiten localhost.
+
+
+-------------------------------------------------------------------------------
+S-16  LAAG  Geen wachtwoordbeleid; wijzigen zonder huidig wachtwoord
+-------------------------------------------------------------------------------
+Locatie : AuthController::register()/updatePassword(), StudentController::store()/update()
+
+Probleem:
+  - Geen minimale lengte of sterkte-eis; "a" is een geldig wachtwoord.
+  - updatePassword() en StudentController::update() (eigen profiel) wijzigen het wachtwoord
+    zonder het huidige wachtwoord te vragen. Een gekaapte sessie kan het account overnemen.
+  - Na wachtwoordwijziging worden andere sessies niet ongeldig gemaakt.
+
+Aanbeveling:
+  - Minimaal 12 tekens (of zxcvbn-achtige check); server-side afdwingen.
+  - Huidig wachtwoord vereisen bij wijziging via profiel (niet bij force_password_change).
+  - session_regenerate_id() na wachtwoordwijziging.
+
+
+-------------------------------------------------------------------------------
+S-17  LAAG  Gast-toegangstoken in URL
+-------------------------------------------------------------------------------
+Locatie : DocentController::viewStudentAnswers() (shareableLink),
+          StudentExamController::takeExam()/viewResults() ($_GET['token']),
+          app/views/student/view_results.php regel 35
+
+Probleem:
+  Het access_token (de enige authenticatie van een gast) staat in de URL en belandt in
+  serverlogs, browserhistorie en mogelijk Referer-headers (er is geen Referrer-Policy en
+  de pagina laadt externe CDN-resources). Tokens verlopen nooit.
+
+Aanbeveling:
+  - Bij ontvangst van ?token=... : cookie zetten en direct redirecten naar dezelfde URL
+    zonder token (token uit de adresbalk halen).
+  - Header "Referrer-Policy: same-origin" (zie S-19).
+  - Vervaltijd op gasttokens.
+
+
+-------------------------------------------------------------------------------
+S-18  LAAG  API submit_ai_feedback: onvoldoende validatie
+-------------------------------------------------------------------------------
+Locatie : app/controllers/ApiController.php, submitAiFeedback()
+          app/models/StudentAnswer.php, updateAiFeedback()
+
+Probleem:
+  - student_answer_id wordt niet als int gevalideerd en niet op bestaan gecontroleerd.
+  - ai_feedback heeft geen lengtelimiet (opslag-DoS) en geen typecheck (array -> fout).
+  - De webapp parseert scores met een regex uit vrije tekst ("Model: ... Aantal punten: N").
+    De worker filtert die labels uit modeluitvoer (goed), maar de API zelf vertrouwt de
+    tekst blind. Ieder met de API-key kan willekeurige scores/modelnamen injecteren.
+  - ai_updated_at wordt nooit gezet.
+
+Aanbeveling:
+  - Gestructureerd JSON accepteren ({model, score, feedback}[]) en in aparte kolommen of
+    als JSON opslaan; scores valideren tegen {0,1,5,10}.
+  - Max. lengte (bijv. 20 kB), int-cast, 404 bij onbekend id, ai_updated_at zetten.
+
+
+-------------------------------------------------------------------------------
+S-19  LAAG  HTTP security headers
+-------------------------------------------------------------------------------
+Locatie : app/views/layouts/main.php (headers), views met externe scripts
+
+Probleem:
+  - CSP script-src bevat 'unsafe-inline' (nodig voor de inline scripts) en staat hele
+    CDN-origins toe; daarmee biedt CSP nauwelijks XSS-bescherming (zie S-12).
+  - Strict-Transport-Security wordt ook over plain HTTP gestuurd (wordt door browsers
+    genegeerd, maar geeft een verkeerd beeld; hoort op de TLS-terminator te staan).
+  - Ontbreken: Referrer-Policy, X-Content-Type-Options: nosniff, Permissions-Policy.
+  - X-XSS-Protection is verouderd en kan in oude browsers zelf lekken veroorzaken.
+  - Externe scripts zonder Subresource Integrity; chart.js wordt ongepind ("latest")
+    geladen. Een compromis van het CDN of een breaking release raakt de app direct.
+  - De API-endpoints (htdocs/api/index.php) sturen geen enkele security header.
+
+Aanbeveling:
+  - Inline scripts naar bestanden verplaatsen of nonces gebruiken; 'unsafe-inline' weg.
+  - Versies pinnen + integrity/crossorigin-attributen, of assets lokaal serveren.
+  - Headers centraal zetten (Apache-config of een bootstrap-include voor alle entrypoints).
+
+
+-------------------------------------------------------------------------------
+S-20  LAAG  Setup-map bereikbaar via de webserver
+-------------------------------------------------------------------------------
+Locatie : htdocs/setup/init_db.php, htdocs/setup/schema.sql, docker/Dockerfile
+
+Probleem:
+  - /setup/init_db.php is via de browser uitvoerbaar. Het schema gebruikt IF NOT EXISTS
+    dus er gaat niets verloren, maar het script schrijft wel naar de database en maakt
+    mappen met 0777 aan.
+  - /setup/schema.sql is downloadbaar (schema-disclosure).
+  - Apache default Options bevat Indexes: /images/, /js/, /setup/ tonen een listing.
+  - Er is geen .htaccess of Apache-config die dit afschermt.
+
+Aanbeveling:
+  - Verplaats setup/ buiten htdocs (bijv. naar bin/ of scripts/) en roep het aan met de
+    php-CLI, zoals entrypoint.sh al doet.
+  - "Options -Indexes" in de Apache-config van de Dockerfile.
+
+
+-------------------------------------------------------------------------------
+S-21  LAAG  Gedeelde toets geeft volledige controle aan andere docenten
+-------------------------------------------------------------------------------
+Locatie : DocentController::checkExamOwnership()
+
+Probleem:
+  shared=1 wordt behandeld als eigenaarschap: iedere docent mag de toets bewerken,
+  vragen verwijderen, de toets zelf verwijderen, resultaten verwijderen en gastnamen
+  wijzigen. Vermoedelijk is "delen" bedoeld als inzien/beoordelen.
+
+Aanbeveling:
+  - Onderscheid tussen eigenaar (alles) en gedeeld (lezen + beoordelen); destructieve
+    acties alleen voor eigenaar/admin.
+
+
+-------------------------------------------------------------------------------
+S-22  LAAG  Invoervalidatie: TypeErrors en ontbrekende ids
+-------------------------------------------------------------------------------
+Locatie : StudentExamController::submitExam() ($_POST['answers'] als string ->
+          foreach-warning), viewResults()/guestStart() (json_decode van cookie
+          guest_history -> in_array() op non-array = TypeError), htdocs/index.php
+          ($_GET['exam_id'], $_GET['student_exam_id'] zonder isset), diverse $_POST['..']
+          zonder ??.
+
+Probleem:
+  Ongeldige input geeft PHP-fouten (500) i.p.v. een nette 400. In combinatie met S-11
+  lekt dat interne informatie. Impact verder beperkt (meestal alleen de aanvrager zelf).
+
+Aanbeveling:
+  - Centrale input-helpers: int-cast + bestaanscontrole voor ids; is_array()-checks;
+    json_decode-resultaat valideren; 400 bij ontbrekende verplichte velden.
+
+
+-------------------------------------------------------------------------------
+S-23  LAAG  Sessiebeheer
+-------------------------------------------------------------------------------
+Locatie : htdocs/index.php (session_set_cookie_params), AuthController::logout()
+
+Probleem:
+  - Geen idle- of absolute timeout; sessie leeft zolang de browser open is
+    (server-side gc afhankelijk van php.ini defaults, 24 min maar niet gegarandeerd).
+  - logout() roept session_destroy() aan maar leegt $_SESSION niet en verwijdert de
+    cookie niet (setcookie met verleden datum ontbreekt).
+  - 'secure' wordt afgeleid van $_SERVER['HTTPS']; achter een reverse proxy met TLS-
+    terminatie (typische productie) is dat leeg en gaat de cookie zonder Secure-flag.
+  - Rol wordt uit de sessie gelezen; na een rolwijziging door admin houdt de gebruiker
+    de oude rol tot hij uitlogt.
+
+Aanbeveling:
+  - last_activity in sessie bijhouden; na X minuten inactiviteit uitloggen.
+  - Bij logout: $_SESSION = []; cookie ongeldig maken; session_destroy().
+  - Secure-flag configureerbaar maken of X-Forwarded-Proto respecteren.
+
+
+-------------------------------------------------------------------------------
+S-24  LAAG  Gastcookies en cookie-consent
+-------------------------------------------------------------------------------
+Locatie : StudentExamController::guestStart()/viewResults()/guestLogout(),
+          layouts/main.php (cookiebanner)
+
+Probleem:
+  - setcookie() met de oude signatuur: geen SameSite-attribuut (browser-default Lax).
+  - guest_history bevat de volledige lijst toegangstokens van alle gemaakte toetsen,
+    30 dagen geldig; verlies van deze ene cookie geeft toegang tot alle resultaten.
+  - De banner vraagt om begrip, maar cookies zijn al gezet; bij functionele cookies is dat
+    toegestaan, mits de privacypagina dat correct beschrijft (controleer).
+
+Aanbeveling:
+  - setcookie() met options-array: ['samesite' => 'Strict', 'httponly' => true, ...].
+  - Overweeg guest_history alleen ids te laten bevatten en tokens server-side te koppelen.
+
+
+-------------------------------------------------------------------------------
+S-25  INFO  Privacy en retentie
+-------------------------------------------------------------------------------
+  - Audit log slaat IP-adressen en volledige toetsinhoud onbeperkt op; alleen admin kan
+    de hele log wissen (alles of niets). Overweeg retentietermijn en gerichte opschoning.
+  - Gastnamen zijn persoonsgegevens; er is geen verwijderproces voor gastpogingen anders
+    dan door de docent (en dat verwijdert door S-05 de antwoorden niet).
+  - AI-feedback bevat mogelijk citaten uit het studentantwoord; wordt ook naar cloud-
+    modellen gestuurd (S-15).
+
+
+-------------------------------------------------------------------------------
+S-26  INFO  Dode/verwarrende beveiligingslogica
+-------------------------------------------------------------------------------
+  - AuthController::register(): "eerste gebruiker wordt admin" is onbereikbaar (S-03).
+  - StudentController::store(): check "role === admin && rol !== admin" is dood, want
+    de handler is al admin-only. Rol wordt niet tegen een whitelist gevalideerd
+    (DB CHECK vangt het, maar via een exception).
+  - requireLogin() + requireRole() worden dubbel aangeroepen; requireRole() doet al
+    requireLogin(). Onschuldig, maar maak het consistent zodat het niet ergens vergeten
+    wordt (PromptController en ApiKeyController gebruiken alleen requireRole).
+  - htdocs/js/modal.js is gemarkeerd als "niet meer in gebruik"; verwijderen.
+  - index.php serveert de API-acties ook via de sessie-router (open_student_answers,
+    submit_ai_feedback); een enkel entrypoint voor de API is overzichtelijker.
+
+
+-------------------------------------------------------------------------------
+VOORGESTELDE VOLGORDE VOOR DE VOLGENDE RONDE
+-------------------------------------------------------------------------------
+1. S-01, S-02, S-06  (integriteit van toetsresultaten; kleine, gerichte fixes)
+2. S-03              (registratie sluiten / toetszichtbaarheid)
+3. S-04, S-05, S-11  (CSRF op GET, PRAGMA foreign_keys, php.ini-production)
+4. S-07, S-10, S-09  (logging en brute force)
+5. S-12, S-13, S-19  (output-escaping, CSV, headers/SRI)
+6. S-08, S-14, S-15, S-17, S-18  (gastflow, API-hardening, privacy)
+7. Overige LAAG/INFO

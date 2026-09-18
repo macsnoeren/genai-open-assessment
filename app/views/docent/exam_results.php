@@ -29,15 +29,17 @@
     <tr>
       <td><?= htmlspecialchars($se['name']) ?></td>
       <td class="font-monospace"><?= htmlspecialchars($se['unique_id']) ?></td>
-      <td><?= $se['started_at'] ?></td>
-      <td><?= $se['completed_at'] ?? 'Nog niet ingeleverd' ?></td>
+      <td><?= e($se['started_at']) ?></td>
+      <td><?= e($se['completed_at'] ?? 'Nog niet ingeleverd') ?></td>
       <td class="text-end">
         <div class="btn-group btn-group-sm">
             <a href="/?action=view_student_answers&student_exam_id=<?= $se['student_exam_id'] ?>" class="btn btn-outline-secondary">Bekijken</a>
             <a href="/?action=grade_student_exam&student_exam_id=<?= $se['student_exam_id'] ?>" class="btn btn-outline-primary">Beoordelen (Blind)</a>
         </div>
-    <a href="/?action=delete_student_exam&student_exam_id=<?= $se['student_exam_id'] ?>" 
+    <?php if (!empty($canEdit)): ?>
+    <a href="/?action=delete_student_exam&student_exam_id=<?= (int)$se['student_exam_id'] ?>" 
        data-confirm="Weet je zeker dat je dit resultaat wilt verwijderen? Alle antwoorden en feedback gaan verloren." class="btn btn-sm btn-outline-danger ms-1">Verwijderen</a>
+    <?php endif; ?>
       </td>
     </tr>
     <?php endforeach; ?>

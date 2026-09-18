@@ -32,7 +32,7 @@ ob_start(); ?>
                             <td><?= htmlspecialchars($se['exam_title'] ?? 'Toets') ?></td>
                             <td><?= htmlspecialchars($se['completed_at']) ?></td>
                             <td class="text-end">
-                                <a href="/?action=student_view_results&student_exam_id=<?= $se['id'] ?><?= $isGuest ? '&token='.$se['access_token'] : '' ?>" class="btn btn-sm btn-outline-primary">Bekijken</a>
+                                <a href="/?action=student_view_results&student_exam_id=<?= (int)$se['id'] ?>" class="btn btn-sm btn-outline-primary">Bekijken</a>
                             </td>
                         </tr>
                         <?php endforeach; ?>
@@ -124,7 +124,7 @@ ob_start(); ?>
 
 <?php
 $content = ob_get_clean();
-$title = isset($exam) ? "Resultaten - " . $exam['title'] : "Mijn Resultaten Overzicht";
+$title = isset($exam) ? "Resultaten - " . $exam['title'] : "Mijn Resultaten Overzicht"; // wordt in de layout ge-escaped
 $breadcrumbs = [];
 if (empty($isGuest)) {
     $breadcrumbs = [
