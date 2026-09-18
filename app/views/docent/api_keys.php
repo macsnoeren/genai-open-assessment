@@ -17,7 +17,11 @@ if (isset($_SESSION['new_api_key'])):
     <strong>Nieuwe API-key succesvol aangemaakt!</strong><br>
     Dit is de enige keer dat de volledige key wordt getoond. Kopieer hem nu en bewaar hem op een veilige plek.<br><br>
     <strong>Naam:</strong> <?= htmlspecialchars($newKeyData['name']) ?><br>
-    <strong>Key:</strong> <input type="text" readonly onclick="this.select();" value="<?= htmlspecialchars($newKeyData['key']) ?>" class="form-control font-monospace mt-2">
+    <strong>Key:</strong>
+    <div class="input-group mt-2">
+        <input type="text" id="newApiKeyValue" readonly onclick="this.select();" value="<?= htmlspecialchars($newKeyData['key']) ?>" class="form-control font-monospace">
+        <button class="btn btn-outline-secondary" type="button" onclick="copyLink('newApiKeyValue')" title="Kopieer key">📋</button>
+    </div>
 </div>
 <?php endif; ?>
 
@@ -36,6 +40,7 @@ if (isset($_SESSION['new_api_key'])):
     <tr>
       <th>Naam</th>
       <th>Key (gedeeltelijk)</th>
+      <th>Status</th>
       <th>Aangemaakt</th>
       <th class="text-end">Acties</th>
     </tr>
@@ -45,8 +50,21 @@ if (isset($_SESSION['new_api_key'])):
     <tr>
       <td><?= htmlspecialchars($key['name']) ?></td>
       <td class="font-monospace"><?= htmlspecialchars(substr($key['api_key'], 0, 8)) ?>...</td>
+      <td>
+        <?php if ($key['active']): ?>
+        <span class="badge bg-success">Actief</span>
+        <?php else: ?>
+        <span class="badge bg-secondary">Uitgeschakeld</span>
+        <?php endif; ?>
+      </td>
       <td><?= $key['created_at'] ?></td>
       <td class="text-end">
+        <?php if ($key['active']): ?>
+        <a href="/?action=api_key_toggle&id=<?= $key['id'] ?>"
+           data-confirm="Weet je zeker dat je deze API-key tijdelijk wilt uitschakelen?" class="btn btn-sm btn-outline-secondary">Uitschakelen</a>
+        <?php else: ?>
+        <a href="/?action=api_key_toggle&id=<?= $key['id'] ?>" class="btn btn-sm btn-outline-success">Inschakelen</a>
+        <?php endif; ?>
         <a href="/?action=api_key_delete&id=<?= $key['id'] ?>"
            data-confirm="Weet je zeker dat je deze API-key wilt verwijderen?" class="btn btn-sm btn-outline-danger">Verwijderen</a>
       </td>
@@ -83,6 +101,20 @@ if (isset($_SESSION['new_api_key'])):
     </div>
   </div>
 </div>
+
+<script>
+function copyLink(elementId) {
+    var copyText = document.getElementById(elementId);
+    copyText.select();
+    copyText.setSelectionRange(0, 99999); // Voor mobiele apparaten
+
+    if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(copyText.value);
+    } else {
+        document.execCommand('copy');
+    }
+}
+</script>
 
 <?php
 $content = ob_get_clean();

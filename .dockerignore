@@ -1,0 +1,9 @@
+.git
+.gitignore
+database
+database/*
+bin/config.py
+bin/__pycache__
+*.pyc
+docs
+MANUAL.md

@@ -10,6 +10,18 @@ The system is designed with **educational validity, transparency, and auditabili
 
 ---
 
+## Snel testen met Docker (Apache + PHP)
+De webapplicatie (map `htdocs/`) draait op Apache met PHP en gebruikt een lokale SQLite-database, dus je kunt de software zonder verdere installatie lokaal uitproberen via Docker.
+
+```bash
+./docker/start.sh
+```
+De applicatie is daarna bereikbaar op [http://localhost:8080](http://localhost:8080), met een standaard admin-account (`admin@school.nl` / `admin123`).
+
+Zie [docker/README.md](docker/README.md) voor alle details (vereisten, handmatige commando's, stoppen, beperkingen).
+
+---
+
 ## Key principles
 - **Open questions as primary assessment form**  
   Focus on conceptual understanding and knowledge construction rather than recognition.
