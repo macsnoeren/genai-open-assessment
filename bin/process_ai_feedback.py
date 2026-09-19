@@ -56,6 +56,12 @@ def check_base_url() -> None:
 # INSTELLINGEN
 # =========================
 
+# De aanroepen gaan via /api/chat, niet /api/generate: bij /api/generate
+# past Ollama (0.34) de JSON-grammar op de denktekst toe zodra "think" aan
+# staat, waardoor de JSON in het "thinking"-veld belandt en "response" leeg
+# blijft. Een bestaande config met .../api/generate wordt hier omgezet.
+OLLAMA_CHAT_URL = re.sub(r'/api/generate/?$', '/api/chat', OLLAMA_URL)
+
 # Optionele instellingen uit config.py, met een fallback zodat een bestaande
 # config.py zonder deze waarden blijft werken.
 
@@ -91,18 +97,43 @@ MAX_FEEDBACK_CHARS = getattr(config, "MAX_FEEDBACK_CHARS", 1500)
 MAX_FEEDBACK_SENTENCES = getattr(config, "MAX_FEEDBACK_SENTENCES", 4)
 
 # "think"-instelling per modelfamilie (prefix-match op de modelnaam).
-# gpt-oss negeert think=False en redeneert dan op "medium"-niveau; die
-# onzichtbare tokens tellen mee voor num_predict en kappen de JSON af.
-# "low" verbruikt ~4x minder. Modellen zonder niveaus (qwen3 e.d.) kennen
-# alleen aan/uit, en daar betekent alles behalve False: denken AAN.
-THINK_LEVELS = getattr(config, "THINK_LEVELS", {"gpt-oss": "low"})
+# gpt-oss negeert think=False en redeneert dan op "medium"-niveau; "low"
+# verbruikt ~4x minder. Modellen zonder niveaus (qwen3 e.d.) kennen alleen
+# aan/uit. Voor qwen3 staat denken AAN: zonder denken volgt het instructies
+# slecht en blijft het in het feedback-veld doorratelen. De redeneertokens
+# zijn onzichtbaar maar tellen wel mee voor num_predict.
+THINK_LEVELS = getattr(config, "THINK_LEVELS", {"gpt-oss": "low", "qwen3": True})
 THINK_DEFAULT = False
 
 # Tokenbudget (num_predict) per aanroep. Redeneertokens tellen hierin mee,
-# dus dit moet ruimer zijn dan de zichtbare JSON alleen. Bij afkapping wordt
-# het budget voor een volgende poging automatisch verdubbeld.
-NUM_PREDICT_FEEDBACK = getattr(config, "NUM_PREDICT_FEEDBACK", 1500)
-NUM_PREDICT_INJECTION = getattr(config, "NUM_PREDICT_INJECTION", 600)
+# dus dit moet veel ruimer zijn dan de zichtbare JSON alleen. Als het budget
+# opgaat aan denken, wordt het voor een volgende poging verdubbeld tot
+# NUM_PREDICT_MAX (moet ruim binnen NUM_CTX blijven).
+NUM_PREDICT_FEEDBACK = getattr(config, "NUM_PREDICT_FEEDBACK", 5000)
+NUM_PREDICT_INJECTION = getattr(config, "NUM_PREDICT_INJECTION", 2000)
+NUM_PREDICT_MAX = getattr(config, "NUM_PREDICT_MAX", 7000)
+
+# Sampling-opties tegen herhalingslussen. Greedy/lage temperatuur leidt bij
+# qwen3 in denkmodus juist tot eindeloze herhaling (advies van Qwen zelf:
+# temperature 0.6, top_p 0.95, top_k 20, presence_penalty om herhaling te
+# dempen). Cloud-modellen negeren opties die ze niet kennen.
+SAMPLING_OPTIONS = getattr(config, "SAMPLING_OPTIONS", {
+    "temperature": 0.6,
+    "top_p": 0.95,
+    "top_k": 20,
+    "repeat_penalty": 1.1,
+    "presence_penalty": 1.0,
+})
+
+# Harde bovengrens (tekens) per tekstveld in het JSON-schema. De grammar
+# dwingt dan de sluitende quote af, zodat een model dat blijft doorratelen
+# de JSON niet meer open kan laten. Ruim boven de gevraagde lengte
+# (MAX_FEEDBACK_SENTENCES zinnen); limit_sentences knipt daarna alsnog.
+MAX_OUTPUT_FIELD_CHARS = getattr(config, "MAX_OUTPUT_FIELD_CHARS", 600)
+
+# Onder dit aandeel unieke zinnen in de uitvoer wordt aangenomen dat het
+# model in een herhalingslus zat (en niet dat het budget te krap was).
+REPETITION_UNIQUE_RATIO = 0.5
 
 # Toegestane scores. Alles daarbuiten wordt afgekeurd.
 ALLOWED_SCORES = {0, 1, 5, 10}
@@ -116,8 +147,8 @@ FEEDBACK_SCHEMA = {
     "type": "object",
     "properties": {
         "score": {"type": "integer", "enum": sorted(ALLOWED_SCORES)},
-        "feedback": {"type": "string"},
-        "uitleg": {"type": "string"},
+        "feedback": {"type": "string", "maxLength": MAX_OUTPUT_FIELD_CHARS},
+        "uitleg": {"type": "string", "maxLength": MAX_OUTPUT_FIELD_CHARS},
     },
     "required": ["score", "feedback", "uitleg"],
 }
@@ -127,13 +158,13 @@ INJECTION_SCHEMA = {
     "type": "object",
     "properties": {
         "injection": {"type": "boolean"},
-        "reason": {"type": "string"},
+        "reason": {"type": "string", "maxLength": MAX_OUTPUT_FIELD_CHARS},
     },
     "required": ["injection", "reason"],
 }
 
 DEFAULT_SYSTEM_PROMPT = """Je bent een automatisch beoordelingssysteem.
-Je mag GEEN uitleg, analyse of extra tekst geven.
+Je geeft GEEN analyse, onderbouwing of extra tekst buiten het gevraagde JSON.
 
 TAKEN:
 - Beoordeel het antwoord van de student.
@@ -406,6 +437,18 @@ def think_setting(model_name: str):
     return THINK_DEFAULT
 
 
+def looks_repetitive(text: str) -> bool:
+    """
+    True als de tekst grotendeels uit herhaalde zinnen bestaat. Kleine modellen
+    raken onder een JSON-grammar soms in een lus en blijven dezelfde zinnen
+    produceren tot het tokenbudget op is; dat is geen budgetprobleem.
+    """
+    sentences = [s.strip().lower() for s in re.split(r'(?<=[.!?])\s+', text) if s.strip()]
+    if len(sentences) < 6:
+        return False
+    return len(set(sentences)) / len(sentences) < REPETITION_UNIQUE_RATIO
+
+
 def call_ollama(model_name: str, system_prompt: str, user_prompt: str, schema: Dict, num_predict: int) -> Tuple[Optional[Dict], float]:
     """
     Doet een aanroep naar Ollama met gescheiden systeem- en gebruikersbericht
@@ -423,12 +466,15 @@ def call_ollama(model_name: str, system_prompt: str, user_prompt: str, schema: D
     for attempt in range(JSON_RETRY_ATTEMPTS + 1):
         payload = {
             "model": model_name,
-            "system": system_prompt,
-            "prompt": prompt,
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": prompt},
+            ],
             "stream": False,
             "format": schema,
             "think": think_setting(model_name),
             "options": {
+                **SAMPLING_OPTIONS,
                 "num_predict": current_num_predict,
                 "num_ctx": NUM_CTX,
             }
@@ -436,13 +482,14 @@ def call_ollama(model_name: str, system_prompt: str, user_prompt: str, schema: D
 
         start_time = time.time()
         try:
-            response = requests.post(OLLAMA_URL, json=payload, timeout=600)
+            response = requests.post(OLLAMA_CHAT_URL, json=payload, timeout=900)
             data = response.json()
         except (requests.RequestException, json.JSONDecodeError) as e:
             print(f"[{model_name}] Request error:", e)
             total_duration += time.time() - start_time
             continue
-        total_duration += time.time() - start_time
+        duration = time.time() - start_time
+        total_duration += duration
 
         if not isinstance(data, dict):
             print(f"[{model_name}] Onverwacht antwoord van Ollama: {data!r}")
@@ -451,8 +498,13 @@ def call_ollama(model_name: str, system_prompt: str, user_prompt: str, schema: D
             print(f"[{model_name}] Ollama fout: {data['error']}")
             continue
 
-        raw = data.get("response", "")
+        message = data.get("message") or {}
+        raw = message.get("content", "")
+        thinking = message.get("thinking") or ""
         done_reason = data.get("done_reason")
+        eval_count = data.get("eval_count")
+        print(f"[{model_name}] Poging {attempt + 1}: {duration:.1f}s, {eval_count} tokens "
+              f"(budget {current_num_predict}), denktekst {len(thinking)} tekens, done_reason={done_reason}")
         if done_reason and done_reason != "stop":
             print(f"[{model_name}] Waarschuwing: generatie stopte met reden '{done_reason}' (mogelijk afgekapt).")
 
@@ -465,16 +517,25 @@ def call_ollama(model_name: str, system_prompt: str, user_prompt: str, schema: D
             print(f"[{model_name}] Kon geen geldige JSON vinden (poging {attempt + 1}/{JSON_RETRY_ATTEMPTS + 1}), done_reason={done_reason}")
         else:
             print(f"[{model_name}] JSON mist verplichte velden {missing_keys} (poging {attempt + 1}/{JSON_RETRY_ATTEMPTS + 1}): {parsed}")
-        print("RAW OUTPUT:", raw)
+        print("RAW OUTPUT:", raw[:MAX_FEEDBACK_CHARS])
+
+        # Twee oorzaken van afkapping vragen om tegengestelde remedies:
+        # - het model zat in een herhalingslus: méér budget helpt niet, en de
+        #   lus-tekst mag niet terug de context in (versterkt het patroon);
+        # - het budget ging op aan redeneren (lege of nauwelijks begonnen
+        #   output): dan juist wel meer ruimte geven.
+        repetitive = looks_repetitive(raw)
+        if repetitive:
+            print(f"[{model_name}] Uitvoer bestaat grotendeels uit herhaalde zinnen; vorige uitvoer wordt niet meegestuurd.")
+            previous_raw = "(uitvoer bestond uit eindeloos herhaalde zinnen en is weggelaten)"
+        else:
+            previous_raw = raw[:MAX_FEEDBACK_CHARS] or "(leeg antwoord)"
         prompt = user_prompt + CORRECTION_TEMPLATE.format(
-            previous_raw=raw[:MAX_FEEDBACK_CHARS] or "(leeg antwoord)",
+            previous_raw=previous_raw,
             required_keys=", ".join(schema.get("required", [])),
         )
-        # Sommige modellen gebruiken onzichtbare redeneertokens die meetellen voor
-        # num_predict, ook met think=False. Bij afkapping (done_reason=length) of
-        # een leeg antwoord geven we daarom meer ruimte voor de volgende poging.
-        if done_reason == "length" or not raw.strip():
-            current_num_predict = min(current_num_predict * 2, 4000)
+        if (done_reason == "length" or not raw.strip()) and not repetitive:
+            current_num_predict = min(current_num_predict * 2, NUM_PREDICT_MAX)
 
     return None, total_duration
 

@@ -16,8 +16,9 @@ BASE_URL = "https://test.jmnl.nl/api/index.php"
 # Zie docs/rollout-new-version.md.
 LEGACY_API_KEY_IN_QUERY = False
 
-# URL van de Ollama API
-OLLAMA_URL = "http://localhost:11434/api/generate"
+# URL van de Ollama API. Het script gebruikt /api/chat; een URL die op
+# /api/generate eindigt wordt automatisch omgezet.
+OLLAMA_URL = "http://localhost:11434/api/chat"
 
 # Lijst met LLM-modellen die gebruikt worden voor de beoordeling.
 # Cloud-modellen (Ollama Cloud, "-cloud" suffix) draaien op ollama.com i.p.v.
@@ -35,14 +36,27 @@ POLL_INTERVAL = 30
 INJECTION_CHECK_MODEL = "gpt-oss:20b-cloud"
 
 # "think"-instelling per modelfamilie (prefix-match). gpt-oss negeert False
-# en redeneert dan op "medium"; die tokens tellen mee voor num_predict en
-# kappen de JSON af. Modellen zonder niveaus (qwen3 e.d.) krijgen False.
-THINK_LEVELS = {"gpt-oss": "low"}
+# en redeneert dan op "medium"; "low" verbruikt ~4x minder. qwen3 kent alleen
+# aan/uit en staat AAN: zonder denken volgt het instructies slecht en ratelt
+# het door in het feedback-veld. Redeneertokens tellen mee voor num_predict.
+THINK_LEVELS = {"gpt-oss": "low", "qwen3": True}
 
-# Tokenbudget (num_predict) per aanroep. Redeneertokens tellen hierin mee.
-# Bij afkapping wordt het budget voor een volgende poging automatisch verdubbeld.
-NUM_PREDICT_FEEDBACK = 1500
-NUM_PREDICT_INJECTION = 600
+# Tokenbudget (num_predict) per aanroep. Redeneertokens tellen hierin mee,
+# dus met denken aan moet dit ruim zijn. Als het budget opgaat aan denken,
+# wordt het voor een volgende poging verdubbeld tot NUM_PREDICT_MAX.
+NUM_PREDICT_FEEDBACK = 5000
+NUM_PREDICT_INJECTION = 2000
+NUM_PREDICT_MAX = 7000
+
+# Harde bovengrens (tekens) per tekstveld in het JSON-schema; de grammar
+# dwingt dan het einde van de string af. De zichtbare output blijft zo klein,
+# ook al krijgt het model een ruim tokenbudget om te denken.
+MAX_OUTPUT_FIELD_CHARS = 600
+
+# Sampling-opties tegen herhalingslussen (advies van Qwen voor denkmodus;
+# greedy/lage temperatuur leidt daar juist tot eindeloze herhaling).
+# SAMPLING_OPTIONS = {"temperature": 0.6, "top_p": 0.95, "top_k": 20,
+#                     "repeat_penalty": 1.1, "presence_penalty": 1.0}
 
 # Maximale lengte (tekens) van de feedback- en uitlegtekst die wordt opgeslagen.
 # Langere tekst wordt op een woordgrens afgekapt met een [...]-markering.
