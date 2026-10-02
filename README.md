@@ -22,6 +22,14 @@ Zie [docker/README.md](docker/README.md) voor alle details (vereisten, handmatig
 
 ---
 
+## Documentatie voor ontwikkelaars
+- [ARCHITECTURE.md](ARCHITECTURE.md) — opbouw van de webapplicatie en de AI-worker, datamodel, contracten tussen de componenten, recepten voor uitbreidingen en hoe je deze opzet hergebruikt voor een nieuwe branch of applicatie.
+- [CLAUDE.md](CLAUDE.md) — werkafspraken, commando's en checklist (ook bedoeld voor Claude Code).
+- [MANUAL.md](MANUAL.md) — gebruikershandleiding.
+- [bin/README.md](bin/README.md) — de AI-feedbackworker.
+
+---
+
 ## Key principles
 - **Open questions as primary assessment form**  
   Focus on conceptual understanding and knowledge construction rather than recognition.
