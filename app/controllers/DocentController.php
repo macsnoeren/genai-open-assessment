@@ -17,6 +17,7 @@ require_once __DIR__ . '/../models/Prompt.php';
 require_once __DIR__ . '/../models/StudentAnswer.php';
 require_once __DIR__ . '/../models/StudentExam.php';
 require_once __DIR__ . '/../models/QuestionDesign.php';
+require_once __DIR__ . '/../models/AnswerAssessment.php';
 
 /**
  * Class DocentController
@@ -381,7 +382,10 @@ public function viewStudentAnswers($studentExamId) {
         abort(404, 'Toetspoging niet gevonden.');
     }
     $this->checkExamOwnership($studentExam['exam_id']);
-    $canEdit = $this->canEditExam(Exam::find($studentExam['exam_id']));
+    $exam = Exam::find($studentExam['exam_id']);
+    $canEdit = $this->canEditExam($exam);
+    // Agentic beoordelingen per antwoord (alleen in deze docentweergave, niet in de blinde beoordeling)
+    $assessmentRuns = AnswerAssessment::latestByStudentExam($studentExamId);
 
     // Genereer een deelbare link voor gaststudenten zodat zij hun resultaat kunnen inzien
     $shareableLink = null;

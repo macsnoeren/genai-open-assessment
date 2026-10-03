@@ -34,6 +34,7 @@ require_once __DIR__ . '/../app/controllers/StudentExamController.php';
 require_once __DIR__ . '/../app/controllers/ApiKeyController.php';
 require_once __DIR__ . '/../app/controllers/PromptController.php';
 require_once __DIR__ . '/../app/controllers/QuestionDesignController.php';
+require_once __DIR__ . '/../app/controllers/AnswerAssessmentController.php';
 
 $action = $_GET['action'] ?? 'login';
 if (!is_string($action)) {
@@ -47,6 +48,7 @@ $studentExamController = new StudentExamController();
 $apiKeyController = new ApiKeyController();
 $promptController = new PromptController();
 $questionDesignController = new QuestionDesignController();
+$answerAssessmentController = new AnswerAssessmentController();
 
 switch ($action) {
  case 'login':
@@ -247,6 +249,18 @@ switch ($action) {
 
  case 'save_teacher_feedback':
    $docent->saveTeacherFeedback();
+   break;
+
+ case 'answer_assessment_start':
+   $answerAssessmentController->start();
+   break;
+
+ case 'answer_assessment_start_exam':
+   $answerAssessmentController->startExam();
+   break;
+
+ case 'answer_assessment_view':
+   $answerAssessmentController->view();
    break;
 
  case 'delete_student_exam':

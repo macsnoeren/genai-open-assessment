@@ -65,6 +65,32 @@ ob_start();
 </div>
 <?php endif; ?>
 
+<?php $canAssess = !empty($exam['ai_grading_enabled']) && !empty($studentExam['completed_at']); ?>
+<div class="card mb-4">
+    <div class="card-body d-flex flex-wrap align-items-center gap-3">
+        <div class="flex-grow-1">
+            <strong>Agentic beoordelen</strong>
+            <div class="small text-muted">
+            <?php if (empty($exam['ai_grading_enabled'])): ?>
+                AI-beoordeling staat uit voor deze toets, dus agentic beoordelen kan hier niet. Zet AI-beoordeling aan bij de instellingen van de toets.
+            <?php elseif (empty($studentExam['completed_at'])): ?>
+                Deze toetspoging is nog niet ingeleverd.
+            <?php else: ?>
+                AI-agents zoeken per rubriccriterium bewijs in het antwoord, beoordelen en controleren elkaar. Jij keurt de beoordeling daarna goed.
+            <?php endif; ?>
+            </div>
+        </div>
+        <?php if ($canAssess): ?>
+        <form action="/?action=answer_assessment_start_exam" method="post" class="mb-0">
+            <?= csrfInput() ?>
+            <input type="hidden" name="student_exam_id" value="<?= (int)$studentExam['id'] ?>">
+            <button type="submit" class="btn btn-outline-primary btn-sm"
+                    data-confirm="Alle antwoorden van deze poging agentic laten beoordelen? Antwoorden die al een beoordeling hebben, worden overgeslagen.">Alle antwoorden agentic beoordelen</button>
+        </form>
+        <?php endif; ?>
+    </div>
+</div>
+
 <?php foreach ($answers as $a): ?>
 <div class="card mb-4" id="answer-<?= (int)$a['id'] ?>">
   <div class="card-header bg-light">
@@ -85,6 +111,32 @@ ob_start();
       <div class="alert alert-info">
           <strong>AI feedback:</strong><br>
           <?= nl2br(htmlspecialchars($a['ai_feedback'])) ?>
+      </div>
+      <?php endif; ?>
+
+      <?php $run = $assessmentRuns[(int)$a['id']] ?? null; ?>
+      <?php if ($run || $canAssess): ?>
+      <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+          <strong class="me-1">Agentic beoordeling:</strong>
+          <?php if ($run): ?>
+              <span class="badge <?= e(AnswerAssessment::statusClass($run['status'])) ?>"><?= e(AnswerAssessment::statusLabel($run['status'])) ?></span>
+              <?php if ($run['status'] === AnswerAssessment::STATUS_REVIEW): ?>
+                  <span class="small text-muted">voorstel <?= (int)$run['final_score'] ?> punten</span>
+                  <?php if ((int)$run['human_review_needed'] === 1): ?>
+                      <span class="badge bg-warning text-dark">Menselijke beoordeling nodig</span>
+                  <?php endif; ?>
+              <?php elseif ($run['status'] === AnswerAssessment::STATUS_APPROVED): ?>
+                  <span class="small text-muted">goedgekeurd met <?= (int)$run['teacher_score'] ?> punten</span>
+              <?php endif; ?>
+              <a href="/?action=answer_assessment_view&id=<?= (int)$run['id'] ?>" class="btn btn-sm btn-outline-secondary">Openen</a>
+          <?php else: ?>
+              <form action="/?action=answer_assessment_start" method="post" class="mb-0">
+                  <?= csrfInput() ?>
+                  <input type="hidden" name="student_answer_id" value="<?= (int)$a['id'] ?>">
+                  <button type="submit" class="btn btn-sm btn-outline-primary"
+                          data-confirm="Dit antwoord agentic laten beoordelen door de AI-agents?">Agentic beoordelen</button>
+              </form>
+          <?php endif; ?>
       </div>
       <?php endif; ?>
 

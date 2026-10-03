@@ -41,6 +41,29 @@ class StudentAnswer {
     return $stmt->fetch(PDO::FETCH_ASSOC);
   }
 
+  /**
+   * Antwoord met alles wat agentic beoordelen nodig heeft: toetspoging
+   * (completed_at), toets (exam_id, ai_grading_enabled, titel), vraag
+   * (question_text, criteria) en de naam van de student.
+   */
+  public static function findForAssessment($id) {
+    $pdo = Database::connect();
+    $stmt = $pdo->prepare("
+        SELECT sa.id, sa.student_exam_id, sa.question_id, sa.answer, sa.teacher_score, sa.teacher_feedback,
+               se.completed_at, se.exam_id, e.ai_grading_enabled, e.title AS exam_title,
+               q.question_text, q.criteria,
+               COALESCE(u.name, se.guest_name, 'Gast') AS student_name
+        FROM student_answers sa
+        JOIN student_exams se ON sa.student_exam_id = se.id
+        JOIN exams e ON se.exam_id = e.id
+        JOIN questions q ON sa.question_id = q.id
+        LEFT JOIN users u ON se.student_id = u.id
+        WHERE sa.id = ?
+    ");
+    $stmt->execute([$id]);
+    return $stmt->fetch(PDO::FETCH_ASSOC);
+  }
+
   public static function updateTeacherGrade($id, $score, $feedback) {
     $pdo = Database::connect();
     $stmt = $pdo->prepare("UPDATE student_answers SET teacher_score = ?, teacher_feedback = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?");
