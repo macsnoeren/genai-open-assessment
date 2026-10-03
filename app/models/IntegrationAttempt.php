@@ -57,6 +57,14 @@ class IntegrationAttempt {
     return $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
   }
 
+  /** Nieuwste pogingen van een koppeling (voor de detailpagina). */
+  public static function recentByIntegration($integrationId, int $limit): array {
+    $pdo = Database::connect();
+    $stmt = $pdo->prepare(self::SELECT . " WHERE ia.integration_id = ? ORDER BY ia.student_exam_id DESC LIMIT " . (int)$limit);
+    $stmt->execute([$integrationId]);
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+  }
+
   // ---------------------------------------------------------------------
   // Starten en de eenmalige startlink
   // ---------------------------------------------------------------------

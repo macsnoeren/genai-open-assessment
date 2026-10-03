@@ -48,6 +48,25 @@ class IntegrationEvent {
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
   }
 
+  /** Aantallen per toestand voor de detailpagina: afgeleverd, open (wacht op een poging) en opgegeven. */
+  public static function counts($id): array {
+    $pdo = Database::connect();
+    $stmt = $pdo->prepare("
+      SELECT SUM(delivered_at IS NOT NULL) AS delivered,
+             SUM(delivered_at IS NULL AND next_attempt_at IS NOT NULL) AS open,
+             SUM(delivered_at IS NULL AND next_attempt_at IS NULL) AS given_up
+      FROM integration_events
+      WHERE integration_id = ?
+    ");
+    $stmt->execute([$id]);
+    $row = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
+    return [
+      'delivered' => (int)($row['delivered'] ?? 0),
+      'open' => (int)($row['open'] ?? 0),
+      'given_up' => (int)($row['given_up'] ?? 0),
+    ];
+  }
+
   public static function recentByIntegration($id, int $limit): array {
     $pdo = Database::connect();
     $stmt = $pdo->prepare("

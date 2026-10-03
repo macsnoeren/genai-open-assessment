@@ -35,6 +35,7 @@ require_once __DIR__ . '/../app/controllers/ApiKeyController.php';
 require_once __DIR__ . '/../app/controllers/PromptController.php';
 require_once __DIR__ . '/../app/controllers/QuestionDesignController.php';
 require_once __DIR__ . '/../app/controllers/AnswerAssessmentController.php';
+require_once __DIR__ . '/../app/controllers/IntegrationController.php';
 
 $action = $_GET['action'] ?? 'login';
 if (!is_string($action)) {
@@ -49,6 +50,7 @@ $apiKeyController = new ApiKeyController();
 $promptController = new PromptController();
 $questionDesignController = new QuestionDesignController();
 $answerAssessmentController = new AnswerAssessmentController();
+$integrationController = new IntegrationController();
 
 switch ($action) {
  case 'login':
@@ -285,6 +287,42 @@ switch ($action) {
 
  case 'api_key_delete':
    $apiKeyController->delete();
+   break;
+   
+ case 'integrations':
+   $integrationController->index();
+   break;
+
+ case 'integration_create':
+   $integrationController->create();
+   break;
+
+ case 'integration_store':
+   $integrationController->store();
+   break;
+
+ case 'integration_edit':
+   $integrationController->edit();
+   break;
+
+ case 'integration_update':
+   $integrationController->update();
+   break;
+
+ case 'integration_rotate_secret':
+   $integrationController->rotateSecret();
+   break;
+
+ case 'integration_toggle':
+   $integrationController->toggle();
+   break;
+
+ case 'integration_delete':
+   $integrationController->delete();
+   break;
+
+ case 'integration_view':
+   $integrationController->view();
    break;
    
  case 'audit_log':
