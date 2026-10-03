@@ -491,6 +491,11 @@ class StudentExamController {
     unset($question);
 
     $answersRaw = StudentAnswer::allByStudentExam($studentExamId);
+    // Agentic AI-beoordeling per antwoord: de student ziet alleen score en feedback
+    $agenticResults = [];
+    foreach (AnswerAssessment::latestByStudentExam($studentExamId) as $answerId => $run) {
+        $agenticResults[$answerId] = AnswerAssessment::studentSummary($run);
+    }
     
     $answers = [];
     $totalScore = 0;
@@ -504,16 +509,9 @@ class StudentExamController {
           $scoredCount++;
       }
 
-      if (!empty($a['ai_feedback'])) {
-          preg_match_all('/Model:\s+(.+?)\s+.*?Aantal punten:\s+(\d+)/is', $a['ai_feedback'], $matches, PREG_SET_ORDER);
-          foreach ($matches as $match) {
-              $modelName = trim($match[1]);
-              $score = (int)$match[2];
-              if (!isset($aiModelScores[$modelName])) {
-                  $aiModelScores[$modelName] = [];
-              }
-              $aiModelScores[$modelName][] = $score;
-          }
+      $agentic = $agenticResults[(int)$a['id']] ?? null;
+      foreach (StudentAnswer::aiScores($a['ai_feedback'], $agentic['score'] ?? null) as $source => $score) {
+          $aiModelScores[$source][] = $score;
       }
     }
     $finalScore = $scoredCount > 0 ? $totalScore / $scoredCount : null;

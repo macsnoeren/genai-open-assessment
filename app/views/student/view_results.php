@@ -51,13 +51,13 @@ ob_start(); ?>
 
 <?php if (isset($finalScore) && $finalScore !== null): ?>
 <div class="alert alert-primary">
-    <strong>Eindscore (Gemiddelde):</strong> <?= number_format($finalScore, 1) ?>
+    <strong>Eindscore van je docent (gemiddelde):</strong> <?= number_format($finalScore, 1) ?>
 </div>
 <?php endif; ?>
 
 <?php if (!empty($finalAiScores)): ?>
 <div class="alert alert-info">
-    <strong>AI Model Scores (Gemiddelde):</strong>
+    <strong>AI-scores (gemiddelde):</strong> <small>automatisch door AI, ter informatie; je cijfer komt van je docent.</small>
     <ul class="mb-0 mt-1">
     <?php foreach ($finalAiScores as $model => $score): ?>
         <li><strong><?= htmlspecialchars($model) ?>:</strong> <?= number_format($score, 1) ?></li>
@@ -80,7 +80,7 @@ ob_start(); ?>
         <?php if ($a): ?>
             <?php if (isset($a['teacher_score']) || !empty($a['teacher_feedback'])): ?>
             <div style="margin-top: 10px; padding: 10px; background-color: #fff3cd; border-left: 4px solid #ffc107;">
-                <strong>Docent beoordeling:</strong><br>
+                <strong>Beoordeling door je docent:</strong><br>
                 <?php if (isset($a['teacher_score'])): ?>
                     Score: <strong><?= htmlspecialchars($a['teacher_score']) ?></strong><br>
                 <?php endif; ?>
@@ -96,14 +96,26 @@ ob_start(); ?>
             
             <hr>
 
+            <?php $agentic = $agenticResults[(int)$a['id']] ?? null; ?>
+            <?php if ($agentic): ?>
+                <div style="background: #e3f2fd; padding: 15px; border-left: 4px solid #2196f3; margin-bottom: 10px;">
+                    <strong style="color: #1565c0;">AI-beoordeling (agentic):</strong>
+                    <small style="color: #555;">automatisch door AI, niet door je docent</small><br>
+                    Score: <strong><?= (int)$agentic['score'] ?></strong><br>
+                    <?php if ($agentic['feedback'] !== ''): ?>
+                        Feedback: <?= nl2br(e($agentic['feedback'])) ?>
+                    <?php endif; ?>
+                </div>
+            <?php endif; ?>
             <?php if ($a['ai_feedback']): ?>
                 <div style="background: #e3f2fd; padding: 15px; border-left: 4px solid #2196f3;">
-                    <strong style="color: #1565c0;">AI Feedback:</strong><br>
+                    <strong style="color: #1565c0;">AI-feedback:</strong>
+                    <small style="color: #555;">automatisch door AI, niet door je docent</small><br>
                     <div style="margin-top: 5px; white-space: pre-wrap; font-family: monospace, sans-serif; font-size: 0.95em;">
 <?= htmlspecialchars($a['ai_feedback']) ?>
                     </div>
                 </div>
-            <?php else: ?>
+            <?php elseif (!$agentic): ?>
                 <div style="color: #666; font-style: italic; padding: 10px; background: #f5f5f5; border-radius: 4px;">
                     Nog geen feedback beschikbaar. Dit proces loopt op de achtergrond.
                 </div>

@@ -14,9 +14,12 @@ require_once __DIR__ . '/StudentAnswer.php';
 
 /**
  * Agentic beoordelingen van studentantwoorden: de assessment-agents (Evidence,
- * Assessment, Validation) beoordelen een antwoord met de rubric van de vraag,
- * de orchestrator in de worker beslist of menselijke beoordeling nodig is, en
- * de docent past aan en keurt goed.
+ * Assessment, Validation) beoordelen een antwoord met de rubric van de vraag en
+ * de orchestrator in de worker beslist of menselijke controle nodig is.
+ *
+ * Dit is een AI-beoordeling, net als ai_feedback: het resultaat komt nooit in de
+ * docentbeoordeling (student_answers.teacher_score/teacher_feedback). De docent
+ * beoordeelt altijd zelf en apart.
  *
  * Elke start is een nieuwe rij; een eerdere open of afgeronde run van hetzelfde
  * antwoord wordt superseded. De tabel is ook de wachtrij voor de
@@ -27,8 +30,7 @@ class AnswerAssessment {
 
   // Statussen (geen CHECK in het schema; dit is de bron van waarheid)
   const STATUS_PENDING = 'pending';
-  const STATUS_REVIEW = 'review';
-  const STATUS_APPROVED = 'approved';
+  const STATUS_DONE = 'done';
   const STATUS_FAILED = 'failed';
   const STATUS_SUPERSEDED = 'superseded';
 
@@ -55,7 +57,10 @@ class AnswerAssessment {
                   'alternative_reading', 'missing_or_conflicting', 'confidence'];
 
   /** JSON-kolommen die decode() omzet naar arrays. */
-  const JSON_COLUMNS = ['rubric', 'evidence', 'rounds', 'decision', 'run_log', 'teacher_criteria'];
+  const JSON_COLUMNS = ['rubric', 'evidence', 'rounds', 'decision', 'run_log'];
+
+  /** Naam van de agentic beoordeling als bron in de AI-statistieken, naast de modellen uit ai_feedback. */
+  const AI_SOURCE = 'Agentic AI';
 
   /**
    * Kopjes waaraan de webapp rubric-criteria herkent. Een grove controle: de
@@ -65,14 +70,13 @@ class AnswerAssessment {
   const RUBRIC_HEADINGS = ['Beoordelingscriteria:', 'Puntentoekenning:'];
 
   /** Statussen waarmee een antwoord bij agentic beoordelen hoort (niet bij process_ai_feedback). */
-  const ACTIVE_STATUSES = [self::STATUS_PENDING, self::STATUS_REVIEW, self::STATUS_APPROVED];
+  const ACTIVE_STATUSES = [self::STATUS_PENDING, self::STATUS_DONE];
 
   /** Nederlands label voor een status. */
   public static function statusLabel(string $status): string {
     switch ($status) {
       case self::STATUS_PENDING: return 'Wordt beoordeeld';
-      case self::STATUS_REVIEW: return 'Klaar voor controle';
-      case self::STATUS_APPROVED: return 'Goedgekeurd';
+      case self::STATUS_DONE: return 'Beoordeeld door AI';
       case self::STATUS_FAILED: return 'Mislukt';
       case self::STATUS_SUPERSEDED: return 'Vervangen';
       default: return 'Onbekend';
@@ -82,8 +86,7 @@ class AnswerAssessment {
   /** Bootstrap-klasse voor de statusbadge. */
   public static function statusClass(string $status): string {
     switch ($status) {
-      case self::STATUS_REVIEW: return 'bg-primary';
-      case self::STATUS_APPROVED: return 'bg-success';
+      case self::STATUS_DONE: return 'bg-info text-dark';
       case self::STATUS_FAILED: return 'bg-danger';
       case self::STATUS_SUPERSEDED: return 'bg-light text-muted border';
       default: return 'bg-secondary';
@@ -160,7 +163,7 @@ class AnswerAssessment {
    * Nieuwe run (status pending) met snapshots van vraag, criteria en antwoord.
    * $userId is null bij een automatisch gestarte run.
    * In dezelfde transactie worden de open en afgeronde runs van dit antwoord
-   * (pending, review, failed) superseded; een goedgekeurde run blijft staan.
+   * (pending, done, failed) superseded.
    */
   public static function create(int $studentAnswerId, ?int $userId, string $question, string $criteria, string $answer): int {
     $pdo = Database::connect();
@@ -172,7 +175,7 @@ class AnswerAssessment {
         WHERE student_answer_id = ? AND status IN (?, ?, ?)
       ");
       $stmt->execute([self::STATUS_SUPERSEDED, $studentAnswerId,
-                      self::STATUS_PENDING, self::STATUS_REVIEW, self::STATUS_FAILED]);
+                      self::STATUS_PENDING, self::STATUS_DONE, self::STATUS_FAILED]);
 
       $stmt = $pdo->prepare("
         INSERT INTO answer_assessments
@@ -191,14 +194,13 @@ class AnswerAssessment {
     }
   }
 
-  /** Eén run, met de namen van de aanvrager en de goedkeurder. */
+  /** Eén run, met de naam van de aanvrager. */
   public static function find($id) {
     $pdo = Database::connect();
     $stmt = $pdo->prepare("
-      SELECT aa.*, ur.name AS requested_by_name, ua.name AS approved_by_name
+      SELECT aa.*, ur.name AS requested_by_name
       FROM answer_assessments aa
       LEFT JOIN users ur ON aa.requested_by = ur.id
-      LEFT JOIN users ua ON aa.approved_by = ua.id
       WHERE aa.id = ?
     ");
     $stmt->execute([$id]);
@@ -245,7 +247,7 @@ class AnswerAssessment {
   public static function historyByAnswer($studentAnswerId): array {
     $pdo = Database::connect();
     $stmt = $pdo->prepare("
-      SELECT id, status, final_score, human_review_needed, teacher_score, created_at, updated_at
+      SELECT id, status, final_score, human_review_needed, created_at, updated_at
       FROM answer_assessments
       WHERE student_answer_id = ?
       ORDER BY id DESC
@@ -275,7 +277,7 @@ class AnswerAssessment {
   // Overgangen door de worker (alleen vanuit pending)
   // ---------------------------------------------------------------------
 
-  /** pending → review, met het genormaliseerde resultaat (zie normalizeResult()). */
+  /** pending → done, met het genormaliseerde resultaat (zie normalizeResult()). */
   public static function saveResult($id, array $result): bool {
     $pdo = Database::connect();
     $stmt = $pdo->prepare("
@@ -285,7 +287,7 @@ class AnswerAssessment {
       WHERE id = ? AND status = ?
     ");
     $stmt->execute([
-      self::STATUS_REVIEW,
+      self::STATUS_DONE,
       self::encode($result['rubric']),
       self::encode($result['evidence']),
       self::encode($result['rounds']),
@@ -309,46 +311,6 @@ class AnswerAssessment {
     ");
     $stmt->execute([self::STATUS_FAILED, $message, $id, self::STATUS_PENDING]);
     return $stmt->rowCount() > 0;
-  }
-
-  // ---------------------------------------------------------------------
-  // Goedkeuren door de docent
-  // ---------------------------------------------------------------------
-
-  /**
-   * review → approved: legt in één transactie de statussen per criterium, de
-   * score en de goedkeurder vast en zet de docentscore en -feedback op het
-   * antwoord (dezelfde velden als handmatig beoordelen). False (en niets
-   * gewijzigd) als de run niet (meer) in review staat.
-   *
-   * @param array $teacherCriteria nr => status (voldaan|deels|niet)
-   */
-  public static function approve($id, $userId, array $teacherCriteria, int $score, string $feedback): bool {
-    $pdo = Database::connect();
-    $pdo->beginTransaction();
-    try {
-      $stmt = $pdo->prepare("
-        UPDATE answer_assessments
-        SET status = ?, teacher_criteria = ?, teacher_score = ?, approved_by = ?,
-            approved_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
-        WHERE id = ? AND status = ?
-      ");
-      $stmt->execute([self::STATUS_APPROVED, self::encode($teacherCriteria), $score, $userId, $id, self::STATUS_REVIEW]);
-      if ($stmt->rowCount() === 0) {
-        $pdo->rollBack();
-        return false;
-      }
-      $stmt = $pdo->prepare("SELECT student_answer_id FROM answer_assessments WHERE id = ?");
-      $stmt->execute([$id]);
-      StudentAnswer::updateTeacherGrade((int)$stmt->fetchColumn(), $score, $feedback);
-      $pdo->commit();
-      return true;
-    } catch (Throwable $e) {
-      if ($pdo->inTransaction()) {
-        $pdo->rollBack();
-      }
-      throw $e;
-    }
   }
 
   // ---------------------------------------------------------------------
@@ -760,6 +722,38 @@ class AnswerAssessment {
   }
 
   // ---------------------------------------------------------------------
+  // De agentic beoordeling als AI-bron (naast ai_feedback)
+  // ---------------------------------------------------------------------
+
+  /**
+   * SQL-fragment (voor een SELECT met student_answers als $sa) dat de score van
+   * de actuele agentic beoordeling oplevert, of NULL. Zie aiScores().
+   */
+  public static function agenticScoreSql(string $sa = 'sa'): string {
+    return "(SELECT aa.final_score FROM answer_assessments aa
+             WHERE aa.student_answer_id = $sa.id AND aa.status = '" . self::STATUS_DONE . "'
+             ORDER BY aa.id DESC LIMIT 1)";
+  }
+
+  /**
+   * Wat de student van een agentic beoordeling ziet: alleen de score en de
+   * feedback van de AI (niet de citaten, redeneringen en controles), of null
+   * als de run (nog) niet klaar is.
+   */
+  public static function studentSummary(?array $run): ?array {
+    if (!$run || $run['status'] !== self::STATUS_DONE) {
+      return null;
+    }
+    $run = self::decode($run);
+    $rounds = $run['rounds'] ?? [];
+    $last = $rounds ? $rounds[count($rounds) - 1] : null;
+    return [
+      'score' => (int)$run['final_score'],
+      'feedback' => (string)($last['assessment']['feedback'] ?? ''),
+    ];
+  }
+
+  // ---------------------------------------------------------------------
   // Automatisch starten en de verdeling met process_ai_feedback
   // ---------------------------------------------------------------------
 
@@ -783,7 +777,7 @@ class AnswerAssessment {
   /**
    * SQL-voorwaarden die bepalen welke antwoorden NIET naar process_ai_feedback
    * gaan (te combineren met de wachtrij-voorwaarden van getPendingAiGrading()):
-   * - een antwoord met een actieve agentic run (pending, review of approved);
+   * - een antwoord met een actieve agentic run (pending of done);
    * - met AGENTIC_AUTO_ASSESSMENT: een niet-leeg antwoord op een vraag met
    *   rubric-kopjes zonder enige run; dat wordt automatisch agentic gestart.
    * Een antwoord waarvan de laatste run mislukte, gaat dus wel naar de gewone

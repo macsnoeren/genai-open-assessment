@@ -50,13 +50,13 @@ ob_start();
 
 <?php if (isset($finalScore) && $finalScore !== null): ?>
 <div class="alert alert-primary">
-    <strong>Eindscore (Gemiddelde):</strong> <?= number_format($finalScore, 1) ?>
+    <strong>Eindscore docent (gemiddelde van de docentscores):</strong> <?= number_format($finalScore, 1) ?>
 </div>
 <?php endif; ?>
 
 <?php if (!empty($finalAiScores)): ?>
 <div class="alert alert-info">
-    <strong>AI Model Scores (Gemiddelde):</strong>
+    <strong>AI-scores (gemiddelde, alleen ter vergelijking):</strong>
     <ul class="mb-0 mt-1">
     <?php foreach ($finalAiScores as $model => $score): ?>
         <li><strong><?= htmlspecialchars($model) ?>:</strong> <?= number_format($score, 1) ?></li>
@@ -76,7 +76,7 @@ ob_start();
             <?php elseif (empty($studentExam['completed_at'])): ?>
                 Deze toetspoging is nog niet ingeleverd.
             <?php else: ?>
-                AI-agents zoeken per rubriccriterium bewijs in het antwoord, beoordelen en controleren elkaar. Jij keurt de beoordeling daarna goed.
+                AI-agents zoeken per rubriccriterium bewijs in het antwoord, beoordelen en controleren elkaar. Dat levert een AI-beoordeling op, net als de AI-feedback; jouw eigen beoordeling staat daar los van.
             <?php endif; ?>
             </div>
         </div>
@@ -109,26 +109,26 @@ ob_start();
 
       <?php if ($a['ai_feedback']): ?>
       <div class="alert alert-info">
-          <strong>AI feedback:</strong><br>
+          <strong>AI-feedback</strong> <span class="badge bg-info text-dark">AI</span><br>
           <?= nl2br(htmlspecialchars($a['ai_feedback'])) ?>
       </div>
       <?php endif; ?>
 
       <?php $run = $assessmentRuns[(int)$a['id']] ?? null; ?>
+      <?php $agentic = AnswerAssessment::studentSummary($run); ?>
       <?php if ($run || $canAssess): ?>
-      <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
-          <strong class="me-1">Agentic beoordeling:</strong>
+      <div class="<?= $agentic ? 'alert alert-info' : 'mb-3' ?>">
+        <div class="d-flex flex-wrap align-items-center gap-2">
+          <strong class="me-1">Agentic AI-beoordeling</strong> <span class="badge bg-info text-dark">AI</span>
           <?php if ($run): ?>
               <span class="badge <?= e(AnswerAssessment::statusClass($run['status'])) ?>"><?= e(AnswerAssessment::statusLabel($run['status'])) ?></span>
-              <?php if ($run['status'] === AnswerAssessment::STATUS_REVIEW): ?>
-                  <span class="small text-muted">voorstel <?= (int)$run['final_score'] ?> punten</span>
+              <?php if ($agentic): ?>
+                  <span class="fw-semibold">AI-score: <?= (int)$agentic['score'] ?></span>
                   <?php if ((int)$run['human_review_needed'] === 1): ?>
-                      <span class="badge bg-warning text-dark">Menselijke beoordeling nodig</span>
+                      <span class="badge bg-warning text-dark">AI onzeker: menselijke controle nodig</span>
                   <?php endif; ?>
-              <?php elseif ($run['status'] === AnswerAssessment::STATUS_APPROVED): ?>
-                  <span class="small text-muted">goedgekeurd met <?= (int)$run['teacher_score'] ?> punten</span>
               <?php endif; ?>
-              <a href="/?action=answer_assessment_view&id=<?= (int)$run['id'] ?>" class="btn btn-sm btn-outline-secondary">Openen</a>
+              <a href="/?action=answer_assessment_view&id=<?= (int)$run['id'] ?>" class="btn btn-sm btn-outline-secondary">Details</a>
           <?php else: ?>
               <form action="/?action=answer_assessment_start" method="post" class="mb-0">
                   <?= csrfInput() ?>
@@ -137,13 +137,17 @@ ob_start();
                           data-confirm="Dit antwoord agentic laten beoordelen door de AI-agents?">Agentic beoordelen</button>
               </form>
           <?php endif; ?>
+        </div>
+        <?php if ($agentic && $agentic['feedback'] !== ''): ?>
+            <div class="mt-1"><?= nl2br(e($agentic['feedback'])) ?></div>
+        <?php endif; ?>
       </div>
       <?php endif; ?>
 
       <div class="mt-3 pt-3 border-top">
           <div class="d-flex justify-content-between align-items-start">
               <div>
-                  <strong>Docent feedback:</strong><br>
+                  <strong>Docentbeoordeling</strong> <span class="badge bg-primary">mens</span><br>
                   <?php if (!empty($a['teacher_feedback'])): ?>
                       <?= nl2br(htmlspecialchars($a['teacher_feedback'])) ?>
                   <?php else: ?>
@@ -151,7 +155,7 @@ ob_start();
                   <?php endif; ?>
               </div>
               <div class="text-end">
-                  <span class="badge bg-primary fs-6">Score: <?= isset($a['teacher_score']) ? htmlspecialchars($a['teacher_score']) : '-' ?></span>
+                  <span class="badge bg-primary fs-6">Docentscore: <?= isset($a['teacher_score']) ? htmlspecialchars($a['teacher_score']) : '-' ?></span>
               </div>
           </div>
       </div>

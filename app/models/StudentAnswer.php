@@ -65,6 +65,30 @@ class StudentAnswer {
     return $stmt->fetch(PDO::FETCH_ASSOC);
   }
 
+  /**
+   * AI-scores van één antwoord per bron: de modellen uit ai_feedback (contract 1:
+   * blokken met "Model:" en "Aantal punten:") plus de agentic beoordeling als
+   * bron AnswerAssessment::AI_SOURCE. De docentscore hoort hier nooit bij.
+   * Dit is de enige plek waar de scores uit ai_feedback worden gelezen.
+   *
+   * @param string|null $aiFeedback   student_answers.ai_feedback
+   * @param int|string|null $agenticScore  score van de actuele agentic beoordeling (zie AnswerAssessment::agenticScoreSql())
+   * @return array bron => score
+   */
+  public static function aiScores(?string $aiFeedback, $agenticScore = null): array {
+    $scores = [];
+    if ($aiFeedback !== null && $aiFeedback !== '') {
+      preg_match_all('/Model:\s+(.+?)\s+.*?Aantal punten:\s+(\d+)/is', $aiFeedback, $matches, PREG_SET_ORDER);
+      foreach ($matches as $match) {
+        $scores[trim($match[1])] = (int)$match[2];
+      }
+    }
+    if ($agenticScore !== null && $agenticScore !== '') {
+      $scores[AnswerAssessment::AI_SOURCE] = (int)$agenticScore;
+    }
+    return $scores;
+  }
+
   public static function updateTeacherGrade($id, $score, $feedback) {
     $pdo = Database::connect();
     $stmt = $pdo->prepare("UPDATE student_answers SET teacher_score = ?, teacher_feedback = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?");

@@ -104,15 +104,10 @@ class Database {
                 final_score INTEGER,
                 human_review_needed INTEGER NOT NULL DEFAULT 0,
                 error_message TEXT,
-                teacher_criteria TEXT,
-                teacher_score INTEGER,
-                approved_by INTEGER,
-                approved_at DATETIME,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (student_answer_id) REFERENCES student_answers(id) ON DELETE CASCADE,
-                FOREIGN KEY (requested_by) REFERENCES users(id) ON DELETE SET NULL,
-                FOREIGN KEY (approved_by) REFERENCES users(id) ON DELETE SET NULL
+                FOREIGN KEY (requested_by) REFERENCES users(id) ON DELETE SET NULL
             )
         ");
         $pdo->exec("CREATE INDEX IF NOT EXISTS idx_answer_assessments_answer_status

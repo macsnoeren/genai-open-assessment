@@ -395,7 +395,8 @@ public function viewStudentAnswers($studentExamId) {
 
     $pdo = Database::connect();
         $stmt = $pdo->prepare("
-        SELECT sa.id, q.question_text, sa.answer, q.criteria, sa.ai_feedback, sa.teacher_score, sa.teacher_feedback
+        SELECT sa.id, q.question_text, sa.answer, q.criteria, sa.ai_feedback, sa.teacher_score, sa.teacher_feedback,
+               " . AnswerAssessment::agenticScoreSql('sa') . " AS agentic_score
         FROM student_answers sa
         JOIN questions q ON sa.question_id = q.id
         WHERE sa.student_exam_id = ?
@@ -414,16 +415,8 @@ public function viewStudentAnswers($studentExamId) {
             $scoredCount++;
         }
 
-        if (!empty($a['ai_feedback'])) {
-            preg_match_all('/Model:\s+(.+?)\s+.*?Aantal punten:\s+(\d+)/is', $a['ai_feedback'], $matches, PREG_SET_ORDER);
-            foreach ($matches as $match) {
-                $modelName = trim($match[1]);
-                $score = (int)$match[2];
-                if (!isset($aiModelScores[$modelName])) {
-                    $aiModelScores[$modelName] = [];
-                }
-                $aiModelScores[$modelName][] = $score;
-            }
+        foreach (StudentAnswer::aiScores($a['ai_feedback'], $a['agentic_score']) as $source => $score) {
+            $aiModelScores[$source][] = $score;
         }
     }
     $finalScore = $scoredCount > 0 ? $totalScore / $scoredCount : null;
@@ -682,14 +675,16 @@ public function viewStudentAnswers($studentExamId) {
     $pdo = Database::connect();
     // Haal antwoorden op die zowel door docent als AI zijn beoordeeld
     $stmt = $pdo->prepare("
-        SELECT sa.id, COALESCE(u.name, se.guest_name, 'Gast') as student_name, q.question_text, sa.teacher_score, sa.ai_feedback
-        FROM student_answers sa
-        JOIN student_exams se ON sa.student_exam_id = se.id
-        LEFT JOIN users u ON se.student_id = u.id
-        JOIN questions q ON sa.question_id = q.id
-        WHERE se.exam_id = ? 
-        AND sa.teacher_score IS NOT NULL 
-        AND sa.ai_feedback IS NOT NULL
+        SELECT * FROM (
+            SELECT sa.id, COALESCE(u.name, se.guest_name, 'Gast') as student_name, q.question_text, sa.teacher_score, sa.ai_feedback,
+                   " . AnswerAssessment::agenticScoreSql('sa') . " AS agentic_score
+            FROM student_answers sa
+            JOIN student_exams se ON sa.student_exam_id = se.id
+            LEFT JOIN users u ON se.student_id = u.id
+            JOIN questions q ON sa.question_id = q.id
+            WHERE se.exam_id = ?
+            AND sa.teacher_score IS NOT NULL
+        ) WHERE ai_feedback IS NOT NULL OR agentic_score IS NOT NULL
     ");
     $stmt->execute([$examId]);
     $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -716,14 +711,8 @@ public function viewStudentAnswers($studentExamId) {
         }
         $studentScores[$row['student_name']]['Docent'][] = (int)$row['teacher_score'];
 
-        // Parse AI feedback string
-        // Verwacht formaat uit Python script: "Model: [naam] ... Aantal punten: [score]"
-        preg_match_all('/Model:\s+(.+?)\s+.*?Aantal punten:\s+(\d+)/is', $row['ai_feedback'], $matches, PREG_SET_ORDER);
-
-        foreach ($matches as $match) {
-            $modelName = trim($match[1]);
-            $score = (int)$match[2];
-
+        // AI-scores per bron: modellen uit ai_feedback plus de agentic beoordeling
+        foreach (StudentAnswer::aiScores($row['ai_feedback'], $row['agentic_score']) as $modelName => $score) {
             $entry['models'][$modelName] = $score;
             $modelsFound[$modelName] = true;
 
@@ -830,14 +819,16 @@ public function viewStudentAnswers($studentExamId) {
     $pdo = Database::connect();
     // Haal antwoorden op die zowel door docent als AI zijn beoordeeld
     $stmt = $pdo->prepare("
-        SELECT sa.id, COALESCE(u.name, se.guest_name, 'Gast') as student_name, q.question_text, sa.teacher_score, sa.ai_feedback
-        FROM student_answers sa
-        JOIN student_exams se ON sa.student_exam_id = se.id
-        LEFT JOIN users u ON se.student_id = u.id
-        JOIN questions q ON sa.question_id = q.id
-        WHERE se.exam_id = ? 
-        AND sa.teacher_score IS NOT NULL 
-        AND sa.ai_feedback IS NOT NULL
+        SELECT * FROM (
+            SELECT sa.id, COALESCE(u.name, se.guest_name, 'Gast') as student_name, q.question_text, sa.teacher_score, sa.ai_feedback,
+                   " . AnswerAssessment::agenticScoreSql('sa') . " AS agentic_score
+            FROM student_answers sa
+            JOIN student_exams se ON sa.student_exam_id = se.id
+            LEFT JOIN users u ON se.student_id = u.id
+            JOIN questions q ON sa.question_id = q.id
+            WHERE se.exam_id = ?
+            AND sa.teacher_score IS NOT NULL
+        ) WHERE ai_feedback IS NOT NULL OR agentic_score IS NOT NULL
     ");
     $stmt->execute([$examId]);
     $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -852,15 +843,9 @@ public function viewStudentAnswers($studentExamId) {
         }
         $studentScores[$row['student_name']]['Docent'][] = (int)$row['teacher_score'];
 
-        preg_match_all('/Model:\s+(.+?)\s+.*?Aantal punten:\s+(\d+)/is', $row['ai_feedback'], $matches, PREG_SET_ORDER);
-        foreach ($matches as $match) {
-            $modelsFound[trim($match[1])] = true;
-            $modelName = trim($match[1]);
+        foreach (StudentAnswer::aiScores($row['ai_feedback'], $row['agentic_score']) as $modelName => $score) {
             $modelsFound[$modelName] = true;
-            if (!isset($studentScores[$row['student_name']][$modelName])) {
-                $studentScores[$row['student_name']][$modelName] = [];
-            }
-            $studentScores[$row['student_name']][$modelName][] = (int)$match[2];
+            $studentScores[$row['student_name']][$modelName][] = $score;
         }
     }
     $modelNames = array_keys($modelsFound);
@@ -884,11 +869,7 @@ public function viewStudentAnswers($studentExamId) {
     fputcsv($output, $headers, ';');
 
     foreach ($rows as $row) {
-        $rowModels = [];
-        preg_match_all('/Model:\s+(.+?)\s+.*?Aantal punten:\s+(\d+)/is', $row['ai_feedback'], $matches, PREG_SET_ORDER);
-        foreach ($matches as $match) {
-            $rowModels[trim($match[1])] = (int)$match[2];
-        }
+        $rowModels = StudentAnswer::aiScores($row['ai_feedback'], $row['agentic_score']);
 
         $csvRow = [
             csvSafe($row['student_name']),

@@ -18,18 +18,16 @@ require_once __DIR__ . '/../models/AnswerAssessment.php';
 
 /**
  * Class AnswerAssessmentController
- * Agentic beoordelen: de docent laat een studentantwoord door de
- * assessment-agents beoordelen met de rubric van de vraag, bekijkt bewijs,
- * interpretatie en oordelen per criterium, en past aan en keurt goed.
- * Pas bij goedkeuring ontstaat een docentscore; de AI beslist niets definitief.
+ * Agentic beoordelen: de assessment-agents beoordelen een studentantwoord met
+ * de rubric van de vraag (automatisch, of op verzoek van de docent), en de
+ * docent bekijkt bewijs, interpretatie en oordelen per criterium.
+ * Het resultaat is een AI-beoordeling, net als ai_feedback: het komt nooit in
+ * de docentbeoordeling (teacher_score/teacher_feedback).
  *
  * Alleen de rol docent (en admin) met leestoegang tot de toets. De beoordelaar
  * ziet niets van het agentic resultaat (blinde beoordeling).
  */
 class AnswerAssessmentController {
-
-  /** Maximale lengte (bytes) van de docentfeedback bij goedkeuren. */
-  private const MAX_FEEDBACK_LENGTH = 10000;
 
   /**
    * Starts an agentic assessment run for one answer. A previous open or
@@ -123,75 +121,6 @@ class AnswerAssessmentController {
         !== $this->normalizeNewlines((string)$run['criteria_snapshot']);
     $workerActive = $this->isAssessmentWorkerActive();
     require __DIR__ . '/../views/docent/answer_assessment_view.php';
-  }
-
-  /**
-   * Approves the (possibly adjusted) assessment: only now the teacher score
-   * and feedback are set on the answer.
-   */
-  public function approve() {
-    validateCsrfToken();
-    requireRole('docent');
-
-    [$row, $answer] = $this->loadRun(requestInt($_POST, 'id'));
-    $run = AnswerAssessment::decode($row);
-    $viewUrl = '/?action=answer_assessment_view&id=' . (int)$run['id'];
-    if ($run['status'] !== AnswerAssessment::STATUS_REVIEW || !$run['rubric'] || !$run['decision']) {
-        $this->redirectWithError($viewUrl, 'Deze beoordeling kan nu niet worden goedgekeurd. Bekijk de actuele stand.');
-    }
-
-    // De criteria komen uit de database; van de client komt alleen de status per criterium.
-    $aiStatuses = array_column($run['decision']['criteria'], 'final_status', 'nr');
-    $teacherCriteria = [];
-    $changedCriteria = [];
-    foreach ($run['rubric']['criteria'] as $criterion) {
-        $nr = (int)$criterion['nr'];
-        $status = requestString($_POST, "criterion_$nr", 10);
-        if (!in_array($status, AnswerAssessment::STATUSES, true)) {
-            abort(400, 'Ongeldige status voor criterium ' . $nr . '.');
-        }
-        $teacherCriteria[$nr] = $status;
-        if (($aiStatuses[$nr] ?? null) !== $status) {
-            $changedCriteria[$nr] = ['ai' => $aiStatuses[$nr] ?? null, 'teacher' => $status];
-        }
-    }
-
-    $scoreRaw = trim(requestString($_POST, 'teacher_score', 10));
-    if (!preg_match('/^(10|[0-9])$/', $scoreRaw)) {
-        $this->redirectWithError($viewUrl, 'De score moet een geheel getal van 0 t/m 10 zijn.');
-    }
-    $score = (int)$scoreRaw;
-    $feedback = trim(requestString($_POST, 'teacher_feedback', self::MAX_FEEDBACK_LENGTH));
-    if ((int)$run['human_review_needed'] === 1 && requestString($_POST, 'reviewed_uncertainties', 1) !== '1') {
-        $this->redirectWithError($viewUrl, 'Bevestig eerst dat je de onzekerheden en conflicten zelf hebt beoordeeld.');
-    }
-
-    if (!AnswerAssessment::approve($run['id'], (int)$_SESSION['user_id'], $teacherCriteria, $score, $feedback)) {
-        $this->redirectWithError($viewUrl, 'Deze beoordeling is intussen gewijzigd. Bekijk de actuele stand en probeer het opnieuw.');
-    }
-
-    AuditLog::log('answer_assessment_approve', [
-        'id' => (int)$run['id'],
-        'student_answer_id' => (int)$answer['id'],
-        'ai_score' => (int)$run['final_score'],
-        'teacher_score' => $score,
-        'human_review_needed' => (int)$run['human_review_needed'] === 1,
-        'changed_criteria' => $changedCriteria,
-    ]);
-    // Zelfde auditregel als handmatig beoordelen, zodat de docentscore op één plek te volgen blijft.
-    $changes = ['student_answer_id' => (int)$answer['id'], 'student_exam_id' => (int)$answer['student_exam_id'],
-                'answer_assessment_id' => (int)$run['id']];
-    if ((string)($answer['teacher_score'] ?? '') !== (string)$score) {
-        $changes['teacher_score'] = ['old' => $answer['teacher_score'], 'new' => $score];
-    }
-    if (($answer['teacher_feedback'] ?? '') !== $feedback) {
-        $changes['teacher_feedback'] = ['old' => $answer['teacher_feedback'] ?? '', 'new' => $feedback];
-    }
-    AuditLog::log('teacher_grade', $changes);
-
-    $_SESSION['success_message'] = 'De agentic beoordeling is goedgekeurd; de docentscore is ' . $score . '.';
-    header('Location: ' . $this->answersUrl($answer));
-    exit;
   }
 
   // ---------------------------------------------------------------------

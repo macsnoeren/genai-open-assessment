@@ -111,7 +111,7 @@ In de uitvoer van de assessment-worker:
 
 Klik daarna als docent bij een antwoord op een vraag met rubric-criteria op
 **"Agentic beoordelen"**. Binnen ongeveer een halve minuut staat de run op
-"Klaar voor controle". In de worker-uitvoer zie je
+"Beoordeeld door AI". In de worker-uitvoer zie je
 `[Evidence/…] Klaar in …s.`, `[Assessment/…]`, `[Validation/…]` en
 `Beoordeling N: score …, confidence …, menselijke beoordeling nodig: …`.
 
@@ -126,8 +126,8 @@ moet verdwijnen zodra de worker draait.
   en stop het proces `process_assessment_jobs.py`. Alleen het proces stoppen is
   niet genoeg: rubric-antwoorden blijven dan op de agents wachten en de docent
   ziet de melding dat de agents niet actief zijn. De rest van de applicatie
-  merkt er niets van, en docentscores die al via een goedgekeurde agentic
-  beoordeling zijn gezet, blijven gewone docentscores.
+  merkt er niets van; docentscores worden door agentic beoordelen nooit
+  gezet of gewijzigd.
 - **De code terugzetten:** dat kan zonder databaseherstel. De tabel
   `answer_assessments` blijft dan ongebruikt staan; de oude code negeert hem.
   De oude `design_agents.py` werkt ook met de nieuwe webapp.
@@ -141,4 +141,4 @@ moet verdwijnen zodra de worker draait.
 - [ ] Nieuwe en gewijzigde bestanden in `bin\` op de workermachine, ontwerp-worker herstart
 - [ ] (Optioneel) `ASSESSMENT_*`-instellingen in de eigen `config.py`, geen lokaal model
 - [ ] `process_assessment_jobs.py` draait als derde proces, zonder `401`
-- [ ] Testbeoordeling loopt door tot "Klaar voor controle"
+- [ ] Testbeoordeling loopt door tot "Beoordeeld door AI"

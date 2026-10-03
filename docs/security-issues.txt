@@ -211,8 +211,8 @@ en docenttekst die naar een LLM gaat. Maatregelen:
 -------------------------------------------------------------------------------
 NIEUWE FUNCTIE: AGENTIC BEOORDELEN (branch dev-agentic-assessment, 2026-10-03)
 -------------------------------------------------------------------------------
-Nieuwe aanvalsoppervlakken: 4 actions (answer_assessment_start, _start_exam, _view,
-_approve), 2 API-endpoints (open_assessment_jobs, submit_assessment_result), een
+Nieuwe aanvalsoppervlakken: 3 actions (answer_assessment_start, _start_exam, _view),
+2 API-endpoints (open_assessment_jobs, submit_assessment_result), een
 studentantwoord dat naar drie agents gaat, en modeluitvoer (met citaten uit het
 antwoord) die in de UI wordt getoond. Maatregelen:
 
@@ -220,20 +220,19 @@ antwoord) die in de UI wordt getoond. Maatregelen:
     docent en leestoegang tot de toets (eigenaar, admin of gedeelde toets; dezelfde
     regel als checkExamOwnership($id, false)). De toets komt altijd uit de database
     (run -> antwoord -> poging -> toets, StudentAnswer::findForAssessment()); een
-    student_answer_id of run-id van een andere toets helpt niet. Bij goedkeuren komen
-    de criteria uit de database (rubric van de run); van de client komen alleen de
-    statussen (uit een vaste lijst), de score (0-10) en de feedback. Getest: andere
-    docent, beoordelaar en student krijgen 403 op alle vier de acties; docent bij een
+    student_answer_id of run-id van een andere toets helpt niet. Getest: andere
+    docent, beoordelaar en student krijgen 403 op alle acties; docent bij een
     gedeelde toets en admin mogen alles.
   - Blinde beoordeling blijft blind: de beoordelaar heeft geen toegang (requireRole
     ('docent')) en grade_student_exam toont niets van het agentic resultaat. De
-    student ziet het agentic resultaat nooit, alleen de docentscore en -feedback na
-    goedkeuring (zoals nu).
-  - Er wordt nooit automatisch een docentscore gezet. Goedkeuren is een expliciete
-    POST van de docent; bij "menselijke beoordeling nodig" is een extra vinkje
-    verplicht (ook server-side gecontroleerd). Goedkeuren logt answer_assessment_approve
-    (AI-voorstel, docentscore, afwijkende criteria) en de bestaande teacher_grade
-    (oud/nieuw). Contract 1 (ai_feedback) en de score-regex zijn niet gewijzigd.
+    student ziet alleen de AI-score en de feedback (AnswerAssessment::studentSummary),
+    gelabeld als AI; geen citaten, redeneringen, controles of "menselijke controle
+    nodig".
+  - AI en mens gescheiden: het agentic resultaat komt nooit in teacher_score of
+    teacher_feedback (er is geen action die dat doet). De docentscore is altijd een
+    menselijke beoordeling via save_teacher_feedback. In de UI staat bij elke
+    beoordeling of die van AI of van een mens is. Contract 1 (ai_feedback) is niet
+    gewijzigd; de score-regex staat nu op één plek (StudentAnswer::aiScores).
   - Snapshots: vraag, criteria en antwoord worden bij het starten opgeslagen; de
     worker beoordeelt de snapshot. Wijzigen de criteria daarna, dan meldt de pagina
     dat. Elke run blijft bewaard (status superseded), dus achteraf is na te gaan met
