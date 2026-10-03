@@ -269,6 +269,414 @@ class AnswerAssessment {
   }
 
   // ---------------------------------------------------------------------
+  // Normalisatie van het resultaat van de worker (contract 8: spiegel van
+  // validate_*() in bin/assessment_agents.py). Alleen bekende velden worden
+  // overgenomen, tekst afgekapt en lijsten op hun maximum gekapt. Een
+  // ontbrekend criterium, een dubbel nr of een waarde buiten een enum maakt
+  // het onderdeel ongeldig: null.
+  // ---------------------------------------------------------------------
+
+  /** Alleen strings, getrimd en afgekapt op $max tekens; null bij een ander type. */
+  public static function cleanText($v, int $max = self::MAX_TEXT): ?string {
+    if (!is_string($v)) {
+      return null;
+    }
+    $v = trim($v);
+    if (!mb_check_encoding($v, 'UTF-8')) {
+      $v = mb_convert_encoding($v, 'UTF-8', 'UTF-8');
+    }
+    return mb_strlen($v, 'UTF-8') > $max ? mb_substr($v, 0, $max, 'UTF-8') : $v;
+  }
+
+  /** De waarde als die (strikt) in $allowed staat, anders null. */
+  public static function enum($v, array $allowed): ?string {
+    return (is_string($v) && in_array($v, $allowed, true)) ? $v : null;
+  }
+
+  /** Geheel getal (of een string met alleen cijfers), anders null. Booleans tellen niet. */
+  private static function intValue($v): ?int {
+    if (is_int($v)) {
+      return $v;
+    }
+    if (is_string($v) && preg_match('/^\d{1,6}$/', trim($v))) {
+      return (int)trim($v);
+    }
+    return null;
+  }
+
+  /** Lijst (array met volgnummers) of een lege array. */
+  private static function listOf($v): array {
+    return (is_array($v) && array_is_list($v)) ? $v : [];
+  }
+
+  /**
+   * Zet een lijst criteria om in een map nr => item, op volgorde van nr.
+   * Elk nummer 1..$count precies één keer; anders (ook bij een item dat geen
+   * object is of een ongeldig nr heeft) null.
+   */
+  public static function criterionMap($items, int $count): ?array {
+    if (!is_array($items) || !array_is_list($items) || $count < 1) {
+      return null;
+    }
+    $map = [];
+    foreach ($items as $item) {
+      $nr = is_array($item) ? self::intValue($item['nr'] ?? null) : null;
+      if ($nr === null || $nr < 1 || $nr > $count || isset($map[$nr])) {
+        return null;
+      }
+      $map[$nr] = $item;
+    }
+    if (count($map) !== $count) {
+      return null;
+    }
+    ksort($map);
+    return $map;
+  }
+
+  /** Citaten: 0..MAX_QUOTES niet-lege strings van maximaal MAX_QUOTE tekens. */
+  private static function quotes($v): array {
+    $out = [];
+    foreach (self::listOf($v) as $quote) {
+      $text = self::cleanText($quote, self::MAX_QUOTE);
+      if ($text !== null && $text !== '') {
+        $out[] = $text;
+      }
+      if (count($out) >= self::MAX_QUOTES) {
+        break;
+      }
+    }
+    return $out;
+  }
+
+  private static function score($v): ?int {
+    $score = self::intValue($v);
+    return ($score !== null && in_array($score, self::SCORES, true)) ? $score : null;
+  }
+
+  /** Rubric zoals de worker die uit de criteria-snapshot parseerde: 1–10 criteria, vier niveaus, alternatieven. */
+  public static function normalizeRubric($r): ?array {
+    if (!is_array($r)) {
+      return null;
+    }
+    $items = $r['criteria'] ?? null;
+    if (!is_array($items) || count($items) > self::MAX_CRITERIA) {
+      return null;
+    }
+    $map = self::criterionMap($items, count($items));
+    if ($map === null) {
+      return null;
+    }
+    $criteria = [];
+    foreach ($map as $nr => $c) {
+      $name = self::cleanText($c['name'] ?? null);
+      $description = self::cleanText($c['description'] ?? null);
+      $weight = self::enum($c['weight'] ?? null, self::WEIGHTS);
+      if ($name === null || $name === '' || $description === null || $description === '' || $weight === null) {
+        return null;
+      }
+      $criteria[] = ['nr' => $nr, 'name' => $name, 'weight' => $weight, 'description' => $description];
+    }
+
+    $levels = [];
+    $rawLevels = is_array($r['levels'] ?? null) ? $r['levels'] : [];
+    foreach (self::LEVELS as $level) {
+      $text = self::cleanText($rawLevels[$level] ?? null);
+      if ($text === null || $text === '') {
+        return null;
+      }
+      $levels[$level] = $text;
+    }
+
+    $alternatives = [];
+    foreach (self::listOf($r['alternatives'] ?? null) as $alt) {
+      $text = self::cleanText($alt);
+      if ($text !== null && $text !== '') {
+        $alternatives[] = $text;
+      }
+      if (count($alternatives) >= self::MAX_ALTERNATIVES) {
+        break;
+      }
+    }
+
+    return [
+      'model_answer' => self::cleanText($r['model_answer'] ?? null, self::MAX_MODEL_ANSWER) ?? '',
+      'criteria' => $criteria,
+      'levels' => $levels,
+      'alternatives' => $alternatives,
+    ];
+  }
+
+  /** Uitvoer van de Evidence Agent: per criterium citaten, interpretatie en wat ontbreekt. */
+  public static function normalizeEvidence($e, int $count): ?array {
+    $map = is_array($e) ? self::criterionMap($e['criteria'] ?? null, $count) : null;
+    if ($map === null) {
+      return null;
+    }
+    $criteria = [];
+    foreach ($map as $nr => $c) {
+      $found = self::enum($c['evidence_found'] ?? null, self::EVIDENCE_FOUND);
+      $confidence = self::enum($c['confidence'] ?? null, self::CONFIDENCES);
+      if ($found === null || $confidence === null) {
+        return null;
+      }
+      $criteria[] = [
+        'nr' => $nr,
+        'evidence_found' => $found,
+        'evidence' => self::quotes($c['evidence'] ?? null),
+        'interpretation' => self::cleanText($c['interpretation'] ?? null) ?? '',
+        'confidence' => $confidence,
+        'missing_evidence' => self::cleanText($c['missing_evidence'] ?? null) ?? '',
+      ];
+    }
+    return ['criteria' => $criteria, 'summary' => self::cleanText($e['summary'] ?? null) ?? ''];
+  }
+
+  /** Uitvoer van de Assessment Agent: status per criterium, score, confidence en feedback. */
+  public static function normalizeAssessment($a, int $count): ?array {
+    $map = is_array($a) ? self::criterionMap($a['criteria'] ?? null, $count) : null;
+    if ($map === null) {
+      return null;
+    }
+    $criteria = [];
+    foreach ($map as $nr => $c) {
+      $status = self::enum($c['status'] ?? null, self::STATUSES);
+      $confidence = self::enum($c['confidence'] ?? null, self::CONFIDENCES);
+      if ($status === null || $confidence === null) {
+        return null;
+      }
+      $criteria[] = [
+        'nr' => $nr,
+        'status' => $status,
+        'assessment' => self::cleanText($c['assessment'] ?? null) ?? '',
+        'reasoning' => self::cleanText($c['reasoning'] ?? null) ?? '',
+        'evidence_used' => self::quotes($c['evidence_used'] ?? null),
+        'confidence' => $confidence,
+      ];
+    }
+    $score = self::score($a['score'] ?? null);
+    $confidence = self::enum($a['confidence'] ?? null, self::CONFIDENCES);
+    if ($score === null || $confidence === null) {
+      return null;
+    }
+    return [
+      'criteria' => $criteria,
+      'score' => $score,
+      'confidence' => $confidence,
+      'feedback' => self::cleanText($a['feedback'] ?? null) ?? '',
+    ];
+  }
+
+  /** Uitvoer van de Validation Agent: zeven controles (elk één keer), issues, correcties en een eindoordeel. */
+  public static function normalizeValidation($v, int $count): ?array {
+    if (!is_array($v)) {
+      return null;
+    }
+    $checks = [];
+    foreach (self::listOf($v['checks'] ?? null) as $c) {
+      $name = is_array($c) ? self::enum($c['check'] ?? null, self::CHECKS) : null;
+      if ($name === null || isset($checks[$name]) || !is_bool($c['ok'] ?? null)) {
+        continue;
+      }
+      $checks[$name] = ['check' => $name, 'ok' => $c['ok'], 'comment' => self::cleanText($c['comment'] ?? null) ?? ''];
+    }
+    if (count($checks) !== count(self::CHECKS) || !is_bool($v['validated'] ?? null)) {
+      return null;
+    }
+
+    $issues = [];
+    foreach (self::listOf($v['issues'] ?? null) as $item) {
+      $nr = is_array($item) ? self::intValue($item['nr'] ?? null) : null;
+      $text = is_array($item) ? self::cleanText($item['issue'] ?? null) : null;
+      if ($nr === null || $nr > $count || $text === null || $text === '') {
+        continue;
+      }
+      $issues[] = ['nr' => $nr, 'issue' => $text];
+      if (count($issues) >= self::MAX_ISSUES) {
+        break;
+      }
+    }
+
+    $corrections = [];
+    foreach (self::listOf($v['corrections'] ?? null) as $item) {
+      $nr = is_array($item) ? self::intValue($item['nr'] ?? null) : null;
+      $from = is_array($item) ? self::enum($item['from'] ?? null, self::STATUSES) : null;
+      $to = is_array($item) ? self::enum($item['to'] ?? null, self::STATUSES) : null;
+      if ($nr === null || $nr < 1 || $nr > $count || $from === null || $to === null) {
+        continue;
+      }
+      $corrections[] = ['nr' => $nr, 'from' => $from, 'to' => $to, 'why' => self::cleanText($item['why'] ?? null) ?? ''];
+      if (count($corrections) >= self::MAX_CORRECTIONS) {
+        break;
+      }
+    }
+
+    $final = $v['final_assessment'] ?? null;
+    $map = is_array($final) ? self::criterionMap($final['criteria'] ?? null, $count) : null;
+    $score = is_array($final) ? self::score($final['score'] ?? null) : null;
+    $confidence = self::enum($v['confidence'] ?? null, self::CONFIDENCES);
+    if ($map === null || $score === null || $confidence === null) {
+      return null;
+    }
+    $finalCriteria = [];
+    foreach ($map as $nr => $c) {
+      $status = self::enum($c['status'] ?? null, self::STATUSES);
+      if ($status === null) {
+        return null;
+      }
+      $finalCriteria[] = ['nr' => $nr, 'status' => $status];
+    }
+
+    return [
+      // Vaste volgorde, ongeacht de volgorde van het model
+      'checks' => array_map(fn($name) => $checks[$name], self::CHECKS),
+      'validated' => $v['validated'],
+      'issues' => $issues,
+      'corrections' => $corrections,
+      'final_assessment' => ['criteria' => $finalCriteria, 'score' => $score],
+      'confidence' => $confidence,
+      'explanation' => self::cleanText($v['explanation'] ?? null) ?? '',
+    ];
+  }
+
+  /**
+   * Beslissing van de orchestrator (deterministisch berekend in de worker).
+   * human_review_needed wordt true als het veld ontbreekt of geen boolean is.
+   */
+  public static function normalizeDecision($d, int $count): ?array {
+    $map = is_array($d) ? self::criterionMap($d['criteria'] ?? null, $count) : null;
+    if ($map === null) {
+      return null;
+    }
+    $criteria = [];
+    foreach ($map as $nr => $c) {
+      $found = self::enum($c['evidence_found'] ?? null, self::EVIDENCE_FOUND);
+      $assessmentStatus = self::enum($c['assessment_status'] ?? null, self::STATUSES);
+      $finalStatus = self::enum($c['final_status'] ?? null, self::STATUSES);
+      $agreement = self::enum($c['agreement'] ?? null, self::AGREEMENTS);
+      $unverified = self::intValue($c['unverified_quotes'] ?? null);
+      if ($found === null || $assessmentStatus === null || $finalStatus === null || $agreement === null
+          || $unverified === null || $unverified > 2 * self::MAX_QUOTES) {
+        return null;
+      }
+      $criteria[] = [
+        'nr' => $nr,
+        'evidence_found' => $found,
+        'assessment_status' => $assessmentStatus,
+        'final_status' => $finalStatus,
+        'agreement' => $agreement,
+        'unverified_quotes' => $unverified,
+      ];
+    }
+    $score = self::score($d['score'] ?? null);
+    $confidence = self::enum($d['confidence'] ?? null, self::CONFIDENCES);
+    $extraRounds = self::intValue($d['extra_rounds'] ?? null);
+    if ($score === null || $confidence === null || $extraRounds === null || $extraRounds > self::MAX_ROUNDS - 1) {
+      return null;
+    }
+    $reasons = [];
+    foreach (self::listOf($d['reasons'] ?? null) as $reason) {
+      $text = self::cleanText($reason);
+      if ($text !== null && $text !== '') {
+        $reasons[] = $text;
+      }
+      if (count($reasons) >= self::MAX_REASONS) {
+        break;
+      }
+    }
+    $humanReview = $d['human_review_needed'] ?? null;
+    return [
+      'criteria' => $criteria,
+      'score' => $score,
+      'score_capped' => ($d['score_capped'] ?? false) === true,
+      'confidence' => $confidence,
+      // Veilige default: bij twijfel over het veld kijkt de docent extra goed
+      'human_review_needed' => is_bool($humanReview) ? $humanReview : true,
+      'reasons' => $reasons,
+      'extra_rounds' => $extraRounds,
+    ];
+  }
+
+  /** Run-gegevens (alleen ter informatie): modellen, tijdsduren, injection-vermoeden en tijdstippen. */
+  public static function normalizeRunLog($l): array {
+    $l = is_array($l) ? $l : [];
+    $duration = fn($v) => (is_int($v) || is_float($v)) && $v >= 0 ? round((float)$v, 1) : null;
+
+    $models = is_array($l['models'] ?? null) ? $l['models'] : [];
+    $durations = is_array($l['durations'] ?? null) ? $l['durations'] : [];
+    $rounds = [];
+    foreach (array_slice(self::listOf($durations['rounds'] ?? null), 0, self::MAX_ROUNDS) as $round) {
+      $round = is_array($round) ? $round : [];
+      $rounds[] = ['assessment' => $duration($round['assessment'] ?? null), 'validation' => $duration($round['validation'] ?? null)];
+    }
+    return [
+      'models' => [
+        'evidence' => self::cleanText($models['evidence'] ?? null, self::MAX_SHORT) ?? '',
+        'assessment' => self::cleanText($models['assessment'] ?? null, self::MAX_SHORT) ?? '',
+        'validation' => self::cleanText($models['validation'] ?? null, self::MAX_SHORT) ?? '',
+      ],
+      'durations' => ['evidence' => $duration($durations['evidence'] ?? null), 'rounds' => $rounds],
+      'injection_suspected' => ($l['injection_suspected'] ?? false) === true,
+      'started_at' => self::cleanText($l['started_at'] ?? null, self::MAX_SHORT) ?? '',
+      'finished_at' => self::cleanText($l['finished_at'] ?? null, self::MAX_SHORT) ?? '',
+    ];
+  }
+
+  /**
+   * Het volledige resultaat van submit_assessment_result. De rubric bepaalt
+   * het aantal criteria voor de rest. Bij een ongeldig onderdeel: null, en
+   * $error noemt welk onderdeel (voor de 400-melding).
+   */
+  public static function normalizeResult($r, ?string &$error = null): ?array {
+    $error = null;
+    if (!is_array($r)) {
+      $error = 'Invalid result';
+      return null;
+    }
+    $rubric = self::normalizeRubric($r['rubric'] ?? null);
+    if ($rubric === null) {
+      $error = 'Invalid rubric';
+      return null;
+    }
+    $count = count($rubric['criteria']);
+
+    $evidence = self::normalizeEvidence($r['evidence'] ?? null, $count);
+    if ($evidence === null) {
+      $error = 'Invalid evidence';
+      return null;
+    }
+
+    $rawRounds = $r['rounds'] ?? null;
+    if (!is_array($rawRounds) || !array_is_list($rawRounds) || count($rawRounds) < 1 || count($rawRounds) > self::MAX_ROUNDS) {
+      $error = 'Invalid rounds (expected 1 to ' . self::MAX_ROUNDS . ')';
+      return null;
+    }
+    $rounds = [];
+    foreach ($rawRounds as $i => $round) {
+      $assessment = is_array($round) ? self::normalizeAssessment($round['assessment'] ?? null, $count) : null;
+      $validation = is_array($round) ? self::normalizeValidation($round['validation'] ?? null, $count) : null;
+      if ($assessment === null || $validation === null) {
+        $error = 'Invalid ' . ($assessment === null ? 'assessment' : 'validation') . ' in round ' . ($i + 1);
+        return null;
+      }
+      $rounds[] = ['assessment' => $assessment, 'validation' => $validation];
+    }
+
+    $decision = self::normalizeDecision($r['decision'] ?? null, $count);
+    if ($decision === null || $decision['extra_rounds'] !== count($rounds) - 1) {
+      $error = 'Invalid decision';
+      return null;
+    }
+
+    return [
+      'rubric' => $rubric,
+      'evidence' => $evidence,
+      'rounds' => $rounds,
+      'decision' => $decision,
+      'run_log' => self::normalizeRunLog($r['run_log'] ?? null),
+    ];
+  }
+
+  // ---------------------------------------------------------------------
   // Wachtrij voor de assessment-worker
   // ---------------------------------------------------------------------
 

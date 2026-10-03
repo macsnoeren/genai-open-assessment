@@ -37,6 +37,14 @@ switch ($action) {
     case 'submit_design_result':
         $controller->submitDesignResult();
         break;
+
+    case 'open_assessment_jobs':
+        $controller->getOpenAssessmentJobs();
+        break;
+
+    case 'submit_assessment_result':
+        $controller->submitAssessmentResult();
+        break;
         
     default:
         http_response_code(404);

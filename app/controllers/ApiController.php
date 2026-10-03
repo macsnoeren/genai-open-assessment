@@ -13,6 +13,7 @@ require_once __DIR__ . '/../models/AuditLog.php';
 require_once __DIR__ . '/../models/ApiKey.php';
 require_once __DIR__ . '/../models/StudentAnswer.php';
 require_once __DIR__ . '/../models/QuestionDesign.php';
+require_once __DIR__ . '/../models/AnswerAssessment.php';
 require_once __DIR__ . '/../../config/database.php';
 
 /**
@@ -264,6 +265,113 @@ class ApiController {
             'api_key_id' => $this->apiKey['id'],
         ], 'API:' . $this->apiKey['name']);
         echo json_encode(['status' => 'success', 'next_status' => $nextStatus]);
+    }
+
+    /**
+     * Geeft de open agentic beoordelingen aan de assessment-worker
+     * (bin/process_assessment_jobs.py). Vraag, criteria en antwoord komen uit
+     * de snapshot van de run. Contract: zie ARCHITECTURE.md §6.2.
+     */
+    public function getOpenAssessmentJobs() {
+        header('Content-Type: application/json');
+        $this->verifyApiKey();
+
+        $pingFile = __DIR__ . '/../../database/last_assessment_ping.txt';
+        @file_put_contents($pingFile, time());
+
+        $limit = requestInt($_GET, 'limit');
+        $limit = $limit === null ? 3 : max(1, min($limit, 10));
+
+        $jobs = [];
+        foreach (AnswerAssessment::getPendingJobs($limit) as $row) {
+            $jobs[] = [
+                'assessment_id' => (int)$row['id'],
+                'question_text' => $row['question_snapshot'],
+                'criteria' => $row['criteria_snapshot'],
+                'answer' => $row['answer_snapshot'],
+            ];
+        }
+
+        // Alleen loggen als er werk is, anders loopt de audit log vol door het pollen.
+        if (count($jobs) > 0) {
+            AuditLog::log('api_assessment_jobs', [
+                'api_key_id' => $this->apiKey['id'],
+                'assessment_ids' => array_column($jobs, 'assessment_id'),
+            ], 'API:' . $this->apiKey['name']);
+        }
+        echo json_encode(['jobs' => $jobs]);
+    }
+
+    /**
+     * Ontvangt het resultaat (of de fout) van een agentic beoordeling. Alleen
+     * een run met status pending wordt bijgewerkt; anders 409 (verouderd: de
+     * docent heeft intussen opnieuw gestart).
+     */
+    public function submitAssessmentResult() {
+        header('Content-Type: application/json');
+        $this->verifyApiKey();
+
+        if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
+            $this->jsonError(405, 'Method not allowed');
+            return;
+        }
+
+        $raw = file_get_contents('php://input', false, null, 0, MAX_ASSESSMENT_RESULT_LENGTH + 1);
+        if ($raw === false || strlen($raw) > MAX_ASSESSMENT_RESULT_LENGTH) {
+            $this->jsonError(413, 'Body too large (max ' . MAX_ASSESSMENT_RESULT_LENGTH . ' bytes)');
+            return;
+        }
+
+        $input = json_decode($raw, true);
+        $hasResult = is_array($input) && array_key_exists('result', $input);
+        $hasError = is_array($input) && array_key_exists('error', $input);
+        $assessmentId = is_array($input) ? requestInt($input, 'assessment_id') : null;
+        if ($assessmentId === null || $hasResult === $hasError) {
+            $this->jsonError(400, 'Expected assessment_id and either result or error');
+            return;
+        }
+
+        $run = AnswerAssessment::find($assessmentId);
+        if (!$run) {
+            $this->jsonError(404, 'Unknown assessment_id');
+            return;
+        }
+        if ($run['status'] !== AnswerAssessment::STATUS_PENDING) {
+            $this->jsonError(409, 'Stale result');
+            return;
+        }
+
+        if ($hasError) {
+            $message = AnswerAssessment::cleanText($input['error']);
+            if ($message === null || $message === '') {
+                $this->jsonError(400, 'Invalid error message');
+                return;
+            }
+            $saved = AnswerAssessment::markFailed($assessmentId, $message);
+            $details = ['id' => $assessmentId, 'failed' => true];
+        } else {
+            $result = AnswerAssessment::normalizeResult($input['result'], $reason);
+            if ($result === null) {
+                $this->jsonError(400, $reason ?? 'Invalid result');
+                return;
+            }
+            $saved = AnswerAssessment::saveResult($assessmentId, $result);
+            $details = [
+                'id' => $assessmentId,
+                'human_review_needed' => $result['decision']['human_review_needed'],
+                'final_score' => $result['decision']['score'],
+            ];
+        }
+
+        // De run kan net door de docent zijn vervangen (tussen find en update).
+        if (!$saved) {
+            $this->jsonError(409, 'Stale result');
+            return;
+        }
+
+        AuditLog::log('assessment_result_submit', $details + ['api_key_id' => $this->apiKey['id']],
+            'API:' . $this->apiKey['name']);
+        echo json_encode(['status' => 'success']);
     }
 
     private function jsonError(int $code, string $message): void {
