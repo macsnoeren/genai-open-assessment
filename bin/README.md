@@ -77,6 +77,31 @@ python3 -m unittest test_design_agents -v
 ```
 The fixtures in `fixtures/` (PLC example) are also usable for manual `curl` tests against the API. For live tests use a cloud model such as `gpt-oss:120b-cloud`, not a local model.
 
+## Rubric grading (`process_ai_feedback.py`)
+
+When a question was designed with the question designer, its criteria contain the rubric in a fixed text layout (written by `QuestionDesign::rubricToCriteriaText()` in the web app: the headings `Beoordelingscriteria:` and `Puntentoekenning:`, lines like `- [essentieel] name: description` and `10 punten: …` up to `0 punten: …`, optionally `Modelantwoord:` and `Ook correct:`). `parse_rubric_criteria()` recognises that layout. The feedback processor then grades per criterion:
+
+- The model gets a dedicated rubric prompt (question, model answer, numbered criteria, alternative answers, the four levels) and a JSON schema with `criteria` before `score`, so it first judges every criterion (`voldaan`, `deels`, `niet`, with a short explanation) and only then picks the score. The exam's custom prompt is not used for these questions.
+- `validate_rubric_feedback()` requires every criterion exactly once. Cloud models do not enforce `minItems`, so an incomplete judgement gets one targeted correction attempt. A score of 10 while an essential criterion is not fully met becomes 5.
+- The `ai_feedback` block gets an extra `Criteria:` section below `Feedback:` with one line per criterion. The scores are read by the web app exactly as before.
+- Criteria in any other form (hand-written, or a rubric whose layout the teacher broke) are graded the old way, with the text as `{{criteria}}`.
+
+Optional settings in `config.py`:
+
+```python
+RUBRIC_GRADING = True   # False = always grade the old way, criteria as plain text
+RUBRIC_NUM_CTX = 16384  # Context window for rubric grading (the rubric makes the prompt longer)
+```
+
+Tests (mocked `call_ollama()`, requires a `config.py`):
+```bash
+python3 -m unittest test_rubric_grading -v
+```
+`fixtures/criteria_rubric.txt` is the real output of `rubricToCriteriaText()` for the rubric in `fixtures/validation.json`. If that PHP function changes, regenerate it from the repository root:
+```bash
+docker run --rm -v "$PWD":/app -w /app php:8.2-cli php -r 'require "app/models/QuestionDesign.php"; $v = json_decode(file_get_contents("bin/fixtures/validation.json"), true); echo QuestionDesign::rubricToCriteriaText("PLC'"'"'s zijn slecht beveiligd; een aanvaller kan het proces verstoren. Zet ze achter een firewall.", $v["rubric"]);' > bin/fixtures/criteria_rubric.txt
+```
+
 ## Dataset Import
 Het script `dataset_import.py` kan worden gebruikt om de **Mohler ASAG** dataset (van HuggingFace) te importeren in de database. Dit is nuttig voor testdoeleinden en om de nauwkeurigheid van de AI te valideren tegenover menselijke scores.
 

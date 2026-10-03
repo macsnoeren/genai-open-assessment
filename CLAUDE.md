@@ -28,17 +28,20 @@ cd docker && docker compose down -v
 docker run --rm -v "$PWD":/app -w /app php:8.2-cli sh -c 'find app config htdocs setup -name "*.php" -print0 | xargs -0 -n1 php -l' | grep -v "^No syntax errors"
 
 # Python-syntaxcheck
-python3 -m py_compile bin/process_ai_feedback.py bin/dataset_import.py bin/process_design_jobs.py bin/design_agents.py bin/test_design_agents.py
+python3 -m py_compile bin/process_ai_feedback.py bin/dataset_import.py bin/process_design_jobs.py bin/design_agents.py bin/test_design_agents.py bin/test_rubric_grading.py
 
 # Mocktests van de vraagontwerper (gemockte call_ollama, vereist bin/config.py)
 cd bin && python3 -m unittest test_design_agents -v
+
+# Mocktests van de rubric-beoordeling in de AI-worker
+cd bin && python3 -m unittest test_rubric_grading -v
 
 # Worker starten (vereist bin/config.py, zie bin/config.py.sample)
 cd bin && python process_ai_feedback.py
 cd bin && python process_design_jobs.py   # ontwerp-worker, tweede proces
 ```
 
-Er is **geen geautomatiseerde testsuite** voor de webapp (alleen de mocktests van `bin/design_agents.py`). Controleer wijzigingen met de syntaxchecks hierboven en een handmatige rooktest in de Docker-omgeving (inloggen, de gewijzigde flow doorlopen, en voor muterende acties ook controleren dat een GET een 405 geeft).
+Er is **geen geautomatiseerde testsuite** voor de webapp (alleen de mocktests van `bin/design_agents.py` en de rubric-beoordeling). Controleer wijzigingen met de syntaxchecks hierboven en een handmatige rooktest in de Docker-omgeving (inloggen, de gewijzigde flow doorlopen, en voor muterende acties ook controleren dat een GET een 405 geeft).
 
 ## Architectuur in het kort
 
@@ -78,6 +81,7 @@ En verder:
 4. **Scores:** de AI mag alleen `{0, 1, 5, 10}` geven (`ALLOWED_SCORES` en het JSON-schema in de worker). De docentscore is een geheel getal van 0 t/m 10. Het eindcijfer is het gemiddelde van de docentscores.
 5. **Rollen** (`student`, `docent`, `beoordelaar`, `admin`) staan op meerdere plekken: de schema-`CHECK`, `validRoles()`, `requireRole()`, de navigatie in `layouts/main.php` en drie redirect-per-rol-functies. Pas ze altijd allemaal tegelijk aan.
 6. **De JSON-vormen van de ontwerp-agents** (analyse, rubric, assessment, validatie) staan aan beide kanten: `QuestionDesign::normalize*()` in PHP en de JSON-schema's plus `validate_*()` in `bin/design_agents.py`, met dezelfde limieten (tekstvelden ≤ 800 tekens, lijstmaxima, `checks` precies zes, `weight` en `check` uit een vaste lijst). Verander je een veld of limiet, pas dan beide kanten aan, en ook de endpoints `open_design_jobs`/`submit_design_result` als de envelop verandert. Statusovergangen gaan altijd via `WHERE status = ? AND revision = ?` in `QuestionDesign`.
+7. **Het rubric-tekstformaat in `questions.criteria`:** `QuestionDesign::rubricToCriteriaText()` schrijft de kopjes `Modelantwoord:`, `Beoordelingscriteria:`, `Puntentoekenning:` en `Ook correct:`, regels `- [essentieel|aanvullend] naam: beschrijving` en `10 punten:`/`5 punten:`/`1 punt:`/`0 punten:`. `parse_rubric_criteria()` in de worker herkent die opbouw en beoordeelt dan per criterium (ARCHITECTURE §6.7). Verander je het formaat, pas dan de parser aan en maak `bin/fixtures/criteria_rubric.txt` opnieuw aan.
 
 ## Valkuilen
 

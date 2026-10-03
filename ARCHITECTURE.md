@@ -424,8 +424,13 @@ sequenceDiagram
                 O-->>W: {"injection": bool, "reason": "..."}
             end
             loop per model in LLM_MODELS
-                W->>O: system = prompt + vraag + criteria + SAFETY_SUFFIX<br/>user = <student_answer>…</student_answer> + herinnering
-                O-->>W: {"score": 0|1|5|10, "feedback": "...", "uitleg": "..."}
+                alt criteria hebben de rubric-opbouw (§6.7)
+                    W->>O: system = rubric-prompt (vraag, criteria, niveaus) + SAFETY_SUFFIX<br/>user = <student_answer>…</student_answer> + herinnering
+                    O-->>W: {"criteria": [{nr, status, toelichting}], "score", "feedback", "uitleg"}
+                else
+                    W->>O: system = prompt + vraag + criteria + SAFETY_SUFFIX<br/>user = <student_answer>…</student_answer> + herinnering
+                    O-->>W: {"score": 0|1|5|10, "feedback": "...", "uitleg": "..."}
+                end
                 W->>W: valideren, labels neutraliseren, inkorten
             end
             W->>A: POST ?action=submit_ai_feedback<br/>{"student_answer_id": N, "ai_feedback": "<tekst>"}
@@ -466,6 +471,8 @@ Model: gpt-oss:120b-cloud
 ...
 ```
 
+Bij een rubric-beoordeling (§6.7) volgt onder `Feedback:` een blok `Criteria:` met per criterium een regel `- <naam> (<gewicht>): voldaan|deels voldaan|niet voldaan. <toelichting>`, en eventueel een regel dat de score van 10 naar 5 is verlaagd. De regex leest daar niets uit; criteriumnamen en toelichtingen gaan ook door `clean_output_text()`.
+
 ```php
 preg_match_all('/Model:\s+(.+?)\s+.*?Aantal punten:\s+(\d+)/is', $ai_feedback, $m, PREG_SET_ORDER);
 ```
@@ -481,7 +488,7 @@ Deze regex komt op vijf plekken voor: `DocentController` (`viewStudentAnswers`, 
 
 ### 6.4 Prompting en verdediging tegen prompt injection
 
-- **Prompttemplate:** het `prompt_text` van de toets (tabel `prompts`), of anders `DEFAULT_SYSTEM_PROMPT`. De placeholders `{{question_text}}` en `{{criteria}}` worden ingevuld. `{{student_answer}}` wordt **niet** door het antwoord vervangen maar door een verwijzing naar het gebruikersbericht.
+- **Prompttemplate:** bij rubric-criteria `RUBRIC_SYSTEM_PROMPT` (§6.7). Anders het `prompt_text` van de toets (tabel `prompts`), of `DEFAULT_SYSTEM_PROMPT`. De placeholders `{{question_text}}` en `{{criteria}}` worden ingevuld. `{{student_answer}}` wordt **niet** door het antwoord vervangen maar door een verwijzing naar het gebruikersbericht.
 - **Rolscheiding:** het studentantwoord staat uitsluitend in het *user*-bericht, tussen `<student_answer>`-tags (die tags worden eerst uit het antwoord gefilterd) en afgekapt op `MAX_ANSWER_CHARS`. Na het antwoord volgt een herinnering (`GRADING_REMINDER`, de "sandwich").
 - **Afgedwongen output:** het Ollama-`format` krijgt een JSON-schema mee (score als enum `{0,1,5,10}`, tekstvelden met `maxLength`). Daarna valideert `validate_feedback()` de uitvoer nogmaals, want cloud-modellen houden zich niet altijd aan het schema. Bij ongeldige JSON volgen tot `JSON_RETRY_ATTEMPTS` correctiepogingen. Raakt het tokenbudget op aan het denken, dan wordt `num_predict` verdubbeld (tot `NUM_PREDICT_MAX`).
 - **Voorcontrole (optioneel):** `INJECTION_CHECK_MODEL` beoordeelt eerst of het antwoord instructies aan de AI bevat. Is dat zo, dan krijgt de feedback een waarschuwing en wordt de AI-score met `INJECTION_ZERO_SCORE` op 0 gezet. De originele score blijft zichtbaar in de tekst. De docentscore wordt nooit aangeraakt.
@@ -493,7 +500,7 @@ Deze regex komt op vijf plekken voor: `DocentController` (`viewStudentAnswers`, 
 
 ### 6.6 De vraagontwerper (agentic)
 
-Een docent voert een vraag en het gewenste antwoord in; drie agents werken die uit tot een rubric, en de docent stuurt bij of keurt goed. Pas bij goedkeuring ontstaat een gewone rij in `questions` (`question_text` + `criteria` als platte tekst, via `QuestionDesign::rubricToCriteriaText()`). De beoordelingsworker gebruikt die criteria ongewijzigd; contract 1 (`ai_feedback`) en de scoreschaal blijven dus gelijk.
+Een docent voert een vraag en het gewenste antwoord in; drie agents werken die uit tot een rubric, en de docent stuurt bij of keurt goed. Pas bij goedkeuring ontstaat een gewone rij in `questions` (`question_text` + `criteria` als platte tekst, via `QuestionDesign::rubricToCriteriaText()`). De beoordelingsworker herkent die opbouw en beoordeelt dan per criterium (§6.7); de scores in contract 1 (`ai_feedback`) en de scoreschaal blijven gelijk.
 
 - **Waar het draait:** de webserver roept geen LLM aan. De orchestrator en de agents draaien in een eigen worker-proces (`bin/process_design_jobs.py`), los van de beoordelingsworker, zodat een docent die interactief wacht niet achter de wachtrij met studentantwoorden aansluit. `design_agents.py` bevat geen netwerkcode richting de webapp en hergebruikt `call_ollama()` (met een eigen `num_ctx`) uit `process_ai_feedback.py`.
 - **Agents:** *Analysis* (essentiële elementen, duidelijkheid, mismatch tussen vraag en antwoord, issues, 0–5 verduidelijkende vragen met *waarom*), *Assessment* (1–6 criteria *essentieel*/*aanvullend*, niveaus 10/5/1/0 in termen van de criteria, alternatieve antwoorden) en *Validation* (zes controles, verbeterde rubric, wijzigingen met *waarom*, optioneel een betere vraagtekst). De schaal is holistisch: geen punten per criterium.
@@ -539,6 +546,34 @@ sequenceDiagram
 ```
 
 **Robuustheid:** de worker telt pogingen per `(design_id, revision, step)` en stuurt na `DESIGN_MAX_ATTEMPTS` een `error` in (status `failed`, de docent kan opnieuw proberen). Starten is begrensd met `DESIGN_START_MAX_PER_HOUR` per docent (via de audit log), bijsturen met `DESIGN_MAX_REVISIONS`.
+
+### 6.7 Beoordelen met de rubric
+
+De rubric van de vraagontwerper komt als platte tekst in `questions.criteria`, zodat de docent hem bij goedkeuren en later in "Vraag bewerken" vrij kan aanpassen. `parse_rubric_criteria()` in `process_ai_feedback.py` herkent die opbouw (**contract 7**):
+
+```
+Modelantwoord:                         (optioneel)
+<tekst>
+
+Beoordelingscriteria:
+- [essentieel] <naam>: <beschrijving>
+- [aanvullend] <naam>: <beschrijving>
+
+Puntentoekenning:
+10 punten: <tekst>
+5 punten: <tekst>
+1 punt: <tekst>
+0 punten: <tekst>
+
+Ook correct:                           (optioneel)
+- <tekst>
+```
+
+- **Herkend:** 1–10 criteria met een geldig gewicht en elk niveau precies één keer. Vervolgregels (een afgebroken regel) horen bij het vorige item, `\r\n` uit een textarea mag. Tekst vóór het eerste kopje, een dubbel kopje of een onbekende regel betekent: geen rubric. Er geldt dan de gewone beoordeling met de tekst als `{{criteria}}`, dus er gaat nooit iets verloren.
+- **Beoordeling:** `RUBRIC_SYSTEM_PROMPT` zet vraag, modelantwoord, genummerde criteria, alternatieven en niveaus in het systeembericht. Het JSON-schema (`rubric_feedback_schema()`) zet `criteria` vóór `score`: het model oordeelt eerst per criterium (`voldaan`/`deels`/`niet`, met toelichting) en kiest dan de score. Een custom prompt van de toets wordt hier niet gebruikt, omdat die een eigen puntentoekenning heeft.
+- **Validatie:** `validate_rubric_feedback()` eist elk criterium precies één keer. Cloud-modellen dwingen `minItems` niet af; bij een onvolledig oordeel volgt `RUBRIC_RETRY_ATTEMPTS` keer een gerichte correctie. Een 10 terwijl een essentieel criterium niet volledig voldaan is, wordt een 5 (de rubric eist alle essentiële criteria voor 10).
+- **Instellingen:** `RUBRIC_GRADING` (uitzetten = altijd de oude beoordeling) en `RUBRIC_NUM_CTX` (ruimer contextvenster, want de rubric is lang).
+- **Tests:** `bin/test_rubric_grading.py` (gemockte `call_ollama`). De fixture `bin/fixtures/criteria_rubric.txt` is de echte uitvoer van `rubricToCriteriaText()`; maak hem opnieuw aan als dat formaat verandert (zie `bin/README.md`).
 
 ---
 
@@ -609,7 +644,7 @@ Weet dat deze punten bestaan voordat je in de buurt iets wijzigt. Los ze bij voo
 | Pogingenteller van de worker staat in het geheugen | `run()` → `attempts` (beide workers) | Bij een herstart begint de teller opnieuw |
 | Eén ontwerp-worker tegelijk | `process_design_jobs.py`, geen claim-mechanisme | Twee workers doen dubbel werk; de `revision`-controle (409) voorkomt wel dat er iets wordt overschreven |
 | Geen geschiedenis per ontwerpronde | `question_designs` overschrijft `analysis`, `assessment` en `validation` | Eerdere rondes zijn alleen via de audit log (`question_design_feedback`) na te gaan |
-| Rubric als platte tekst in `questions.criteria` | `QuestionDesign::rubricToCriteriaText()` | De beoordelingsworker krijgt de rubric niet gestructureerd |
+| Rubric als platte tekst in `questions.criteria` | `QuestionDesign::rubricToCriteriaText()` ↔ `parse_rubric_criteria()` | De worker leidt de structuur uit de tekst af (contract 7, §6.7). Een docent die de opbouw loslaat, valt zonder melding terug op de gewone beoordeling |
 | Rolwijziging pas na opnieuw inloggen actief | sessie bevat `role` | Admin moet de gebruiker laten herinloggen |
 | Publieke gastlink zonder vervaldatum of uitschakelknop | `exams.public_token` | Openstaand punt S-08 |
 

@@ -79,6 +79,16 @@ NUM_CTX = 8192
 # Maximale lengte (tekens) van het studentantwoord dat naar het model gaat
 MAX_ANSWER_CHARS = 4000
 
+# Beoordeling per criterium als de criteria van een vraag de rubric-opbouw van
+# de AI-vraagontwerper hebben (kopjes "Beoordelingscriteria:" en
+# "Puntentoekenning:"). False = altijd de beoordeling met de criteria als
+# platte tekst in de prompt van de toets. Default True.
+# RUBRIC_GRADING = True
+
+# Contextvenster (tokens) voor een rubric-beoordeling. Ruimer dan NUM_CTX,
+# want de rubric maakt de prompt langer. Default 16384.
+# RUBRIC_NUM_CTX = 16384
+
 # =========================
 # AI-vraagontwerper (process_design_jobs.py)
 # Alle instellingen hieronder zijn optioneel; zonder deze regels gelden de defaults.

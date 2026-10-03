@@ -142,6 +142,28 @@ Nog te doen (buiten deze ronde):
 
 
 -------------------------------------------------------------------------------
+NIEUWE FUNCTIE: BEOORDELEN MET DE RUBRIC (branch dev-rubric-grading, 2026-10-03)
+-------------------------------------------------------------------------------
+De AI-worker herkent rubric-criteria (contract 7) en beoordeelt dan per criterium.
+Geen nieuwe endpoints of actions; wel extra tekst in ai_feedback. Maatregelen:
+
+  - Het studentantwoord blijft uitsluitend in het user-bericht (zelfde afbakening,
+    sandwich-herinnering en optionele injection-voorcontrole als voorheen). De
+    rubric komt van de docent en staat in het systeembericht, net als de criteria
+    eerder.
+  - Score-spoofing: de toelichting per criterium EN de criteriumnaam (docenttekst)
+    gaan door clean_output_text(), dus de labels Model:/Aantal punten: kunnen ook via
+    het nieuwe blok "Criteria:" geen extra score opleveren. Getest in
+    test_rubric_grading (gespoofte labels in toelichting en naam).
+  - Uitvoer per criterium gevalideerd: elk criterium precies één keer, status uit een
+    vaste lijst, toelichting <= 300 tekens en 2 zinnen, naam <= 100 tekens in de
+    feedback. Zo blijft ai_feedback ruim onder MAX_AI_FEEDBACK_LENGTH.
+  - Een 10 terwijl een essentieel criterium niet volledig voldaan is, wordt 5
+    (gemeld in de feedback). De docentscore wordt nooit aangeraakt.
+  - Een custom prompt van de toets wordt bij rubric-criteria niet gebruikt.
+
+
+-------------------------------------------------------------------------------
 NIEUWE FUNCTIE: AI-VRAAGONTWERPER (branch dev-agentic-exam-ai, 2026-10-03)
 -------------------------------------------------------------------------------
 Nieuwe aanvalsoppervlakken: 8 actions (question_design_*), 2 API-endpoints

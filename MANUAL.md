@@ -87,6 +87,7 @@ Bij het maken of bewerken van een toets zijn de volgende instellingen belangrijk
 Klik op "Vragen" bij een toets.
 *   **Vraag**: De tekst die de student ziet.
 *   **Criteria**: Dit is cruciaal voor de AI. Beschrijf hier expliciet waar een antwoord aan moet voldoen voor 0, 1, 5 of 10 punten. Hoe duidelijker de criteria, hoe beter de AI.
+*   **Rubric-criteria**: Criteria met de opbouw die de AI-vraagontwerper maakt (kopjes `Beoordelingscriteria:` en `Puntentoekenning:`, regels als `- [essentieel] Naam: beschrijving` en `10 punten: …` t/m `0 punten: …`) worden door de AI **per criterium** beoordeeld. Je kunt die opbouw ook zelf gebruiken. Zie "Vraag ontwerpen met AI" hieronder.
 
 ### Vraag ontwerpen met AI
 Twijfel je of je vraag eenduidig is, of wil je hulp bij de beoordelingscriteria? Klik op de vragenpagina van je toets op **"Vraag ontwerpen met AI"**. Deze knop zie je alleen bij toetsen die je zelf mag wijzigen (eigenaar of Admin).
@@ -97,6 +98,7 @@ Twijfel je of je vraag eenduidig is, of wil je hulp bij de beoordelingscriteria?
 4.  **Voorstel en validatie**: Een tweede AI-stap maakt een rubric: criteria (*essentieel* of *aanvullend*, elk met een toelichting), wat er nodig is voor 10, 5, 1 en 0 punten, en alternatieve correcte antwoorden. Een derde AI-stap controleert dat voorstel kritisch (dekt het je antwoord, zijn de criteria duidelijk en niet te letterlijk, sluiten de punten logisch aan?) en levert een verbeterde versie met uitleg van de wijzigingen.
 5.  **Bijsturen**: Niet tevreden? Schrijf bij "Feedback voor de AI" wat er anders moet en klik op "Opnieuw laten uitwerken". Dat kan een beperkt aantal rondes; daarna pas je de rubric zelf aan.
 6.  **Aanpassen en goedkeuren**: Onderaan staan de vraag en de beoordelingscriteria (opgebouwd uit de verbeterde rubric) in tekstvakken. Pas ze naar wens aan en klik op "Goedkeuren en vraag toevoegen". Pas dan komt de vraag in de toets; daarna bewerk je hem zoals elke andere vraag.
+7.  **Beoordeling per criterium**: Zolang de opbouw van de criteria intact blijft (de kopjes, de regels met `[essentieel]` of `[aanvullend]` en de vier regels van de puntentoekenning), beoordeelt de AI elk studentantwoord eerst per criterium (*voldaan*, *deels voldaan* of *niet voldaan*, met een korte toelichting) en kiest pas daarna de score. Dat oordeel staat onder **"Criteria:"** in de AI-feedback. Geeft de AI 10 punten terwijl een essentieel criterium niet volledig voldaan is, dan wordt dat 5 punten. Laat je de opbouw los, dan beoordeelt de AI met je tekst als gewone criteria. Bij een vraag met rubric-criteria gebruikt de AI niet de prompt die aan de toets is gekoppeld.
 
 Terwijl de AI werkt, ververst de pagina zichzelf. Het kan even duren; draait de AI-ontwerpassistent niet, dan zie je een melding en wordt je aanvraag verwerkt zodra die weer actief is. Mislukt een stap, dan kun je hem met "Opnieuw proberen" opnieuw laten uitvoeren. Je ontwerpen staan onder de vragentabel bij **"AI-vraagontwerpen"**, waar je ze kunt openen of verwijderen.
 

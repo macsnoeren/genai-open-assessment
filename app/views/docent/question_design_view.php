@@ -270,7 +270,9 @@ $previousRound = $isPending ? ' <span class="badge bg-light text-muted border ms
             </div>
             <div class="mb-3">
                 <label class="form-label" for="approveCriteria">Beoordelingscriteria</label>
-                <div class="form-text mt-0 mb-1">Opgebouwd uit de gevalideerde rubric. Dit is de tekst die de AI bij het beoordelen gebruikt.</div>
+                <div class="form-text mt-0 mb-1">Opgebouwd uit de gevalideerde rubric. Dit is de tekst die de AI bij het beoordelen gebruikt.
+                    Laat de opbouw (de kopjes, de regels met [essentieel] of [aanvullend] en de vier regels van de puntentoekenning) intact,
+                    dan beoordeelt de AI elk antwoord per criterium.</div>
                 <textarea name="criteria" id="approveCriteria" class="form-control font-monospace" rows="14" required><?=
                     e(QuestionDesign::rubricToCriteriaText($design['model_answer'], $validation['rubric'])) ?></textarea>
             </div>

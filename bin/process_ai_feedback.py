@@ -131,6 +131,16 @@ SAMPLING_OPTIONS = getattr(config, "SAMPLING_OPTIONS", {
 # (MAX_FEEDBACK_SENTENCES zinnen); limit_sentences knipt daarna alsnog.
 MAX_OUTPUT_FIELD_CHARS = getattr(config, "MAX_OUTPUT_FIELD_CHARS", 600)
 
+# Beoordeling per criterium als de criteria van een vraag de rubric-opbouw van
+# de vraagontwerper hebben (zie parse_rubric_criteria). False = altijd de
+# beoordeling met de criteria als platte tekst in de prompt van de toets.
+RUBRIC_GRADING = getattr(config, "RUBRIC_GRADING", True)
+
+# Contextvenster voor een rubric-beoordeling. De rubric (criteria, vier niveaus,
+# alternatieven), het antwoord, de uitvoer per criterium en de denktokens passen
+# niet altijd in NUM_CTX, en bij overschrijding verdwijnen juist de instructies.
+RUBRIC_NUM_CTX = getattr(config, "RUBRIC_NUM_CTX", 16384)
+
 # Onder dit aandeel unieke zinnen in de uitvoer wordt aangenomen dat het
 # model in een herhalingslus zat (en niet dat het budget te krap was).
 REPETITION_UNIQUE_RATIO = 0.5
@@ -412,6 +422,307 @@ def build_prompts(q: Dict, injection_suspected: bool = False) -> Tuple[str, str]
     return system_prompt, build_user_prompt(answer, injection_suspected)
 
 
+# =========================
+# RUBRIC-BEOORDELING
+# =========================
+#
+# De vraagontwerper (process_design_jobs.py) levert een rubric die bij
+# goedkeuring als platte tekst in questions.criteria komt, via
+# QuestionDesign::rubricToCriteriaText() in PHP:
+#
+#   Modelantwoord:
+#   <tekst>
+#
+#   Beoordelingscriteria:
+#   - [essentieel] <naam>: <beschrijving>
+#   - [aanvullend] <naam>: <beschrijving>
+#
+#   Puntentoekenning:
+#   10 punten: <tekst>
+#   5 punten: <tekst>
+#   1 punt: <tekst>
+#   0 punten: <tekst>
+#
+#   Ook correct:            (optioneel)
+#   - <tekst>
+#
+# Herkent parse_rubric_criteria() die opbouw, dan beoordeelt het model het
+# antwoord eerst per criterium en kiest het pas daarna de score. Anders (een
+# zelfgeschreven criteriatekst of een opbouw die de docent heeft losgelaten)
+# blijft de beoordeling zoals hij was. Wijzig je het formaat in PHP, pas dan
+# ook deze parser aan (CLAUDE.md, contract 7).
+
+RUBRIC_WEIGHTS = ("essentieel", "aanvullend")
+RUBRIC_LEVELS = (10, 5, 1, 0)
+MAX_RUBRIC_CRITERIA = 10
+
+# Status per criterium in de modeluitvoer, en hoe die in de feedback staat.
+CRITERION_STATUSES = ["voldaan", "deels", "niet"]
+CRITERION_STATUS_LABELS = {"voldaan": "voldaan", "deels": "deels voldaan", "niet": "niet voldaan"}
+
+# Lengte van de toelichting per criterium (schema en afkapping) en van de
+# criteriumnaam in de feedbacktekst. Houdt de feedback van alle modellen samen
+# ruim onder MAX_AI_FEEDBACK_LENGTH van de API.
+MAX_CRITERION_FIELD_CHARS = 300
+MAX_CRITERION_SENTENCES = 2
+MAX_CRITERION_NAME_CHARS = 100
+
+_RUBRIC_SECTION = re.compile(r'^(modelantwoord|beoordelingscriteria|puntentoekenning|ook correct)\s*:\s*$', re.IGNORECASE)
+_RUBRIC_CRITERION = re.compile(r'^-\s*\[\s*(essentieel|aanvullend)\s*\]\s*(.+?)\s*:\s+(.+)$', re.IGNORECASE)
+_RUBRIC_LEVEL = re.compile(r'^(10|5|1|0)\s+punt(?:en)?\s*:\s*(.+)$', re.IGNORECASE)
+_RUBRIC_ITEM = re.compile(r'^-\s*(.+)$')
+
+
+def _parse_rubric_lines(lines: List[str], pattern, to_item) -> Optional[List[Dict]]:
+    """
+    Zet de regels van één sectie om in items. Een regel die niet met "-" of
+    een niveau begint, is een vervolgregel van het vorige item (de docent kan
+    een lange regel hebben afgebroken). Een regel die op niets past: None.
+    """
+    items = []
+    for line in lines:
+        if not line:
+            continue
+        match = pattern.match(line)
+        if match:
+            items.append(to_item(match))
+        elif items and not line.startswith("-") and not _RUBRIC_LEVEL.match(line):
+            items[-1]["text"] += " " + line
+        else:
+            return None
+    return items
+
+
+def parse_rubric_criteria(text) -> Optional[Dict]:
+    """
+    Herkent de rubric-opbouw van QuestionDesign::rubricToCriteriaText().
+
+    :return: {"model_answer", "criteria": [{weight, name, text}], "levels": {10: ..., 5: ..., 1: ..., 0: ...},
+              "alternatives": [...]}, of None als de tekst die opbouw niet (meer) heeft
+    """
+    sections: Dict[str, List[str]] = {}
+    current = None
+    for raw_line in str(text or "").splitlines():
+        line = raw_line.strip()
+        header = _RUBRIC_SECTION.match(line)
+        if header:
+            current = header.group(1).lower()
+            if current in sections:
+                return None  # dubbel kopje: niet eenduidig
+            sections[current] = []
+        elif current is not None:
+            sections[current].append(line)
+        elif line:
+            return None  # tekst vóór het eerste kopje
+
+    if "beoordelingscriteria" not in sections or "puntentoekenning" not in sections:
+        return None
+
+    criteria = _parse_rubric_lines(
+        sections["beoordelingscriteria"], _RUBRIC_CRITERION,
+        lambda m: {"weight": m.group(1).lower(), "name": m.group(2), "text": m.group(3)},
+    )
+    if not criteria or len(criteria) > MAX_RUBRIC_CRITERIA:
+        return None
+
+    levels = _parse_rubric_lines(
+        sections["puntentoekenning"], _RUBRIC_LEVEL,
+        lambda m: {"level": int(m.group(1)), "text": m.group(2)},
+    )
+    if levels is None or sorted(l["level"] for l in levels) != sorted(RUBRIC_LEVELS):
+        return None  # elk niveau precies één keer
+
+    alternatives = _parse_rubric_lines(
+        sections.get("ook correct", []), _RUBRIC_ITEM, lambda m: {"text": m.group(1)},
+    )
+    if alternatives is None:
+        return None
+
+    return {
+        "model_answer": "\n".join(sections.get("modelantwoord", [])).strip(),
+        "criteria": [{"weight": c["weight"], "name": c["name"], "description": c["text"]} for c in criteria],
+        "levels": {l["level"]: l["text"] for l in levels},
+        "alternatives": [a["text"] for a in alternatives],
+    }
+
+
+RUBRIC_SYSTEM_PROMPT = """Je bent een automatisch beoordelingssysteem voor open toetsvragen.
+Je beoordeelt het antwoord van een student met de rubric die de docent heeft vastgesteld.
+Je geeft GEEN analyse, onderbouwing of extra tekst buiten het gevraagde JSON.
+
+GESTELDE VRAAG AAN STUDENT:
+{question_text}
+
+MODELANTWOORD VAN DE DOCENT (een voorbeeld van een goed antwoord, geen verplichte formulering):
+{model_answer}
+
+BEOORDELINGSCRITERIA:
+{criteria}
+
+OOK CORRECT (andere juiste antwoorden of invalshoeken):
+{alternatives}
+
+PUNTENTOEKENNING (alleen deze vier scores bestaan):
+10 punten: {level_10}
+5 punten: {level_5}
+1 punt: {level_1}
+0 punten: {level_0}
+
+WERKWIJZE:
+1. Beoordeel het antwoord eerst per criterium, in de volgorde hierboven. "criteria" bevat precies
+   {count} items: één voor elk criterium (nr 1 t/m {count}), ook voor een criterium dat het antwoord
+   niet behandelt (status "niet") en ook voor aanvullende criteria.
+   - status "voldaan": het antwoord voldoet aan het criterium;
+   - status "deels": het antwoord gaat in de goede richting, maar is onvolledig, te vaag of bevat een fout;
+   - status "niet": het criterium ontbreekt in het antwoord of is onjuist.
+   - toelichting: één korte zin waarom, in de je-vorm.
+2. Beoordeel op inhoud, niet op formulering. Andere woorden, eigen voorbeelden of een juiste
+   invalshoek uit "OOK CORRECT" tellen even zwaar als het modelantwoord.
+3. Kies daarna de score met de puntentoekenning. Voor 10 punten moeten alle essentiële criteria
+   voldaan zijn. Aanvullende criteria zijn niet nodig voor 10 punten.
+4. feedback: korte feedback aan de student in de je-vorm: wat goed is en wat ontbreekt, in termen
+   van de criteria.
+5. uitleg: wat de student concreet kan verbeteren, in de je-vorm.
+
+OUTPUTFORMAAT JSON exact (verplicht):
+{{"criteria": [{criteria_example}],
+ "score": <0, 1, 5 of 10>,
+ "feedback": "<tekst>",
+ "uitleg": "<tekst>"}}
+"""
+
+
+# Aantal extra pogingen als het oordeel per criterium onvolledig of ongeldig is
+# (geldige JSON, maar niet door validate_rubric_feedback()).
+RUBRIC_RETRY_ATTEMPTS = 1
+
+RUBRIC_CORRECTION = """
+Je vorige beoordeling is afgekeurd. "criteria" moet precies {count} items bevatten: één voor elk
+criterium (nr 1 t/m {count}, elk nummer één keer), met status "voldaan", "deels" of "niet". Een
+criterium dat het antwoord niet behandelt, krijgt status "niet". De score is 0, 1, 5 of 10.
+Geef nu UITSLUITEND het volledige JSON-object opnieuw.
+"""
+
+
+def build_rubric_prompts(q: Dict, rubric: Dict, injection_suspected: bool = False) -> Tuple[str, str]:
+    """
+    Zoals build_prompts(), maar met de rubric-prompt: de vraag, het modelantwoord,
+    de genummerde criteria, de alternatieven en de puntentoekenning in het
+    systeembericht. Een custom prompt van de toets wordt hier niet gebruikt:
+    die bevat een eigen puntentoekenning die met de rubric kan botsen.
+    """
+    criteria = "\n".join(
+        f"{i}. [{c['weight']}] {c['name']}: {c['description']}"
+        for i, c in enumerate(rubric["criteria"], 1)
+    )
+    alternatives = "\n".join(f"- {alt}" for alt in rubric["alternatives"]) or "(geen)"
+    system_prompt = RUBRIC_SYSTEM_PROMPT.format(
+        question_text=str(q.get('question_text') or ""),
+        model_answer=rubric["model_answer"] or "(niet opgegeven)",
+        criteria=criteria,
+        count=len(rubric["criteria"]),
+        criteria_example=", ".join(
+            f'{{"nr": {i}, "status": "...", "toelichting": "<tekst>"}}'
+            for i in range(1, len(rubric["criteria"]) + 1)
+        ),
+        alternatives=alternatives,
+        **{f"level_{level}": rubric["levels"][level] for level in RUBRIC_LEVELS},
+    )
+    system_prompt += SAFETY_SUFFIX
+    return system_prompt, build_user_prompt(str(q.get('answer') or ""), injection_suspected)
+
+
+def rubric_feedback_schema(criteria_count: int) -> Dict:
+    """
+    JSON-schema voor een rubric-beoordeling. "criteria" staat vóór "score",
+    zodat het model eerst per criterium oordeelt en dan pas de score kiest.
+    """
+    return {
+        "type": "object",
+        "properties": {
+            "criteria": {
+                "type": "array",
+                "minItems": criteria_count,
+                "maxItems": criteria_count,
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "nr": {"type": "integer", "enum": list(range(1, criteria_count + 1))},
+                        "status": {"type": "string", "enum": CRITERION_STATUSES},
+                        "toelichting": {"type": "string", "maxLength": MAX_CRITERION_FIELD_CHARS},
+                    },
+                    "required": ["nr", "status", "toelichting"],
+                },
+            },
+            **FEEDBACK_SCHEMA["properties"],
+        },
+        "required": ["criteria", *FEEDBACK_SCHEMA["required"]],
+    }
+
+
+def validate_rubric_feedback(parsed: Dict, rubric: Dict) -> Optional[Dict]:
+    """
+    Zoals validate_feedback(), plus het oordeel per criterium: elk criterium
+    precies één keer met een geldige status, anders None.
+
+    Geeft het model 10 punten terwijl een essentieel criterium niet volledig
+    voldaan is, dan wordt de score 5: de rubric eist voor 10 punten alle
+    essentiële criteria. "score_capped" meldt dat in de feedback.
+    """
+    result = validate_feedback(parsed)
+    if result is None:
+        return None
+
+    count = len(rubric["criteria"])
+    judgements: Dict[int, Dict] = {}
+    items = parsed.get("criteria")
+    for item in items if isinstance(items, list) else []:
+        if not isinstance(item, dict):
+            continue
+        nr = item.get("nr")
+        if isinstance(nr, str) and nr.strip().isdigit():
+            nr = int(nr.strip())
+        status = item.get("status")
+        if (isinstance(nr, bool) or not isinstance(nr, int) or not 1 <= nr <= count
+                or nr in judgements or status not in CRITERION_STATUSES):
+            continue
+        toelichting = limit_sentences(clean_output_text(item.get("toelichting")), MAX_CRITERION_SENTENCES)
+        judgements[nr] = {"status": status, "toelichting": toelichting[:MAX_CRITERION_FIELD_CHARS]}
+    if len(judgements) != count:
+        return None
+
+    result["criteria"] = [
+        {"name": c["name"], "weight": c["weight"], **judgements[i]}
+        for i, c in enumerate(rubric["criteria"], 1)
+    ]
+    result["score_capped"] = False
+    essential_missing = any(c["weight"] == "essentieel" and c["status"] != "voldaan" for c in result["criteria"])
+    if result["score"] == 10 and essential_missing:
+        result["score"] = 5
+        result["score_capped"] = True
+    return result
+
+
+def format_criteria_lines(result: Dict) -> str:
+    """
+    Het oordeel per criterium als regels onder "Feedback:" in het ai_feedback-blok.
+    Criteriumnamen komen van de docent en gaan ook door clean_output_text(),
+    zodat geen enkele regel een label van de PHP-parser kan bevatten.
+    """
+    lines = ["Criteria:"]
+    for c in result["criteria"]:
+        name = clean_output_text(c["name"])
+        if len(name) > MAX_CRITERION_NAME_CHARS:
+            name = name[:MAX_CRITERION_NAME_CHARS].rsplit(' ', 1)[0] + ' […]'
+        line = f"- {name} ({c['weight']}): {CRITERION_STATUS_LABELS[c['status']]}"
+        if c["toelichting"]:
+            line += f". {c['toelichting']}"
+        lines.append(line)
+    if result.get("score_capped"):
+        lines.append("(Score van 10 naar 5 verlaagd: niet alle essentiële criteria zijn volledig voldaan.)")
+    return "\n".join(lines)
+
+
 # Aantal correctiepogingen als het model geen geldige JSON teruggeeft.
 # Nodig omdat cloud-modellen het "format"-schema niet hard afdwingen zoals
 # lokale modellen dat doen (zie SAFETY_SUFFIX) - dit is het vangnet daarvoor.
@@ -583,7 +894,8 @@ def detect_prompt_injection(answer: str, model_name: str) -> Optional[Dict]:
 def get_feedback_from_model(
     q: Dict,
     model_name: str,
-    injection_suspected: bool = False
+    injection_suspected: bool = False,
+    rubric: Optional[Dict] = None
 ) -> Optional[Dict]:
     """
     Vraagt feedback op bij één LLM-model.
@@ -591,18 +903,36 @@ def get_feedback_from_model(
     :param q: Studentantwoord object uit de API
     :param model_name: Naam van het LLM-model (Ollama)
     :param injection_suspected: True als de voorcontrole prompt injection vermoedt
-    :return: Dict met gevalideerde score en feedback of None bij fout
+    :param rubric: uitkomst van parse_rubric_criteria(); dan wordt per criterium beoordeeld
+    :return: Dict met gevalideerde score en feedback (bij een rubric ook "criteria") of None bij fout
     """
-    if q.get('prompt_text'):
-        print(f"[{model_name}] Gebruikt custom prompt uit database.")
+    if rubric:
+        system_prompt, user_prompt = build_rubric_prompts(q, rubric, injection_suspected)
+        schema = rubric_feedback_schema(len(rubric["criteria"]))
+        prompt = user_prompt
+        duration = 0.0
+        # Cloud-modellen dwingen minItems niet af en laten een criterium dat het
+        # antwoord niet behandelt soms weg. Dan volgt een gerichte correctie.
+        for attempt in range(RUBRIC_RETRY_ATTEMPTS + 1):
+            parsed, call_duration = call_ollama(model_name, system_prompt, prompt, schema,
+                                                num_predict=NUM_PREDICT_FEEDBACK, num_ctx=RUBRIC_NUM_CTX)
+            duration += call_duration
+            validated = validate_rubric_feedback(parsed, rubric) if parsed is not None else None
+            if parsed is None or validated is not None:
+                break
+            if attempt < RUBRIC_RETRY_ATTEMPTS:
+                print(f"[{model_name}] Oordeel per criterium onvolledig of ongeldig: {parsed}; nieuwe poging met correctie.")
+                prompt = user_prompt + RUBRIC_CORRECTION.format(count=len(rubric["criteria"]))
+    else:
+        if q.get('prompt_text'):
+            print(f"[{model_name}] Gebruikt custom prompt uit database.")
+        system_prompt, user_prompt = build_prompts(q, injection_suspected)
+        parsed, duration = call_ollama(model_name, system_prompt, user_prompt, FEEDBACK_SCHEMA,
+                                       num_predict=NUM_PREDICT_FEEDBACK)
+        validated = validate_feedback(parsed) if parsed is not None else None
 
-    system_prompt, user_prompt = build_prompts(q, injection_suspected)
-
-    parsed, duration = call_ollama(model_name, system_prompt, user_prompt, FEEDBACK_SCHEMA, num_predict=NUM_PREDICT_FEEDBACK)
     if parsed is None:
         return None
-
-    validated = validate_feedback(parsed)
     if validated is None:
         print(f"[{model_name}] Uitvoer afgekeurd door validatie: {parsed}")
         return None
@@ -689,6 +1019,11 @@ def process_answer(q: Dict) -> Optional[str]:
     blocks = []
     injection_suspected = False
 
+    rubric = parse_rubric_criteria(q.get('criteria')) if RUBRIC_GRADING else None
+    if rubric:
+        print(f"Antwoord {q['student_answer_id']}: rubric herkend ({len(rubric['criteria'])} criteria), "
+              "beoordeling per criterium" + (" (custom prompt van de toets niet gebruikt)" if q.get('prompt_text') else "") + ".")
+
     if INJECTION_CHECK_MODEL:
         check = detect_prompt_injection(answer, INJECTION_CHECK_MODEL)
         if check and check["injection"]:
@@ -703,7 +1038,7 @@ def process_answer(q: Dict) -> Optional[str]:
     for model in LLM_MODELS:
         print(f"Feedback opvragen voor student_answer_id {q['student_answer_id']} met model {model}")
 
-        result = get_feedback_from_model(q, model, injection_suspected)
+        result = get_feedback_from_model(q, model, injection_suspected, rubric)
 
         if not result:
             print(f"Model {model} faalde voor antwoord {q['student_answer_id']}.")
@@ -720,12 +1055,15 @@ def process_answer(q: Dict) -> Optional[str]:
 
         # Let op: dit formaat wordt in de webapp met een regex geparsed
         # (Model: ... Aantal punten: ...). Houd de labels intact.
-        blocks.append(
+        block = (
             f"Model: {model}\n"
             f"Tijdsduur: {result['duration']:.2f}s\n"
             f"Aantal punten: {score}\n"
             f"Feedback: {feedback}"
         )
+        if result.get("criteria"):
+            block += "\n" + format_criteria_lines(result)
+        blocks.append(block)
 
     return "\n\n".join(blocks)
 

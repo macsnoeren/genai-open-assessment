@@ -382,9 +382,11 @@ class QuestionDesign {
   // ---------------------------------------------------------------------
 
   /**
-   * Platte tekst voor questions.criteria (de beoordelingsworker gebruikt die via
-   * {{criteria}}). Bevat bewust niet de labels "Model:" en "Aantal punten:"
-   * uit het ai_feedback-formaat (contract 1).
+   * Platte tekst voor questions.criteria. De beoordelingsworker herkent deze
+   * opbouw met parse_rubric_criteria() en beoordeelt dan per criterium
+   * (contract 7: wijzig kopjes, de criteriumregels of de niveauregels alleen
+   * samen met die parser). Bevat bewust niet de labels "Model:" en
+   * "Aantal punten:" uit het ai_feedback-formaat (contract 1).
    */
   public static function rubricToCriteriaText(string $modelAnswer, array $rubric): string {
     $lines = ['Modelantwoord:', trim($modelAnswer), '', 'Beoordelingscriteria:'];

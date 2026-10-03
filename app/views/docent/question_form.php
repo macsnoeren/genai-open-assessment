@@ -32,6 +32,7 @@ ob_start(); ?>
         <label class="form-label">Beoordelingscriteria (voor AI)</label>
         <div class="form-text mb-2">
             Beschrijf waaraan het antwoord moet voldoen voor 0, 1, 5 of 10 punten.
+            Criteria met de rubric-opbouw van de AI-vraagontwerper worden per criterium beoordeeld; laat die opbouw intact.
         </div>
         <textarea name="criteria" class="form-control font-monospace" rows="6" required><?= htmlspecialchars($question['criteria'] ?? '') ?></textarea>
     </div>
