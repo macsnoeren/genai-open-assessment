@@ -300,6 +300,46 @@ class AnswerAssessment {
   }
 
   // ---------------------------------------------------------------------
+  // Goedkeuren door de docent
+  // ---------------------------------------------------------------------
+
+  /**
+   * review → approved: legt in één transactie de statussen per criterium, de
+   * score en de goedkeurder vast en zet de docentscore en -feedback op het
+   * antwoord (dezelfde velden als handmatig beoordelen). False (en niets
+   * gewijzigd) als de run niet (meer) in review staat.
+   *
+   * @param array $teacherCriteria nr => status (voldaan|deels|niet)
+   */
+  public static function approve($id, $userId, array $teacherCriteria, int $score, string $feedback): bool {
+    $pdo = Database::connect();
+    $pdo->beginTransaction();
+    try {
+      $stmt = $pdo->prepare("
+        UPDATE answer_assessments
+        SET status = ?, teacher_criteria = ?, teacher_score = ?, approved_by = ?,
+            approved_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ? AND status = ?
+      ");
+      $stmt->execute([self::STATUS_APPROVED, self::encode($teacherCriteria), $score, $userId, $id, self::STATUS_REVIEW]);
+      if ($stmt->rowCount() === 0) {
+        $pdo->rollBack();
+        return false;
+      }
+      $stmt = $pdo->prepare("SELECT student_answer_id FROM answer_assessments WHERE id = ?");
+      $stmt->execute([$id]);
+      StudentAnswer::updateTeacherGrade((int)$stmt->fetchColumn(), $score, $feedback);
+      $pdo->commit();
+      return true;
+    } catch (Throwable $e) {
+      if ($pdo->inTransaction()) {
+        $pdo->rollBack();
+      }
+      throw $e;
+    }
+  }
+
+  // ---------------------------------------------------------------------
   // Normalisatie van het resultaat van de worker (contract 8: spiegel van
   // validate_*() in bin/assessment_agents.py). Alleen bekende velden worden
   // overgenomen, tekst afgekapt en lijsten op hun maximum gekapt. Een

@@ -191,6 +191,103 @@ $renderRound = function (array $round, bool $withDecision) use ($rubric, $eviden
 <?php endforeach; ?>
 <?php endif; ?>
 
+<?php if ($hasResult && $status === AnswerAssessment::STATUS_REVIEW): ?>
+<?php $finalByNr = array_column($decision['criteria'], 'final_status', 'nr'); ?>
+<div class="card mb-4 border-primary">
+    <div class="card-header fw-bold">Aanpassen en goedkeuren</div>
+    <div class="card-body">
+        <p class="text-muted">
+            Dit is een voorstel van de AI. Pas het oordeel per criterium, de score en de feedback naar wens aan.
+            Pas bij goedkeuring wordt de score de docentscore van dit antwoord.
+        </p>
+        <?php if ($answer['teacher_score'] !== null && $answer['teacher_score'] !== ''): ?>
+        <div class="alert alert-info py-2 small">
+            Dit antwoord heeft al een docentscore van <strong><?= (int)$answer['teacher_score'] ?></strong>.
+            Goedkeuren vervangt die score en de docentfeedback.
+        </div>
+        <?php endif; ?>
+        <form action="/?action=answer_assessment_approve" method="post">
+            <?= csrfInput() ?>
+            <input type="hidden" name="id" value="<?= (int)$run['id'] ?>">
+            <div class="row g-2 mb-3">
+                <?php foreach ($rubric['criteria'] as $c): ?>
+                <div class="col-md-6 col-lg-4">
+                    <label class="form-label small mb-1" for="criterion_<?= (int)$c['nr'] ?>">
+                        <?= (int)$c['nr'] ?>. <?= e($c['name']) ?> <span class="text-muted">(<?= e($c['weight']) ?>)</span>
+                    </label>
+                    <select name="criterion_<?= (int)$c['nr'] ?>" id="criterion_<?= (int)$c['nr'] ?>" class="form-select form-select-sm">
+                        <?php foreach (AnswerAssessment::STATUSES as $s): ?>
+                        <option value="<?= e($s) ?>" <?= ($finalByNr[$c['nr']] ?? '') === $s ? 'selected' : '' ?>>
+                            <?= e(AnswerAssessment::statusSymbol($s) . ' ' . AnswerAssessment::criterionStatusLabel($s)) ?>
+                        </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <?php endforeach; ?>
+            </div>
+            <div class="mb-3" style="max-width: 12rem;">
+                <label class="form-label" for="approveScore">Score (0–10)</label>
+                <input type="number" name="teacher_score" id="approveScore" class="form-control" min="0" max="10" step="1" required
+                       value="<?= (int)$run['final_score'] ?>">
+            </div>
+            <div class="mb-3">
+                <label class="form-label" for="approveFeedback">Feedback voor de student</label>
+                <textarea name="teacher_feedback" id="approveFeedback" class="form-control" rows="4"><?= e($lastRound['assessment']['feedback']) ?></textarea>
+            </div>
+            <?php if ($decision['human_review_needed']): ?>
+            <div class="form-check mb-3">
+                <input class="form-check-input" type="checkbox" name="reviewed_uncertainties" value="1" id="reviewedUncertainties" required>
+                <label class="form-check-label" for="reviewedUncertainties">
+                    Ik heb de onzekerheden en conflicten hierboven zelf beoordeeld.
+                </label>
+            </div>
+            <?php endif; ?>
+            <button type="submit" class="btn btn-success"
+                    data-confirm="Deze beoordeling goedkeuren? De score wordt de docentscore van dit antwoord.">Beoordeling goedkeuren</button>
+        </form>
+    </div>
+</div>
+<?php endif; ?>
+
+<?php if ($hasResult && $status === AnswerAssessment::STATUS_APPROVED): ?>
+<?php
+$finalByNr = array_column($decision['criteria'], 'final_status', 'nr');
+$teacherCriteria = $run['teacher_criteria'] ?? [];
+$deviations = [];
+foreach ($rubric['criteria'] as $c) {
+    $teacherStatus = $teacherCriteria[$c['nr']] ?? null;
+    if ($teacherStatus !== null && $teacherStatus !== ($finalByNr[$c['nr']] ?? null)) {
+        $deviations[] = ['criterion' => $c, 'ai' => $finalByNr[$c['nr']] ?? '?', 'teacher' => $teacherStatus];
+    }
+}
+?>
+<div class="card mb-4 border-success">
+    <div class="card-header fw-bold">Goedgekeurd</div>
+    <div class="card-body">
+        <p>
+            Goedgekeurd<?php if (!empty($run['approved_by_name'])): ?> door <?= e($run['approved_by_name']) ?><?php endif; ?>
+            op <?= e($run['approved_at']) ?>, met docentscore <strong><?= (int)$run['teacher_score'] ?></strong>
+            (voorstel van de AI: <?= (int)$run['final_score'] ?>).
+        </p>
+        <?php if ($deviations): ?>
+            <h6>Afwijkingen van de AI per criterium</h6>
+            <ul class="mb-0">
+                <?php foreach ($deviations as $d): ?>
+                <li><?= (int)$d['criterion']['nr'] ?>. <?= e($d['criterion']['name']) ?>:
+                    AI <?= e(AnswerAssessment::criterionStatusLabel($d['ai'])) ?> &rarr;
+                    docent <?= e(AnswerAssessment::criterionStatusLabel($d['teacher'])) ?></li>
+                <?php endforeach; ?>
+            </ul>
+        <?php else: ?>
+            <p class="text-muted mb-0">De docent nam het oordeel per criterium van de AI over.</p>
+        <?php endif; ?>
+        <p class="small text-muted mt-2 mb-0">
+            De actuele docentscore en -feedback staan op de <a href="/?action=view_student_answers&student_exam_id=<?= (int)$answer['student_exam_id'] ?>#answer-<?= (int)$answer['id'] ?>">antwoordenpagina</a>.
+        </p>
+    </div>
+</div>
+<?php endif; ?>
+
 <?php if ($hasResult): ?>
 <details class="card mb-4">
     <summary class="card-header fw-bold">Details van de run</summary>

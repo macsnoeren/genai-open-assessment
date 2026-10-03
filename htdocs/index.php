@@ -263,6 +263,10 @@ switch ($action) {
    $answerAssessmentController->view();
    break;
 
+ case 'answer_assessment_approve':
+   $answerAssessmentController->approve();
+   break;
+
  case 'delete_student_exam':
    $docent->deleteStudentExam();
    break;
