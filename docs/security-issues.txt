@@ -140,6 +140,52 @@ Nog te doen (buiten deze ronde):
   - Worker-deployments: config.py hoeft niet te wijzigen (zelfde API_KEY), maar een
     http:// BASE_URL buiten localhost vereist nu ALLOW_INSECURE_BASE_URL = True.
 
+
+-------------------------------------------------------------------------------
+NIEUWE FUNCTIE: AI-VRAAGONTWERPER (branch dev-agentic-exam-ai, 2026-10-03)
+-------------------------------------------------------------------------------
+Nieuwe aanvalsoppervlakken: 8 actions (question_design_*), 2 API-endpoints
+(open_design_jobs, submit_design_result), modeluitvoer die in de UI wordt getoond
+en docenttekst die naar een LLM gaat. Maatregelen:
+
+  - Objectautorisatie via de toets: elke question_design_*-action vereist rol docent
+    en dat de gebruiker eigenaar van de toets is of admin (loadExamForWrite /
+    loadDesignForWrite). Een gedeelde toets (shared=1) geeft GEEN toegang. De
+    exam_id komt altijd uit de database (ontwerp -> toets), nooit van de client; ook
+    bij goedkeuren. Getest: andere docent (ook bij gedeelde toets), beoordelaar en
+    student krijgen 403 op alle acties.
+  - Muterende acties alleen via POST + CSRF (405 bij GET); verwijderen via
+    data-confirm. Alle wijzigingen in de audit log (question_design_create/answer/
+    feedback/approve/retry/delete, api_design_jobs, design_result_submit).
+  - Invoerlimieten: vraag en gewenst antwoord MAX_DESIGN_TEXT_LENGTH (4000 tekens),
+    antwoord op een verduidelijkende vraag en bijsturing MAX_DESIGN_INPUT_LENGTH
+    (2000). Te lange of ongeldige UTF-8-invoer wordt geweigerd, niet afgekapt
+    opgeslagen. De verduidelijkende vragen zelf komen uit de database; van de client
+    komen alleen de antwoorden.
+  - Rate limit: DESIGN_START_MAX_PER_HOUR (10) nieuwe ontwerpen per docent per uur
+    (AuditLog::countRecent). Maximaal DESIGN_MAX_REVISIONS (6) rondes per ontwerp.
+    Let op: wie de audit log leegmaakt, zet ook deze limiet terug.
+  - JSON-normalisatie aan beide kanten (contract 6): de worker valideert de
+    modeluitvoer (validate_*), de API normaliseert opnieuw (QuestionDesign::
+    normalize*): alleen bekende velden, alleen strings/booleans van het juiste type,
+    tekstvelden <= 800 tekens, lijsten afgekapt, weight/check alleen uit een vaste
+    lijst. Ongeldig -> 400. Body maximaal MAX_DESIGN_RESULT_LENGTH (413).
+  - Verouderde resultaten: elke statusovergang is atomair (WHERE status = ? AND
+    revision = ?). Een resultaat voor een oude revision of een andere stap krijgt
+    409 en overschrijft niets; ook niet bij twee workers tegelijk.
+  - XSS: alle modeluitvoer gaat via e() in de views; JSON wordt alleen als data
+    gerenderd, nooit als HTML of script.
+  - Prompt injection: docenttekst (vraag, gewenst antwoord, antwoorden, feedback)
+    gaat als gelabelde blokken in het user-bericht, blokmarkeringen in de inhoud
+    worden verwijderd, en de system prompt zegt dat de blokken invoer zijn. Het
+    risico is beperkt: de bron is de ingelogde docent zelf, en de AI beslist niets
+    definitief (pas na goedkeuring door de docent ontstaat een vraag).
+  - De goedgekeurde criteria bevatten niet de labels "Model:" en "Aantal punten:"
+    uit het ai_feedback-formaat (contract 1).
+  - Privacy (zie S-15): vraag en gewenst antwoord gaan naar het geconfigureerde
+    model, bij een -cloud-model dus naar Ollama Cloud. Er gaan geen studentgegevens
+    mee.
+
 -------------------------------------------------------------------------------
 S-01  HOOG  Autorisatie-bypass bij opslaan docentscore
 -------------------------------------------------------------------------------

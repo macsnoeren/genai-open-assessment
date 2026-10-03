@@ -284,12 +284,12 @@ Deze vormen zijn de afspraak tussen PHP (`QuestionDesign::normalize*()`) en Pyth
 
 ## Fase 9: Documentatie
 
-- [ ] **9.1 `MANUAL.md`:** een nieuwe subsectie "Vraag ontwerpen met AI" onder *Voor Docenten*: de stappen, wat de agents doen, bijsturen, goedkeuren, en dat de AI niets definitief beslist.
-- [ ] **9.2 `ARCHITECTURE.md`:** §2 (nieuwe bestanden in `bin/`), §3.3 (routes van `QuestionDesignController`), §5 (tabel `question_designs` in het ER-diagram en de statusmachine), §6 (een nieuwe subsectie over de vraagontwerper met een sequentiediagram, het API-contract erbij in §6.2) en §9 (bekende beperkingen: één ontwerp-worker, pogingenteller in het geheugen, geen geschiedenis per ronde).
-- [ ] **9.3 `bin/README.md`:** het nieuwe script, hoe je het start en de nieuwe instellingen.
-- [ ] **9.4 `docs/security-issues.txt`:** invoerlimieten, rate limit, objectautorisatie via de toets, JSON-normalisatie aan beide kanten, de revision tegen verouderde resultaten, en dat docenttekst in prompts als gelabelde data gaat.
-- [ ] **9.5 `docs/rollout-agentic-design.md`** (naar het voorbeeld van `docs/rollout-new-version.md`): eerst de webapp (additief, geen overgangsvlag nodig, migratie maakt de tabel aan), daarna op de Windows-workermachine de nieuwe bestanden in `bin/` zetten, optioneel de `DESIGN_*`-instellingen in de **eigen** `config.py` zetten, en `python process_design_jobs.py` als tweede proces starten. Plus controle en terugdraaien (het worker-proces stoppen is voldoende).
-- [ ] **9.6 `CLAUDE.md`:** voeg de nieuwe bestanden toe aan de Python-syntaxcheck en het mocktestcommando aan *Commando's*, en voeg contract 6 toe (de JSON-vormen van de ontwerp-agents staan aan beide kanten: `QuestionDesign::normalize*()` en `validate_*()`).
+- [x] **9.1 `MANUAL.md`:** een nieuwe subsectie "Vraag ontwerpen met AI" onder *Voor Docenten*: de stappen, wat de agents doen, bijsturen, goedkeuren, en dat de AI niets definitief beslist.
+- [x] **9.2 `ARCHITECTURE.md`:** §2 (nieuwe bestanden in `bin/`), §3.3 (routes van `QuestionDesignController`), §5 (tabel `question_designs` in het ER-diagram en de statusmachine), §6 (een nieuwe subsectie over de vraagontwerper met een sequentiediagram, het API-contract erbij in §6.2) en §9 (bekende beperkingen: één ontwerp-worker, pogingenteller in het geheugen, geen geschiedenis per ronde).
+- [x] **9.3 `bin/README.md`:** het nieuwe script, hoe je het start en de nieuwe instellingen.
+- [x] **9.4 `docs/security-issues.txt`:** invoerlimieten, rate limit, objectautorisatie via de toets, JSON-normalisatie aan beide kanten, de revision tegen verouderde resultaten, en dat docenttekst in prompts als gelabelde data gaat.
+- [x] **9.5 `docs/rollout-agentic-design.md`** (naar het voorbeeld van `docs/rollout-new-version.md`): eerst de webapp (additief, geen overgangsvlag nodig, migratie maakt de tabel aan), daarna op de Windows-workermachine de nieuwe bestanden in `bin/` zetten, optioneel de `DESIGN_*`-instellingen in de **eigen** `config.py` zetten, en `python process_design_jobs.py` als tweede proces starten. Plus controle en terugdraaien (het worker-proces stoppen is voldoende).
+- [x] **9.6 `CLAUDE.md`:** voeg de nieuwe bestanden toe aan de Python-syntaxcheck en het mocktestcommando aan *Commando's*, en voeg contract 6 toe (de JSON-vormen van de ontwerp-agents staan aan beide kanten: `QuestionDesign::normalize*()` en `validate_*()`).
   Commit: `Document agentic question design`.
 
 ## Fase 10: Afronding

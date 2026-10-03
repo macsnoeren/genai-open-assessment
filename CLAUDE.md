@@ -8,6 +8,7 @@ Een webapplicatie voor toetsen met open vragen die door generatieve AI worden vo
 
 - **Webapp:** PHP 8.2 zonder framework of Composer, SQLite via PDO, Bootstrap 5. Code in `htdocs/` (documentroot), `app/`, `config/` en `setup/`.
 - **AI-worker:** `bin/process_ai_feedback.py` (Python 3 + `requests`). Haalt via `htdocs/api/index.php` antwoorden op, laat ze door Ollama-modellen beoordelen en stuurt de feedback terug.
+- **Ontwerp-worker:** `bin/process_design_jobs.py` + `bin/design_agents.py`. De AI-vraagontwerper: drie agents (analyse, rubricvoorstel, validatie) werken een vraag van de docent uit tot een rubric (ARCHITECTURE §6.6). Draait als tweede proces.
 
 De UI-teksten, codecommentaar en docs zijn in het **Nederlands**; klassen, methodes en variabelen in het Engels. Houd dat zo.
 
@@ -27,13 +28,17 @@ cd docker && docker compose down -v
 docker run --rm -v "$PWD":/app -w /app php:8.2-cli sh -c 'find app config htdocs setup -name "*.php" -print0 | xargs -0 -n1 php -l' | grep -v "^No syntax errors"
 
 # Python-syntaxcheck
-python3 -m py_compile bin/process_ai_feedback.py bin/dataset_import.py
+python3 -m py_compile bin/process_ai_feedback.py bin/dataset_import.py bin/process_design_jobs.py bin/design_agents.py bin/test_design_agents.py
+
+# Mocktests van de vraagontwerper (gemockte call_ollama, vereist bin/config.py)
+cd bin && python3 -m unittest test_design_agents -v
 
 # Worker starten (vereist bin/config.py, zie bin/config.py.sample)
 cd bin && python process_ai_feedback.py
+cd bin && python process_design_jobs.py   # ontwerp-worker, tweede proces
 ```
 
-Er is **geen geautomatiseerde testsuite**. Controleer wijzigingen met de syntaxchecks hierboven en een handmatige rooktest in de Docker-omgeving (inloggen, de gewijzigde flow doorlopen, en voor muterende acties ook controleren dat een GET een 405 geeft).
+Er is **geen geautomatiseerde testsuite** voor de webapp (alleen de mocktests van `bin/design_agents.py`). Controleer wijzigingen met de syntaxchecks hierboven en een handmatige rooktest in de Docker-omgeving (inloggen, de gewijzigde flow doorlopen, en voor muterende acties ook controleren dat een GET een 405 geeft).
 
 ## Architectuur in het kort
 
@@ -72,11 +77,12 @@ En verder:
 3. **Het schema:** werk bij een wijziging **beide** paden bij: `setup/schema.sql` (nieuwe databases) **en** `Database::migrate()` in `config/database.php` (bestaande databases, idempotent via `PRAGMA table_info`). Kies defaults die veilig zijn voor bestaande rijen.
 4. **Scores:** de AI mag alleen `{0, 1, 5, 10}` geven (`ALLOWED_SCORES` en het JSON-schema in de worker). De docentscore is een geheel getal van 0 t/m 10. Het eindcijfer is het gemiddelde van de docentscores.
 5. **Rollen** (`student`, `docent`, `beoordelaar`, `admin`) staan op meerdere plekken: de schema-`CHECK`, `validRoles()`, `requireRole()`, de navigatie in `layouts/main.php` en drie redirect-per-rol-functies. Pas ze altijd allemaal tegelijk aan.
+6. **De JSON-vormen van de ontwerp-agents** (analyse, rubric, assessment, validatie) staan aan beide kanten: `QuestionDesign::normalize*()` in PHP en de JSON-schema's plus `validate_*()` in `bin/design_agents.py`, met dezelfde limieten (tekstvelden ≤ 800 tekens, lijstmaxima, `checks` precies zes, `weight` en `check` uit een vaste lijst). Verander je een veld of limiet, pas dan beide kanten aan, en ook de endpoints `open_design_jobs`/`submit_design_result` als de envelop verandert. Statusovergangen gaan altijd via `WHERE status = ? AND revision = ?` in `QuestionDesign`.
 
 ## Valkuilen
 
 - **`bin/config.py` is gitignored en de worker draait op een aparte machine met een eigen `config.py`.** Een wijziging aan de lokale `config.py` bereikt die machine niet. Lees nieuwe instellingen daarom altijd met `getattr(config, "NAAM", default)`, documenteer ze in `bin/config.py.sample` en `bin/README.md`, en vermeld expliciet wat de gebruiker op de worker-machine moet aanpassen.
-- **Worker testen:** mock `call_ollama()` voor functionele tests. Live tests alleen met een cloud-model (bijvoorbeeld `gpt-oss:120b-cloud` via de lokale Ollama), **niet met lokale modellen** zoals `qwen3:4b`: die zijn traag en laten de machine vastlopen.
+- **Worker testen:** mock `call_ollama()` voor functionele tests (zie `bin/test_design_agents.py`, die `design_agents.call_ollama` patcht). Live tests alleen met een cloud-model (bijvoorbeeld `gpt-oss:120b-cloud` via de lokale Ollama), **niet met lokale modellen** zoals `qwen3:4b`: die zijn traag en laten de machine vastlopen.
 - **Ongebruikte bestanden:** `views/docent/exam_create.php`, `exam_edit.php`, `question_create.php`, `question_edit.php`, `student_create.php` en `student_edit.php`, en `models/Student.php`, worden nergens geladen. De actieve formulieren zijn de `*_form.php`-bestanden.
 - `models/Questions.php` bevat `class Question` (enkelvoud).
 - `StudentController` beheert **alle** gebruikers, niet alleen studenten.

@@ -47,6 +47,36 @@ Start de feedback processor met het volgende commando:
 python process_ai_feedback.py
 ```
 
+## AI-vraagontwerper (`process_design_jobs.py`)
+
+A second, separate worker supports teachers who design a new open question. The teacher enters a question and the desired answer in the web app; this worker lets three agents work it out and sends the result back. It runs as its own process so a teacher who is waiting interactively does not queue behind student answers, and it can be started and stopped independently.
+
+- `process_design_jobs.py`: the main loop. Every `DESIGN_POLL_INTERVAL` seconds it fetches open designs (`GET action=open_design_jobs`), lets the orchestrator handle each job, and posts the result (`POST action=submit_design_result`). A `409` means the teacher changed something in the meantime: the result is stale and skipped. After `DESIGN_MAX_ATTEMPTS` failures for the same step it posts an `error`, so the design shows as failed and the teacher can retry.
+- `design_agents.py`: the agents and the orchestrator, without network code towards the web app. *Analysis Agent* (essential elements, clarity, issues, clarifying questions for the teacher), *Assessment Agent* (rubric: criteria marked essentieel/aanvullend, levels for 10/5/1/0 points, alternative answers) and *Validation Agent* (six critical checks and an improved rubric). Output is enforced with a JSON schema and validated with `validate_*()`, which mirror `QuestionDesign::normalize*()` in the web app (keep the limits equal on both sides). All teacher text goes into the user message as labelled blocks (`<vraag>`, `<gewenst_antwoord>`, …), treated as data.
+- It reuses `call_ollama()`, `check_base_url()`, `API_HEADERS` and `api_params()` from `process_ai_feedback.py`, so it uses the same `config.py`, API key and Ollama.
+
+Start it next to the feedback processor:
+```bash
+python process_design_jobs.py
+```
+
+Optional settings in `config.py` (all have defaults, an existing `config.py` keeps working):
+
+```python
+DESIGN_MODEL = "gpt-oss:120b-cloud"            # Model for all agents (default: last entry of LLM_MODELS)
+DESIGN_VALIDATION_MODEL = "gpt-oss:120b-cloud" # Separate model for the Validation Agent (default: DESIGN_MODEL)
+DESIGN_POLL_INTERVAL = 10                      # Seconds between polls (teachers are waiting)
+DESIGN_MAX_ATTEMPTS = 3                        # Attempts per step before the design is marked as failed
+NUM_PREDICT_DESIGN = 6000                      # Token budget per agent call; capped at NUM_PREDICT_MAX
+DESIGN_NUM_CTX = 16384                         # Context window for the agents (larger than NUM_CTX)
+```
+
+Tests (mocked `call_ollama()`, nothing is sent to Ollama or the web app; requires a `config.py`):
+```bash
+python3 -m unittest test_design_agents -v
+```
+The fixtures in `fixtures/` (PLC example) are also usable for manual `curl` tests against the API. For live tests use a cloud model such as `gpt-oss:120b-cloud`, not a local model.
+
 ## Dataset Import
 Het script `dataset_import.py` kan worden gebruikt om de **Mohler ASAG** dataset (van HuggingFace) te importeren in de database. Dit is nuttig voor testdoeleinden en om de nauwkeurigheid van de AI te valideren tegenover menselijke scores.
 

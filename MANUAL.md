@@ -88,6 +88,20 @@ Klik op "Vragen" bij een toets.
 *   **Vraag**: De tekst die de student ziet.
 *   **Criteria**: Dit is cruciaal voor de AI. Beschrijf hier expliciet waar een antwoord aan moet voldoen voor 0, 1, 5 of 10 punten. Hoe duidelijker de criteria, hoe beter de AI.
 
+### Vraag ontwerpen met AI
+Twijfel je of je vraag eenduidig is, of wil je hulp bij de beoordelingscriteria? Klik op de vragenpagina van je toets op **"Vraag ontwerpen met AI"**. Deze knop zie je alleen bij toetsen die je zelf mag wijzigen (eigenaar of Admin).
+
+1.  **Invoeren**: Je typt de vraag en het gewenste antwoord (het antwoord dat je van een goede student verwacht) en klikt op "Ontwerp starten".
+2.  **Analyse**: Een eerste AI-stap bepaalt welke onderdelen van je antwoord essentieel zijn, controleert of de vraag duidelijk is en of je gewenste antwoord de vraag echt beantwoordt, en noemt mogelijke beoordelingsproblemen.
+3.  **Verduidelijkende vragen**: Heeft de AI meer informatie nodig (bijvoorbeeld "hoeveel redenen moet een student noemen?"), dan zie je die vragen met bij elke vraag *waarom* het antwoord nodig is. Je mag een vraag leeg laten; de AI maakt dan zelf een redelijke keuze. Zijn er geen vragen nodig, dan gaat het ontwerp meteen door.
+4.  **Voorstel en validatie**: Een tweede AI-stap maakt een rubric: criteria (*essentieel* of *aanvullend*, elk met een toelichting), wat er nodig is voor 10, 5, 1 en 0 punten, en alternatieve correcte antwoorden. Een derde AI-stap controleert dat voorstel kritisch (dekt het je antwoord, zijn de criteria duidelijk en niet te letterlijk, sluiten de punten logisch aan?) en levert een verbeterde versie met uitleg van de wijzigingen.
+5.  **Bijsturen**: Niet tevreden? Schrijf bij "Feedback voor de AI" wat er anders moet en klik op "Opnieuw laten uitwerken". Dat kan een beperkt aantal rondes; daarna pas je de rubric zelf aan.
+6.  **Aanpassen en goedkeuren**: Onderaan staan de vraag en de beoordelingscriteria (opgebouwd uit de verbeterde rubric) in tekstvakken. Pas ze naar wens aan en klik op "Goedkeuren en vraag toevoegen". Pas dan komt de vraag in de toets; daarna bewerk je hem zoals elke andere vraag.
+
+Terwijl de AI werkt, ververst de pagina zichzelf. Het kan even duren; draait de AI-ontwerpassistent niet, dan zie je een melding en wordt je aanvraag verwerkt zodra die weer actief is. Mislukt een stap, dan kun je hem met "Opnieuw proberen" opnieuw laten uitvoeren. Je ontwerpen staan onder de vragentabel bij **"AI-vraagontwerpen"**, waar je ze kunt openen of verwijderen.
+
+> **De AI beslist niets definitief.** De voorstellen zijn hulpmiddelen: jij bepaalt de vraag en de criteria, en zonder jouw goedkeuring verandert er niets aan de toets.
+
 ### Resultaten & Beoordelen
 Klik op "Resultaten" bij een toets voor een lijst met inzendingen.
 *   **Bekijken**: Zie het antwoord van de student, de AI-feedback en eventuele docent-feedback onder elkaar.
