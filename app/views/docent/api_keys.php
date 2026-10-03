@@ -27,7 +27,7 @@ if (isset($_SESSION['new_api_key'])):
 
 <h2>API-keys beheren</h2>
 
-<p>Beheer hier de API-keys voor externe applicaties, zoals de AI feedback service. Keys worden gehasht opgeslagen; de externe applicatie stuurt de key mee in de header <code>Authorization: Bearer &lt;key&gt;</code>.</p>
+<p>Beheer hier de API-keys voor de AI-workers (type <em>Worker</em>). Keys van het type <em>Koppeling</em> horen bij een externe koppeling en beheer je via <a href="/?action=integrations">Koppelingen</a>. Keys worden gehasht opgeslagen; de externe applicatie stuurt de key mee in de header <code>Authorization: Bearer &lt;key&gt;</code>.</p>
 
 <div class="mb-3">
     <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#apiKeyModal">Nieuwe API-key</button>
@@ -39,6 +39,7 @@ if (isset($_SESSION['new_api_key'])):
   <thead class="table-light">
     <tr>
       <th>Naam</th>
+      <th>Type</th>
       <th>Vingerafdruk (SHA-256)</th>
       <th>Status</th>
       <th>Aangemaakt</th>
@@ -47,8 +48,16 @@ if (isset($_SESSION['new_api_key'])):
   </thead>
   <tbody>
     <?php foreach ($keys as $key): ?>
+    <?php $isIntegrationKey = ($key['scope'] ?? ApiKey::SCOPE_WORKER) === ApiKey::SCOPE_INTEGRATION; ?>
     <tr>
       <td><?= htmlspecialchars($key['name']) ?></td>
+      <td>
+        <?php if ($isIntegrationKey): ?>
+        <span class="badge bg-info text-dark">Koppeling</span>
+        <?php else: ?>
+        <span class="badge bg-light text-dark border">Worker</span>
+        <?php endif; ?>
+      </td>
       <td class="font-monospace"><?= htmlspecialchars(substr($key['api_key'], 0, 8)) ?>...</td>
       <td>
         <?php if ($key['active']): ?>
@@ -59,14 +68,20 @@ if (isset($_SESSION['new_api_key'])):
       </td>
       <td><?= e($key['created_at']) ?></td>
       <td class="text-end">
+        <?php if ($isIntegrationKey): ?>
+        <a href="/?action=integrations" class="small me-2">Beheer via Koppelingen</a>
+        <a href="/?action=api_key_delete&id=<?= (int)$key['id'] ?>"
+           data-confirm="Weet je zeker dat je deze API-key wilt verwijderen? De bijbehorende koppeling verdwijnt dan ook; de pogingen blijven als gastpogingen bestaan." class="btn btn-sm btn-outline-danger">Verwijderen</a>
+        <?php else: ?>
         <?php if ($key['active']): ?>
-        <a href="/?action=api_key_toggle&id=<?= $key['id'] ?>"
+        <a href="/?action=api_key_toggle&id=<?= (int)$key['id'] ?>"
            data-confirm="Weet je zeker dat je deze API-key tijdelijk wilt uitschakelen?" class="btn btn-sm btn-outline-secondary">Uitschakelen</a>
         <?php else: ?>
         <a href="/?action=api_key_toggle&id=<?= (int)$key['id'] ?>" data-confirm="Weet je zeker dat je deze API-key wilt inschakelen?" class="btn btn-sm btn-outline-success">Inschakelen</a>
         <?php endif; ?>
-        <a href="/?action=api_key_delete&id=<?= $key['id'] ?>"
+        <a href="/?action=api_key_delete&id=<?= (int)$key['id'] ?>"
            data-confirm="Weet je zeker dat je deze API-key wilt verwijderen?" class="btn btn-sm btn-outline-danger">Verwijderen</a>
+        <?php endif; ?>
       </td>
     </tr>
     <?php endforeach; ?>

@@ -45,9 +45,14 @@ class ApiController {
     }
 
     /**
-     * Verifies the API key provided in the request.
+     * Controleert de API-key van het verzoek en de scope ervan.
+     * Een ongeldige, onbekende of uitgeschakelde key geeft 401; een geldige key
+     * met een andere scope 403. Zo kan een integratiekey nooit bij de
+     * worker-endpoints (alle studentantwoorden) en een workerkey nooit bij de
+     * integratie-endpoints.
+     * @param string $scope ApiKey::SCOPE_WORKER of ApiKey::SCOPE_INTEGRATION
      */
-    private function verifyApiKey() {
+    private function verifyApiKey(string $scope) {
         $key = $this->readApiKeyFromHeaders();
         $this->apiKey = ApiKey::findActiveByKey($key);
 
@@ -58,6 +63,16 @@ class ApiController {
             echo json_encode(['error' => 'Unauthorized: Invalid or missing API Key']);
             exit;
         }
+        if (($this->apiKey['scope'] ?? ApiKey::SCOPE_WORKER) !== $scope) {
+            AuditLog::log('api_scope_denied', [
+                'api_key_id' => $this->apiKey['id'],
+                'expected' => $scope,
+                'action' => is_string($_GET['action'] ?? null) ? substr($_GET['action'], 0, 50) : '',
+            ], 'API:' . $this->apiKey['name']);
+            http_response_code(403);
+            echo json_encode(['error' => 'Forbidden for this key']);
+            exit;
+        }
     }
 
     /**
@@ -65,7 +80,7 @@ class ApiController {
      */
     public function getOpenAnswers() {
         header('Content-Type: application/json');
-        $this->verifyApiKey();
+        $this->verifyApiKey(ApiKey::SCOPE_WORKER);
 
         $pingFile = __DIR__ . '/../../database/last_api_ping.txt';
         @file_put_contents($pingFile, time());
@@ -90,7 +105,7 @@ class ApiController {
      */
     public function submitAiFeedback() {
         header('Content-Type: application/json');
-        $this->verifyApiKey();
+        $this->verifyApiKey(ApiKey::SCOPE_WORKER);
 
         if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
             http_response_code(405);
@@ -139,7 +154,7 @@ class ApiController {
      */
     public function getOpenDesignJobs() {
         header('Content-Type: application/json');
-        $this->verifyApiKey();
+        $this->verifyApiKey(ApiKey::SCOPE_WORKER);
 
         $pingFile = __DIR__ . '/../../database/last_design_ping.txt';
         @file_put_contents($pingFile, time());
@@ -180,7 +195,7 @@ class ApiController {
      */
     public function submitDesignResult() {
         header('Content-Type: application/json');
-        $this->verifyApiKey();
+        $this->verifyApiKey(ApiKey::SCOPE_WORKER);
 
         if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
             $this->jsonError(405, 'Method not allowed');
@@ -274,7 +289,7 @@ class ApiController {
      */
     public function getOpenAssessmentJobs() {
         header('Content-Type: application/json');
-        $this->verifyApiKey();
+        $this->verifyApiKey(ApiKey::SCOPE_WORKER);
 
         $pingFile = __DIR__ . '/../../database/last_assessment_ping.txt';
         @file_put_contents($pingFile, time());
@@ -319,7 +334,7 @@ class ApiController {
      */
     public function submitAssessmentResult() {
         header('Content-Type: application/json');
-        $this->verifyApiKey();
+        $this->verifyApiKey(ApiKey::SCOPE_WORKER);
 
         if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
             $this->jsonError(405, 'Method not allowed');
