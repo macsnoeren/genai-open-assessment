@@ -11,6 +11,10 @@
 require_once __DIR__ . '/../../config/app.php';
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/StudentExam.php';
+require_once __DIR__ . '/StudentAnswer.php';
+require_once __DIR__ . '/Questions.php';
+require_once __DIR__ . '/AnswerAssessment.php';
+require_once __DIR__ . '/Integration.php';
 
 /**
  * Een poging via een externe koppeling: een gewone gastpoging (student_exams,
@@ -25,6 +29,12 @@ class IntegrationAttempt {
   const STATUS_GRADING = 'grading';
   const STATUS_GRADED = 'graded';
   const STATUS_REVIEWED = 'reviewed';
+
+  const FILTERS = ['open', 'needs_review', 'all'];
+  const LIST_CANDIDATES = 500;   // de lijst wordt in PHP gefilterd; zie ARCHITECTURE.md §9
+
+  /** Rangorde van de confidence: hoog > middel > laag. */
+  const CONFIDENCE_RANK = ['laag' => 1, 'middel' => 2, 'hoog' => 3];
 
   private const SELECT = "
       SELECT ia.*, se.exam_id, se.guest_name, se.access_token, se.started_at, se.completed_at,
@@ -208,5 +218,264 @@ class IntegrationAttempt {
       'status' => $status,
     ]);
     return $url . '?' . implode('&', $kept);
+  }
+
+  // ---------------------------------------------------------------------
+  // Status, confidence en review_needed (deterministisch, zie B6 en B7 in
+  // ARCHITECTURE.md §6.9 en docs/integration-api.md)
+  // ---------------------------------------------------------------------
+
+  private static function below(string $confidence, string $threshold): bool {
+    return (self::CONFIDENCE_RANK[$confidence] ?? 1) < (self::CONFIDENCE_RANK[$threshold] ?? 3);
+  }
+
+  private static function lowest(array $confidences): ?string {
+    $lowest = null;
+    foreach ($confidences as $confidence) {
+      if ($lowest === null || self::CONFIDENCE_RANK[$confidence] < self::CONFIDENCE_RANK[$lowest]) {
+        $lowest = $confidence;
+      }
+    }
+    return $lowest;
+  }
+
+  /**
+   * Het AI-resultaat van één antwoord in de vorm van contract 9 (veld "ai"),
+   * of null als er nog geen AI-resultaat is. Een afgeronde agentic run gaat
+   * voor; anders telt ai_feedback (ook zonder score: de worker gaf op).
+   * @param array $answer rij uit student_answers
+   * @param array|null $run nieuwste niet-superseded agentic run van het antwoord
+   */
+  public static function answerResult(array $answer, ?array $run, string $minConfidence): ?array {
+    if ($run && $run['status'] === AnswerAssessment::STATUS_DONE) {
+      $decoded = AnswerAssessment::decode($run);
+      $decision = $decoded['decision'] ?? [];
+      $confidence = in_array($decision['confidence'] ?? null, Integration::CONFIDENCES, true) ? $decision['confidence'] : 'laag';
+      $humanReview = !empty($run['human_review_needed']);
+      $reasons = [];
+      if ($humanReview) {
+        $reasons = $decision['reasons'] ?? [];
+        if (!$reasons) {
+          $reasons[] = 'AI vraagt menselijke controle';
+        }
+      }
+      $belowThreshold = self::below($confidence, $minConfidence);
+      if ($belowThreshold) {
+        $reasons[] = 'Confidence ' . $confidence . ' ligt onder de drempel ' . $minConfidence;
+      }
+
+      $statuses = [];
+      foreach ($decision['criteria'] ?? [] as $c) {
+        $statuses[(int)$c['nr']] = $c['final_status'];
+      }
+      $criteria = [];
+      foreach ($decoded['rubric']['criteria'] ?? [] as $c) {
+        $criteria[] = [
+          'name' => $c['name'],
+          'weight' => $c['weight'],
+          'status' => $statuses[(int)$c['nr']] ?? null,
+        ];
+      }
+      $student = AnswerAssessment::studentSummary($run);
+      return [
+        'source' => 'agentic',
+        'score' => (int)$run['final_score'],
+        'feedback' => $student['feedback'] ?? '',
+        'confidence' => $confidence,
+        'review_needed' => $humanReview || $belowThreshold,
+        'reasons' => array_values(array_unique($reasons)),
+        'criteria' => $criteria,
+      ];
+    }
+
+    $aiFeedback = $answer['ai_feedback'] ?? null;
+    if ($aiFeedback === null || trim($aiFeedback) === '') {
+      return null;
+    }
+
+    $modelScores = StudentAnswer::aiScores($aiFeedback);
+    $confidences = [];
+    $reasons = [];
+    $alwaysReview = false;
+    if (!$modelScores) {
+      $confidences[] = 'laag';
+      $reasons[] = 'Geen AI-score';
+      $alwaysReview = true;
+    }
+    if (StudentAnswer::hasInjectionWarning($aiFeedback)) {
+      $confidences[] = 'laag';
+      $reasons[] = 'Mogelijke instructies aan de AI';
+      $alwaysReview = true;
+    }
+    if (count($modelScores) === 1) {
+      $confidences[] = 'middel';
+      $reasons[] = 'Slechts één model';
+    } elseif (count($modelScores) >= 2) {
+      $min = min($modelScores);
+      $max = max($modelScores);
+      if ($min === $max) {
+        $confidences[] = 'hoog';
+      } elseif ($min <= 1 && $max >= 5) {
+        $confidences[] = 'laag';
+        $reasons[] = 'Modellen zijn het oneens';
+        $alwaysReview = true;
+      } else {
+        $confidences[] = 'middel';
+        $reasons[] = 'Kleine verschillen tussen modellen';
+      }
+    }
+    $confidence = self::lowest($confidences);
+
+    return [
+      'source' => 'models',
+      'score' => $modelScores ? round(array_sum($modelScores) / count($modelScores), 1) : null,
+      'model_scores' => (object)$modelScores,
+      'feedback' => $aiFeedback,
+      'confidence' => $confidence,
+      'review_needed' => $alwaysReview || self::below($confidence, $minConfidence),
+      'reasons' => $reasons,
+    ];
+  }
+
+  /**
+   * De volledige samenvatting van een poging (contract 9). De status wordt
+   * afgeleid uit completed_at, de AI-resultaten, teacher_score en reviewed_at.
+   */
+  public static function summary(array $attempt): array {
+    $studentExamId = (int)$attempt['student_exam_id'];
+    $answersByQuestion = [];
+    foreach (StudentAnswer::allByStudentExam($studentExamId) as $answer) {
+      $answersByQuestion[(int)$answer['question_id']] = $answer;
+    }
+    $runs = AnswerAssessment::latestByStudentExam($studentExamId);
+    $minConfidence = (string)$attempt['min_confidence'];
+
+    $answers = [];
+    $aiScores = [];
+    $teacherScores = [];
+    $confidences = [];
+    $reasons = [];
+    $reviewNeeded = false;
+    $allAi = true;
+    $allTeacher = true;
+    $times = [$attempt['updated_at'] ?? null, $attempt['completed_at'] ?? null];
+
+    foreach (Question::allByExam($attempt['exam_id']) as $index => $question) {
+      $answer = $answersByQuestion[(int)$question['id']] ?? null;
+      if ($answer === null) {
+        continue; // vraag toegevoegd na de poging: hoort er niet bij
+      }
+      $nr = $index + 1;
+      $run = $runs[(int)$answer['id']] ?? null;
+      $ai = self::answerResult($answer, $run, $minConfidence);
+      $teacher = null;
+      if ($answer['teacher_score'] !== null && $answer['teacher_score'] !== '') {
+        $teacher = ['score' => (int)$answer['teacher_score'], 'feedback' => (string)($answer['teacher_feedback'] ?? '')];
+        $teacherScores[] = (int)$answer['teacher_score'];
+      } else {
+        $allTeacher = false;
+      }
+      if ($ai === null) {
+        $allAi = false;
+      } else {
+        if ($ai['score'] !== null) {
+          $aiScores[] = $ai['score'];
+        }
+        $confidences[] = $ai['confidence'];
+        $reviewNeeded = $reviewNeeded || $ai['review_needed'];
+        foreach ($ai['reasons'] as $reason) {
+          $reasons[] = 'Vraag ' . $nr . ': ' . $reason;
+        }
+      }
+      $times[] = $answer['ai_updated_at'] ?? null;
+      $times[] = $answer['updated_at'] ?? null;
+      $times[] = $run['updated_at'] ?? null;
+
+      $answers[] = [
+        'question_id' => (int)$question['id'],
+        'nr' => $nr,
+        'question_text' => (string)$question['question_text'],
+        'answer' => (string)($answer['answer'] ?? ''),
+        'ai' => $ai,
+        'teacher' => $teacher,
+      ];
+    }
+
+    if (empty($attempt['completed_at'])) {
+      $status = empty($attempt['launch_used_at']) ? self::STATUS_NOT_STARTED : self::STATUS_IN_PROGRESS;
+    } elseif (!empty($attempt['reviewed_at']) || ($answers && $allTeacher)) {
+      $status = self::STATUS_REVIEWED;
+    } elseif ($allAi) {
+      $status = self::STATUS_GRADED;
+    } else {
+      $status = self::STATUS_GRADING;
+    }
+    $isGraded = in_array($status, [self::STATUS_GRADED, self::STATUS_REVIEWED], true);
+    $times = array_filter($times);
+
+    return [
+      'attempt_id' => $studentExamId,
+      'external_ref' => (string)$attempt['external_ref'],
+      'exam_id' => (int)$attempt['exam_id'],
+      'exam_title' => (string)$attempt['exam_title'],
+      'display_name' => (string)($attempt['guest_name'] ?? ''),
+      'status' => $status,
+      // Alleen bij graded: na reviewed heeft een mens al gekeken.
+      'review_needed' => $status === self::STATUS_GRADED && $reviewNeeded,
+      'confidence' => $isGraded ? self::lowest($confidences) : null,
+      'reasons' => $isGraded ? $reasons : [],
+      'started_at' => self::isoTime($attempt['launch_used_at'] ?? null),
+      'submitted_at' => self::isoTime($attempt['completed_at'] ?? null),
+      'reviewed_at' => self::isoTime($attempt['reviewed_at'] ?? null),
+      'updated_at' => self::isoTime($times ? max($times) : null),
+      'ai_score' => $isGraded && $aiScores ? round(array_sum($aiScores) / count($aiScores), 1) : null,
+      'teacher_score' => $teacherScores ? round(array_sum($teacherScores) / count($teacherScores), 1) : null,
+      'answers' => $answers,
+    ];
+  }
+
+  /**
+   * Pogingen van een koppeling voor GET integration_attempts. Kandidaten komen
+   * uit de database (nieuwste eerst, maximaal LIST_CANDIDATES); de status wordt
+   * per poging berekend en daarna gefilterd en afgesneden.
+   * - open: niet reviewed, en niet graded zonder review_needed
+   * - needs_review: graded met review_needed
+   * - all: alles
+   */
+  public static function listForIntegration($integrationId, string $filter, int $limit): array {
+    $sql = self::SELECT . " WHERE ia.integration_id = ?";
+    if ($filter !== 'all') {
+      $sql .= " AND ia.reviewed_at IS NULL";
+    }
+    $sql .= " ORDER BY ia.student_exam_id DESC LIMIT " . (int)self::LIST_CANDIDATES;
+    $pdo = Database::connect();
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute([$integrationId]);
+
+    $list = [];
+    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $attempt) {
+      $summary = self::summary($attempt);
+      $graded = $summary['status'] === self::STATUS_GRADED;
+      $keep = match ($filter) {
+        'open' => $summary['status'] !== self::STATUS_REVIEWED && !($graded && !$summary['review_needed']),
+        'needs_review' => $graded && $summary['review_needed'],
+        default => true,
+      };
+      if (!$keep) {
+        continue;
+      }
+      $list[] = [
+        'attempt_id' => $summary['attempt_id'],
+        'external_ref' => $summary['external_ref'],
+        'exam_id' => $summary['exam_id'],
+        'status' => $summary['status'],
+        'review_needed' => $summary['review_needed'],
+        'updated_at' => $summary['updated_at'],
+      ];
+      if (count($list) >= $limit) {
+        break;
+      }
+    }
+    return $list;
   }
 }

@@ -54,6 +54,14 @@ switch ($action) {
     case 'integration_attempt_start':
         $controller->integrationAttemptStart();
         break;
+
+    case 'integration_attempt':
+        $controller->integrationAttempt();
+        break;
+
+    case 'integration_attempts':
+        $controller->integrationAttempts();
+        break;
         
     default:
         http_response_code(404);

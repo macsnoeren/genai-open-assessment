@@ -89,6 +89,15 @@ class StudentAnswer {
     return $scores;
   }
 
+  /**
+   * True als de worker het antwoord als mogelijke prompt injection markeerde:
+   * ai_feedback begint dan met "WAARSCHUWING:" (vóór de Model:-blokken).
+   * Leest net als aiScores() het tekstformaat van contract 1.
+   */
+  public static function hasInjectionWarning(?string $aiFeedback): bool {
+    return $aiFeedback !== null && str_starts_with(ltrim($aiFeedback), 'WAARSCHUWING:');
+  }
+
   public static function updateTeacherGrade($id, $score, $feedback) {
     $pdo = Database::connect();
     $stmt = $pdo->prepare("UPDATE student_answers SET teacher_score = ?, teacher_feedback = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?");

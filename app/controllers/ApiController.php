@@ -600,4 +600,43 @@ class ApiController {
             'status' => $status,
         ]);
     }
+
+    /** GET integration_attempt&attempt_id=N: de samenvatting van één poging van deze koppeling. */
+    public function integrationAttempt() {
+        header('Content-Type: application/json');
+        $integration = $this->requireIntegration();
+        if (!$this->requireGet()) {
+            return;
+        }
+        $attemptId = requestInt($_GET, 'attempt_id');
+        // Een poging van een andere koppeling bestaat voor deze koppeling niet: 404, geen 403.
+        $attempt = $attemptId !== null ? IntegrationAttempt::findForIntegration($integration['id'], $attemptId) : null;
+        if (!$attempt) {
+            $this->jsonError(404, 'Unknown attempt');
+            return;
+        }
+        $summary = IntegrationAttempt::summary($attempt);
+        // Alleen loggen als er resultaten worden gelezen, zodat pollen de log niet vult.
+        if (in_array($summary['status'], [IntegrationAttempt::STATUS_GRADED, IntegrationAttempt::STATUS_REVIEWED], true)) {
+            $this->integrationLog('integration_attempt_read', ['attempt_id' => $attemptId, 'status' => $summary['status']]);
+        }
+        $this->jsonOut(200, $summary);
+    }
+
+    /** GET integration_attempts&filter=open|needs_review|all&limit=1..100 */
+    public function integrationAttempts() {
+        header('Content-Type: application/json');
+        $integration = $this->requireIntegration();
+        if (!$this->requireGet()) {
+            return;
+        }
+        $filter = $_GET['filter'] ?? 'open';
+        if (!is_string($filter) || !in_array($filter, IntegrationAttempt::FILTERS, true)) {
+            $this->jsonError(400, 'Invalid filter (open, needs_review or all)');
+            return;
+        }
+        $limit = requestInt($_GET, 'limit');
+        $limit = $limit === null ? 50 : max(1, min($limit, 100));
+        $this->jsonOut(200, ['attempts' => IntegrationAttempt::listForIntegration($integration['id'], $filter, $limit)]);
+    }
 }

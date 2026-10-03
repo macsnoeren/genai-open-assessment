@@ -166,6 +166,11 @@ class IntegrationController {
     $events = IntegrationEvent::recentByIntegration($id, 50);
     $eventCounts = IntegrationEvent::counts($id);
     $attempts = IntegrationAttempt::recentByIntegration($id, 50);
+    foreach ($attempts as &$attempt) {
+        $summary = IntegrationAttempt::summary($attempt);
+        $attempt['status'] = $summary['status'] . ($summary['review_needed'] ? ' · review nodig' : '');
+    }
+    unset($attempt);
     $apiUrl = appBaseUrl() . '/api/index.php';
 
     $credentials = $_SESSION['new_integration_credentials'] ?? null;
