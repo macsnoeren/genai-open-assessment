@@ -10,13 +10,14 @@ Dit document beschrijft hoe de applicatie is opgebouwd, welke afspraken (contrac
 
 ## 1. Systeemoverzicht
 
-De applicatie bestaat uit **twee los gedeployde componenten** die alleen via een kleine HTTP/JSON-API met elkaar praten:
+De applicatie bestaat uit een webapplicatie en **los gedeployde worker-processen** die alleen via een kleine HTTP/JSON-API met elkaar praten:
 
 | Component | Taal / runtime | Locatie | Verantwoordelijkheid |
 |---|---|---|---|
 | **Webapplicatie** | PHP 8.2, SQLite (PDO), Bootstrap 5 | `htdocs/`, `app/`, `config/`, `setup/` | Gebruikers, toetsen, vragen, afname, docentbeoordeling, rapportage, API voor de worker |
 | **AI-feedbackworker** | Python 3, `requests` | `bin/process_ai_feedback.py` | Haalt ingeleverde antwoorden op, laat ze door één of meer LLM's beoordelen via Ollama, stuurt de feedback terug |
 | **AI-ontwerpworker** | Python 3, `requests` | `bin/process_design_jobs.py` + `bin/design_agents.py` | Werkt vraagontwerpen van docenten uit met drie agents (analyse, rubricvoorstel, validatie), zie §6.6 |
+| **AI-assessmentworker** | Python 3, `requests` | `bin/process_assessment_jobs.py` + `bin/assessment_agents.py` | Beoordeelt antwoorden op rubric-vragen agentic met drie agents (evidence, assessment, validatie) als voorstel voor de docent, zie §6.8 |
 
 ```mermaid
 flowchart LR
@@ -54,7 +55,7 @@ Belangrijke ontwerpkeuzes:
 
 - **Geen framework, geen Composer, geen build-stap.** Gewone PHP-bestanden met `require_once`. Dat houdt de deployment simpel: bestanden kopiëren, documentroot op `htdocs/` zetten en klaar.
 - **Pull in plaats van push.** De webserver roept nooit een LLM aan. De worker vraagt periodiek om werk. Daardoor blijft de webserver licht, kan de worker op een andere machine draaien (met GPU of met Ollama Cloud) en kan de webserver doorwerken als de worker uitvalt.
-- **De database is de wachtrij.** Een antwoord staat "in de wachtrij" zolang `student_answers.ai_feedback` leeg is, de poging is ingeleverd en AI-beoordeling voor de toets aanstaat. Er is geen aparte queue-tabel.
+- **De database is de wachtrij.** Een antwoord staat "in de wachtrij" zolang `student_answers.ai_feedback` leeg is, de poging is ingeleverd en AI-beoordeling voor de toets aanstaat. Er is geen aparte queue-tabel. De vraagontwerper en agentic beoordelen gebruiken hun eigen tabel (`question_designs`, `answer_assessments`) als wachtrij, met een statuskolom.
 - **De mens beslist.** AI-scores zijn adviezen. De docentscore (`teacher_score`) is leidend voor het eindcijfer.
 
 ---
@@ -93,7 +94,12 @@ Belangrijke ontwerpkeuzes:
 │   ├── process_design_jobs.py  # De ontwerp-worker: pollt open_design_jobs, stuurt resultaten terug
 │   ├── design_agents.py        # Agents, JSON-schema's, validatie en orchestrator van de vraagontwerper
 │   ├── test_design_agents.py   # Mocktests voor design_agents.py (unittest, gemockte call_ollama)
-│   ├── fixtures/               # Voorbeelduitvoer van de agents (PLC-voorbeeld) voor tests en curl
+│   ├── process_assessment_jobs.py # De assessment-worker: pollt open_assessment_jobs, stuurt resultaten terug
+│   ├── assessment_agents.py    # Agents, JSON-schema's, validatie, decide() en orchestrator van agentic beoordelen
+│   ├── test_assessment_agents.py # Mocktests voor assessment_agents.py (gemockte call_ollama)
+│   ├── test_rubric_grading.py  # Mocktests voor de rubric-beoordeling in process_ai_feedback.py
+│   ├── fixtures/               # Voorbeelduitvoer van de agents (PLC-voorbeeld) voor tests en curl;
+│   │                           #   fixtures/assessment/ voor agentic beoordelen
 │   ├── config.py.sample        # Sjabloon voor bin/config.py (gitignored)
 │   ├── dataset_import.py       # Importeert de Mohler ASAG-dataset voor validatie-onderzoek
 │   └── README.md
@@ -220,6 +226,7 @@ Alle routes staan in de `switch` van [htdocs/index.php](htdocs/index.php). Per c
 | | `start_exam`, `my_exams` | ingelogd |
 | | `guest`, `guest_start`, `guest_logout`, `take_exam`, `submit_exam`, `student_view_results` | ingelogd **of** gast met geldig token |
 | `QuestionDesignController` | `question_design_create`, `question_design_store`, `question_design_view`, `question_design_answer`, `question_design_feedback`, `question_design_approve`, `question_design_retry`, `question_design_delete` (alleen eigenaar van de toets of admin) | docent |
+| `AnswerAssessmentController` | `answer_assessment_start`, `answer_assessment_start_exam`, `answer_assessment_view`, `answer_assessment_approve` (leestoegang tot de toets: eigenaar, admin of gedeelde toets; niet de beoordelaar) | docent |
 | `ApiKeyController` | `api_keys`, `api_key_create`, `api_key_toggle`, `api_key_delete` | admin |
 | `PromptController` | `prompts`, `prompt_*`, `prompt_help` | admin |
 | (direct in router) | `privacy` | publiek |
@@ -294,6 +301,8 @@ erDiagram
     exams ||--o{ question_designs : "CASCADE"
     users |o--o{ question_designs : "docent_id (SET NULL)"
     questions |o--o{ question_designs : "question_id (SET NULL)"
+    student_answers ||--o{ answer_assessments : "CASCADE"
+    users |o--o{ answer_assessments : "requested_by, approved_by (SET NULL)"
 
     users { int id PK
         text name
@@ -356,6 +365,25 @@ erDiagram
         text error_message
         int question_id FK
         datetime approved_at }
+    answer_assessments { int id PK
+        int student_answer_id FK
+        int requested_by FK
+        text status "zie statusmachine"
+        text question_snapshot
+        text criteria_snapshot
+        text answer_snapshot
+        text rubric "JSON"
+        text evidence "JSON"
+        text rounds "JSON"
+        text decision "JSON"
+        text run_log "JSON"
+        int final_score "voorstel 0/1/5/10"
+        int human_review_needed
+        text error_message
+        text teacher_criteria "JSON"
+        int teacher_score
+        int approved_by FK
+        datetime approved_at }
 ```
 
 **Toestanden van een antwoord:**
@@ -387,10 +415,26 @@ stateDiagram-v2
 
 Elke overgang is één `UPDATE … WHERE id = ? AND status = ? AND revision = ?`. Docentacties die nieuw werk opleveren (antwoorden, bijsturen, opnieuw) verhogen `revision`; de worker stuurt de revision van zijn job terug, zodat een verouderd resultaat niets overschrijft. De `*_pending`-statussen zijn de wachtrij van de ontwerp-worker.
 
+**Statusmachine van een agentic beoordeling** (`answer_assessments.status`, constanten in `AnswerAssessment`; geen `CHECK`):
+
+```mermaid
+stateDiagram-v2
+    [*] --> pending: docent start
+    pending --> review: worker levert resultaat
+    pending --> failed: worker geeft op
+    review --> approved: docent keurt goed (docentscore gezet)
+    pending --> superseded: docent start opnieuw
+    review --> superseded: docent start opnieuw
+    failed --> superseded: docent start opnieuw
+```
+
+Elke start is een **nieuwe rij** (de geschiedenis blijft bewaard); `AnswerAssessment::create()` zet in dezelfde transactie de runs van dat antwoord met status `pending`, `review` of `failed` op `superseded`. Een goedgekeurde run blijft staan. De worker mag alleen een run met status `pending` bijwerken (`WHERE id = ? AND status = 'pending'`), anders 409; daarom is er geen `revision`-teller nodig. Vraag, criteria en antwoord worden bij het starten als snapshot opgeslagen: de worker beoordeelt de snapshot, niet de actuele vraag.
+
 Bijzonderheden:
 
 - **Wijzigt de prompt van een toets, dan wordt alle AI-feedback van die toets gewist** (`StudentAnswer::clearAiFeedbackByExam`). De worker beoordeelt daarna alles opnieuw.
-- **Dupliceren** kopieert de vragen, pogingen en antwoorden **met** docentscores en **zonder** AI-feedback. De kopie is niet gedeeld en niet gepubliceerd. Vraagontwerpen worden bewust niet gekopieerd.
+- **Dupliceren** kopieert de vragen, pogingen en antwoorden **met** docentscores en **zonder** AI-feedback. De kopie is niet gedeeld en niet gepubliceerd. Vraagontwerpen en agentic beoordelingen worden bewust niet gekopieerd.
+- **`updateExam()` raakt de agentic beoordelingen niet**: die beoordelen hun eigen snapshot. Een goedgekeurde agentic beoordeling schrijft `teacher_score` en `teacher_feedback`, dezelfde velden als handmatig beoordelen.
 - Het eindcijfer is het gemiddelde van de `teacher_score`s. Per AI-model wordt apart een gemiddelde berekend, alleen ter vergelijking.
 
 ### 5.1 Schemawijzigingen (migraties)
@@ -451,9 +495,11 @@ sequenceDiagram
 | `POST submit_ai_feedback` | JSON-body `{"student_answer_id": int, "ai_feedback": string}`. Maximaal `MAX_AI_FEEDBACK_LENGTH` tekens. Antwoorden: `200`, `400`, `404`, `405` of `413`. |
 | `GET open_design_jobs` | optioneel `limit` (1–10, standaard 3) → `{"jobs": [{design_id, revision, step: "analysis"\|"assessment", question_text, model_answer, analysis\|null, teacher_answers: [{question, why, answer}], teacher_feedback, previous_rubric\|null}]}`. Schrijft `database/last_design_ping.txt`. Zie §6.6. |
 | `POST submit_design_result` | JSON-body `{"design_id", "revision", "step", "result": {…}}` of `{…, "error": "reden"}`, maximaal `MAX_DESIGN_RESULT_LENGTH` bytes. Bij `analysis` is `result` de analyse, bij `assessment` `{"assessment": {…}, "validation": {…}}`. Antwoorden: `200 {"status":"success","next_status":"…"}`, `400` (ongeldig, ook als de uitvoer niet door de normalisatie komt), `404`, `405`, `409` (status, stap of revision klopt niet meer: verouderd resultaat) of `413`. |
+| `GET open_assessment_jobs` | optioneel `limit` (1–10, standaard 3) → `{"jobs": [{assessment_id, question_text, criteria, answer}]}` (alle drie uit de snapshot van de run). Schrijft `database/last_assessment_ping.txt`. Zie §6.8. |
+| `POST submit_assessment_result` | JSON-body `{"assessment_id", "result": {"rubric", "evidence", "rounds": [{"assessment", "validation"}], "decision", "run_log"}}` of `{"assessment_id", "error": "reden"}`, maximaal `MAX_ASSESSMENT_RESULT_LENGTH` bytes. Antwoorden: `200 {"status":"success"}`, `400` (ongeldig; de melding noemt het onderdeel dat niet door `AnswerAssessment::normalizeResult()` komt), `404`, `405`, `409` (status is niet meer `pending`: verouderd) of `413`. |
 | Foutformaat | `{"error": "..."}` |
 
-**Heartbeat:** de layout toont "Parser Actief" als `last_api_ping.txt` jonger is dan 120 seconden. De ontwerppagina meldt dat de AI-ontwerpassistent niet actief is als `last_design_ping.txt` ouder is dan 120 seconden terwijl een ontwerp wacht.
+**Heartbeat:** de layout toont "Parser Actief" als `last_api_ping.txt` jonger is dan 120 seconden. De ontwerppagina meldt dat de AI-ontwerpassistent niet actief is als `last_design_ping.txt` ouder is dan 120 seconden terwijl een ontwerp wacht. De pagina van een agentic beoordeling doet hetzelfde met `last_assessment_ping.txt` en `ASSESSMENT_WORKER_STALE_SECONDS`.
 
 ### 6.3 Contract: het tekstformaat van `ai_feedback`
 
@@ -575,6 +621,61 @@ Ook correct:                           (optioneel)
 - **Instellingen:** `RUBRIC_GRADING` (uitzetten = altijd de oude beoordeling) en `RUBRIC_NUM_CTX` (ruimer contextvenster, want de rubric is lang).
 - **Tests:** `bin/test_rubric_grading.py` (gemockte `call_ollama`). De fixture `bin/fixtures/criteria_rubric.txt` is de echte uitvoer van `rubricToCriteriaText()`; maak hem opnieuw aan als dat formaat verandert (zie `bin/README.md`).
 
+### 6.8 Agentic beoordelen
+
+Een docent laat een studentantwoord op een vraag met rubric (§6.7) beoordelen door drie agents. Het resultaat staat in een eigen tabel (`answer_assessments`, §5); contract 1 (`ai_feedback`) en de score-regex blijven ongemoeid. Pas als de docent goedkeurt, schrijft de app `student_answers.teacher_score` en `teacher_feedback`. De AI beslist niets definitief.
+
+- **Waar het draait:** een derde worker-proces, `bin/process_assessment_jobs.py`, met de agents, `decide()` en de orchestrator in `bin/assessment_agents.py` (geen netwerkcode, goed te mocken). Apart van de ontwerp-worker, zodat een bulkrun van een klas een docent die een vraag ontwerpt niet laat wachten. Het hergebruikt `Agent`, `_block()` en `clean_text()` uit `design_agents.py` en `call_ollama()`, `parse_rubric_criteria()` en `detect_prompt_injection()` uit `process_ai_feedback.py`.
+- **Rubric:** de worker parseert de criteria-snapshot met `parse_rubric_criteria()` en zet die om naar de contractvorm (`numbered_rubric()`: criteria met `nr`, niveaus met stringsleutels). Er is geen tweede parser in PHP. Lukt het parsen niet, dan stuurt de worker meteen een `error` in, zonder LLM-aanroep. De geparste rubric gaat mee terug, zodat vastligt waarmee is beoordeeld.
+- **Agents:** *Evidence* (per criterium 0–3 **letterlijke** citaten, `evidence_found` ja/gedeeltelijk/nee, interpretatie apart, wat ontbreekt, confidence), *Assessment* (per criterium `voldaan`/`deels`/`niet` met redenering en gebruikte citaten, daarna een score uit `{0, 1, 5, 10}` met de puntentoekenning, feedback in de je-vorm) en *Validation* (zeven controles, issues, correcties en een volledig `final_assessment`, confidence). Het schema zet `criteria` vóór `score`. Een agent die ongeldige JSON levert, krijgt één correctiepoging.
+- **Invoer als data:** vraag, rubric, evidence, beoordeling, validatie en studentantwoord gaan als gelabelde blokken in het user-bericht (blokmarkeringen in de inhoud worden verwijderd). Het studentantwoord staat altijd als laatste blok, gevolgd door een herinnering dat het data is. Bij een injection-vermoeden van de voorcontrole (`INJECTION_CHECK_MODEL`) komt daar een waarschuwing bij en is menselijke beoordeling nodig.
+- **Contract 8 (JSON-vormen):** de vormen en limieten (tekst ≤ 800 tekens, citaat ≤ 300, `model_answer` ≤ 4000, criteria 1–10, citaten 0–3, `issues` en `corrections` 0–10, `checks` precies zeven, `rounds` 1–3, `reasons` 0–10, enums) staan aan beide kanten: `validate_*()` in `assessment_agents.py` en `AnswerAssessment::normalize*()` in PHP. Elk criterium moet precies één keer voorkomen; anders is het onderdeel ongeldig.
+
+```mermaid
+sequenceDiagram
+    participant D as Docent (browser)
+    participant A as Webapp + API
+    participant W as process_assessment_jobs.py
+    participant O as Ollama
+
+    D->>A: POST answer_assessment_start (of _start_exam)
+    A->>A: snapshots, status pending (oude run superseded)
+    W->>A: GET open_assessment_jobs
+    A-->>W: job (assessment_id, question_text, criteria, answer)
+    W->>W: parse_rubric_criteria() → numbered_rubric()
+    opt INJECTION_CHECK_MODEL
+        W->>O: prompt-injection-controle
+    end
+    W->>O: Evidence Agent (vraag, rubric, antwoord)
+    O-->>W: citaten + interpretatie per criterium
+    loop ronde 1, plus hooguit ASSESSMENT_MAX_EXTRA_ROUNDS extra bij een conflict
+        W->>O: Assessment Agent (+ evidence; bij een extra ronde + vorige beoordeling en validatie)
+        O-->>W: status per criterium + score
+        W->>O: Validation Agent (+ evidence + beoordeling)
+        O-->>W: controles, correcties, final_assessment
+        W->>W: decide()
+    end
+    W->>A: POST submit_assessment_result
+    A-->>W: 200 (status review) of 409 als verouderd
+    D->>A: POST answer_assessment_approve (statussen, score, feedback)
+    A->>A: transactie: status approved + teacher_score/teacher_feedback
+```
+
+**Beslisregels van `decide()`** (gewone Python-code, getest in `test_assessment_agents.py`; kijkt naar de laatste ronde):
+
+| Onderdeel | Regel |
+|---|---|
+| `agreement` per criterium | `eens` als Evidence (ja→voldaan, gedeeltelijk→deels, nee→niet), Assessment en Validation gelijk zijn; `conflict` als Assessment en Validation verschillen bij een **essentieel** criterium, of als twee oordelen twee stappen uit elkaar liggen (voldaan tegenover niet); anders `klein_verschil` |
+| `unverified_quotes` | aantal citaten (evidence + `evidence_used`) dat `verify_quotes()` niet letterlijk terugvindt: vergelijking na kleine letters, samengevoegde witruimte, gelijkgetrokken aanhalingstekens en zonder leestekens aan de randen; korter dan 3 tekens telt als niet gevonden. `AnswerAssessment::quoteFound()` gebruikt dezelfde regel voor de markering op de pagina |
+| `score` | de score van de laatste validatie; 10 met een niet volledig voldaan essentieel criterium wordt 5 (`score_capped`) |
+| `confidence` | de laagste van de validatie en van de Evidence- en Assessment-confidences van de essentiële criteria |
+| extra ronde | bij minstens één `conflict` en zolang er rondes over zijn: Assessment opnieuw met de bevindingen van de validatie, daarna Validation opnieuw |
+| `human_review_needed` | waar zodra er een reden is, elk met een Nederlandse zin in `reasons`: een `conflict` (ook na de extra ronde), een niet-geverifieerd citaat bij een criterium dat (deels) voldaan heet, confidence `laag`, `validated = false`, een injection-vermoeden, een score die niet past bij de statussen (alle essentiële criteria voldaan maar minder dan 10; alles niet voldaan maar 5 of meer; 0 terwijl een essentieel criterium voldaan is) of een verschil tussen de score van Assessment en Validation |
+
+**Robuustheid:** de worker telt pogingen per `assessment_id` en stuurt na `ASSESSMENT_MAX_ATTEMPTS` een `error` in (status `failed`, de docent kan opnieuw starten). Een 409 betekent dat de docent intussen opnieuw startte: het resultaat wordt overgeslagen. Starten is begrensd met `ASSESSMENT_START_MAX_PER_HOUR` per docent (één auditregel `answer_assessment_start` per gestart antwoord, ook bij een bulkstart).
+
+**Autorisatie:** `requireRole('docent')` plus leestoegang tot de toets (eigenaar, admin of gedeelde toets), altijd via het antwoord uit de database (`StudentAnswer::findForAssessment()`). De beoordelaar ziet niets (blind), de student ook niet.
+
 ---
 
 ## 7. Deployment
@@ -583,7 +684,7 @@ Ook correct:                           (optioneel)
 |---|---|
 | **Lokaal testen** | `./docker/start.sh` start `php:8.2-apache` op poort 8080 met de documentroot op `htdocs/`. De database staat in volume `db_data`, en de entrypoint draait `init_db.php` als er nog geen database is. **De code wordt bij het bouwen in de image gekopieerd** (geen bind mount), dus na elke wijziging opnieuw bouwen. Met `docker compose down -v` (in `docker/`) begin je met een schone database. Standaardlogin: `admin@school.nl` / `admin123` (bij de eerste login moet het wachtwoord worden gewijzigd). |
 | **Productie (web)** | nginx + PHP-FPM, documentroot `htdocs/`, map `database/` schrijfbaar voor de webgebruiker. Zorg dat de `Authorization`-header PHP bereikt (`fastcgi_param HTTP_AUTHORIZATION $http_authorization;`). Werkwijze: [docs/rollout-new-version.md](docs/rollout-new-version.md). |
-| **Productie (worker)** | Een aparte machine met Python 3, `requests` en een draaiende Ollama. Voor cloud-modellen eenmalig `ollama signin`. Daarna `python process_ai_feedback.py` in `bin/`, en voor de vraagontwerper als tweede proces `python process_design_jobs.py` (zie [docs/rollout-agentic-design.md](docs/rollout-agentic-design.md)). |
+| **Productie (worker)** | Een aparte machine met Python 3, `requests` en een draaiende Ollama. Voor cloud-modellen eenmalig `ollama signin`. Daarna `python process_ai_feedback.py` in `bin/`, voor de vraagontwerper als tweede proces `python process_design_jobs.py` (zie [docs/rollout-agentic-design.md](docs/rollout-agentic-design.md)) en voor agentic beoordelen als derde proces `python process_assessment_jobs.py` (zie [docs/rollout-agentic-assessment.md](docs/rollout-agentic-assessment.md)). |
 
 Breekt een wijziging het API-contract, het feedbackformaat of de authenticatie, dan moeten webapp en worker **tegelijk** worden bijgewerkt. Bouw daarom een overgangsweg in (zoals `LEGACY_API_KEY_IN_QUERY`) en beschrijf de uitrol, met terugdraaiscenario, in `docs/`.
 
@@ -641,8 +742,11 @@ Weet dat deze punten bestaan voordat je in de buurt iets wijzigt. Los ze bij voo
 | Bestandsnaam wijkt af van de klassenaam | `models/Questions.php` bevat `class Question` | Let op bij `require_once` |
 | Gemengde redirect-stijl | `index.php?action=` en `/?action=` door elkaar | Gebruik in nieuwe code `/?action=` |
 | Veld `uitleg` niet opgeslagen | worker: `process_answer()` gebruikt alleen `feedback` | Het model genereert het wel, maar het gaat verloren |
-| Pogingenteller van de worker staat in het geheugen | `run()` → `attempts` (beide workers) | Bij een herstart begint de teller opnieuw |
+| Pogingenteller van de worker staat in het geheugen | `run()` → `attempts` (alle drie de workers) | Bij een herstart begint de teller opnieuw |
 | Eén ontwerp-worker tegelijk | `process_design_jobs.py`, geen claim-mechanisme | Twee workers doen dubbel werk; de `revision`-controle (409) voorkomt wel dat er iets wordt overschreven |
+| Eén assessment-worker tegelijk | `process_assessment_jobs.py`, geen claim-mechanisme | Twee workers beoordelen dubbel; de statuscontrole (409) voorkomt dat er iets wordt overschreven |
+| Agentic beoordelen alleen voor rubric-vragen | `parse_rubric_criteria()` in de worker; PHP kijkt alleen naar de kopjes | Een vraag met vrije criteria kan niet agentic worden beoordeeld; criteria met de kopjes maar een kapotte opbouw geven pas in de worker een fout (`failed`) |
+| Agentic beoordelen start alleen handmatig | `answer_assessment_start(_exam)` | Geen automatische start bij inleveren (bewust: kosten en controle) |
 | Geen geschiedenis per ontwerpronde | `question_designs` overschrijft `analysis`, `assessment` en `validation` | Eerdere rondes zijn alleen via de audit log (`question_design_feedback`) na te gaan |
 | Rubric als platte tekst in `questions.criteria` | `QuestionDesign::rubricToCriteriaText()` ↔ `parse_rubric_criteria()` | De worker leidt de structuur uit de tekst af (contract 7, §6.7). Een docent die de opbouw loslaat, valt zonder melding terug op de gewone beoordeling |
 | Rolwijziging pas na opnieuw inloggen actief | sessie bevat `role` | Admin moet de gebruiker laten herinloggen |

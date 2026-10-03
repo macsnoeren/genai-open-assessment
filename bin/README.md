@@ -102,6 +102,43 @@ python3 -m unittest test_rubric_grading -v
 docker run --rm -v "$PWD":/app -w /app php:8.2-cli php -r 'require "app/models/QuestionDesign.php"; $v = json_decode(file_get_contents("bin/fixtures/validation.json"), true); echo QuestionDesign::rubricToCriteriaText("PLC'"'"'s zijn slecht beveiligd; een aanvaller kan het proces verstoren. Zet ze achter een firewall.", $v["rubric"]);' > bin/fixtures/criteria_rubric.txt
 ```
 
+## Agentic assessment (`process_assessment_jobs.py`)
+
+A third, separate worker pre-assesses student answers with three agents when a teacher asks for it in the web app ("Agentic beoordelen"). It only works for questions whose criteria have the rubric layout (see *Rubric grading* above). The result is a proposal: the teacher adjusts and approves it, and only then does the web app set the teacher score. It runs as its own process so a bulk run for a whole class does not delay a teacher who is designing a question.
+
+- `process_assessment_jobs.py`: the main loop. Every `ASSESSMENT_POLL_INTERVAL` seconds it fetches open runs (`GET action=open_assessment_jobs`, each job has `assessment_id`, `question_text`, `criteria` and `answer` from the snapshot taken at start), lets the orchestrator handle each job and posts the result (`POST action=submit_assessment_result`). A `409` means the teacher restarted the run in the meantime: the result is stale and skipped. After `ASSESSMENT_MAX_ATTEMPTS` failures it posts an `error`, so the run shows as failed and the teacher can start again.
+- `assessment_agents.py`: the agents, `decide()` and the orchestrator, without network code towards the web app. The worker parses the criteria with `parse_rubric_criteria()` (no rubric layout: an `error` is posted right away, without any LLM call). Then:
+  1. *Evidence Agent*: per criterion 0–3 **literal** quotes from the answer, kept separate from the interpretation, plus what is missing.
+  2. *Assessment Agent*: per criterion `voldaan`/`deels`/`niet` based on the rubric and the evidence, then a score from `{0, 1, 5, 10}`.
+  3. *Validation Agent*: seven critical checks, corrections and a complete final assessment with a confidence (`hoog`/`middel`/`laag`).
+
+  `decide()` is plain Python, not an LLM: it compares the three judgements per criterion (`eens`, `klein_verschil`, `conflict`), checks every quote against the answer (`verify_quotes()`), applies the 10 → 5 cap, and sets `human_review_needed` with a Dutch reason for each problem. On a conflict it runs one extra round (Assessment again with the validation findings, then Validation again). Output is enforced with a JSON schema and validated with `validate_*()`, which mirror `AnswerAssessment::normalize*()` in the web app (contract 8: keep the limits equal on both sides). An agent whose output fails validation gets one correction attempt.
+- The student answer goes into the user message as the last labelled block (`<studentantwoord>`), followed by a reminder that it is data. With `INJECTION_CHECK_MODEL` set, a suspected prompt injection makes human review necessary.
+- It reuses `Agent`, `_block()` and `clean_text()` from `design_agents.py` and `call_ollama()`, `check_base_url()`, `API_HEADERS` and `api_params()` from `process_ai_feedback.py`, so it uses the same `config.py`, API key and Ollama.
+
+Start it as a third process, next to the feedback processor and the design worker:
+```bash
+python process_assessment_jobs.py
+```
+
+Optional settings in `config.py` (all have defaults, an existing `config.py` keeps working):
+
+```python
+ASSESSMENT_MODEL = "gpt-oss:120b-cloud"            # Evidence and Assessment agent (default: DESIGN_MODEL)
+ASSESSMENT_VALIDATION_MODEL = "gpt-oss:120b-cloud" # Separate model for the Validation Agent (default: ASSESSMENT_MODEL)
+NUM_PREDICT_ASSESSMENT = 6000                      # Token budget per agent call; capped at NUM_PREDICT_MAX
+ASSESSMENT_NUM_CTX = 16384                         # Context window (default: max(RUBRIC_NUM_CTX, 16384))
+ASSESSMENT_MAX_EXTRA_ROUNDS = 1                    # Extra rounds on a conflict, 0 to 2
+ASSESSMENT_POLL_INTERVAL = 15                      # Seconds between polls
+ASSESSMENT_MAX_ATTEMPTS = 3                        # Attempts per run before it is marked as failed
+```
+
+Tests (mocked `call_ollama()`, nothing is sent to Ollama or the web app; requires a `config.py`):
+```bash
+python3 -m unittest test_assessment_agents -v
+```
+The fixtures in `fixtures/assessment/` belong to the rubric in `fixtures/criteria_rubric.txt` and the half-correct answer in `answer_partial.txt` (all quotes are literal). `result.json` is a complete `result` for `submit_assessment_result`, usable for manual `curl` tests. For live tests use a cloud model such as `gpt-oss:120b-cloud`, not a local model.
+
 ## Dataset Import
 Het script `dataset_import.py` kan worden gebruikt om de **Mohler ASAG** dataset (van HuggingFace) te importeren in de database. Dit is nuttig voor testdoeleinden en om de nauwkeurigheid van de AI te valideren tegenover menselijke scores.
 

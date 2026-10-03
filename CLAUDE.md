@@ -9,6 +9,7 @@ Een webapplicatie voor toetsen met open vragen die door generatieve AI worden vo
 - **Webapp:** PHP 8.2 zonder framework of Composer, SQLite via PDO, Bootstrap 5. Code in `htdocs/` (documentroot), `app/`, `config/` en `setup/`.
 - **AI-worker:** `bin/process_ai_feedback.py` (Python 3 + `requests`). Haalt via `htdocs/api/index.php` antwoorden op, laat ze door Ollama-modellen beoordelen en stuurt de feedback terug.
 - **Ontwerp-worker:** `bin/process_design_jobs.py` + `bin/design_agents.py`. De AI-vraagontwerper: drie agents (analyse, rubricvoorstel, validatie) werken een vraag van de docent uit tot een rubric (ARCHITECTURE §6.6). Draait als tweede proces.
+- **Assessment-worker:** `bin/process_assessment_jobs.py` + `bin/assessment_agents.py`. Agentic beoordelen: drie agents (evidence, assessment, validatie) en een deterministische `decide()` beoordelen een antwoord op een rubric-vraag als voorstel; de docent keurt goed (ARCHITECTURE §6.8). Draait als derde proces.
 
 De UI-teksten, codecommentaar en docs zijn in het **Nederlands**; klassen, methodes en variabelen in het Engels. Houd dat zo.
 
@@ -28,7 +29,7 @@ cd docker && docker compose down -v
 docker run --rm -v "$PWD":/app -w /app php:8.2-cli sh -c 'find app config htdocs setup -name "*.php" -print0 | xargs -0 -n1 php -l' | grep -v "^No syntax errors"
 
 # Python-syntaxcheck
-python3 -m py_compile bin/process_ai_feedback.py bin/dataset_import.py bin/process_design_jobs.py bin/design_agents.py bin/test_design_agents.py bin/test_rubric_grading.py
+python3 -m py_compile bin/process_ai_feedback.py bin/dataset_import.py bin/process_design_jobs.py bin/design_agents.py bin/test_design_agents.py bin/test_rubric_grading.py bin/process_assessment_jobs.py bin/assessment_agents.py bin/test_assessment_agents.py
 
 # Mocktests van de vraagontwerper (gemockte call_ollama, vereist bin/config.py)
 cd bin && python3 -m unittest test_design_agents -v
@@ -36,19 +37,23 @@ cd bin && python3 -m unittest test_design_agents -v
 # Mocktests van de rubric-beoordeling in de AI-worker
 cd bin && python3 -m unittest test_rubric_grading -v
 
+# Mocktests van agentic beoordelen (agents, decide(), orchestrator)
+cd bin && python3 -m unittest test_assessment_agents -v
+
 # Worker starten (vereist bin/config.py, zie bin/config.py.sample)
 cd bin && python process_ai_feedback.py
 cd bin && python process_design_jobs.py   # ontwerp-worker, tweede proces
+cd bin && python process_assessment_jobs.py   # assessment-worker, derde proces
 ```
 
-Er is **geen geautomatiseerde testsuite** voor de webapp (alleen de mocktests van `bin/design_agents.py` en de rubric-beoordeling). Controleer wijzigingen met de syntaxchecks hierboven en een handmatige rooktest in de Docker-omgeving (inloggen, de gewijzigde flow doorlopen, en voor muterende acties ook controleren dat een GET een 405 geeft).
+Er is **geen geautomatiseerde testsuite** voor de webapp (alleen de mocktests van `bin/design_agents.py`, `bin/assessment_agents.py` en de rubric-beoordeling). Controleer wijzigingen met de syntaxchecks hierboven en een handmatige rooktest in de Docker-omgeving (inloggen, de gewijzigde flow doorlopen, en voor muterende acties ook controleren dat een GET een 405 geeft).
 
 ## Architectuur in het kort
 
 - Elke pagina is `/?action=<naam>`. De `switch` in `htdocs/index.php` roept een controllermethode aan. **Een nieuwe action is altijd ook een nieuwe `case`.**
 - **Controllers** (`app/controllers/`): één publieke methode per action. **Models** (`app/models/`): alleen statische methodes, prepared statements, arrays terug. **Views** (`app/views/`): `ob_start()`, daarna `$content = ob_get_clean()` en `require` van `layouts/main.php`.
 - Create en edit delen één formulier (`*_form.php`). De controller zet `$action`, `$title` en het object (of `null`).
-- De database is de wachtrij voor de worker: een antwoord met lege `ai_feedback`, een ingeleverde poging en `exams.ai_grading_enabled = 1` staat klaar voor AI-beoordeling.
+- De database is de wachtrij voor de worker: een antwoord met lege `ai_feedback`, een ingeleverde poging en `exams.ai_grading_enabled = 1` staat klaar voor AI-beoordeling. De vraagontwerper en agentic beoordelen hebben een eigen tabel als wachtrij (`question_designs`, `answer_assessments`).
 
 ## Verplichte patronen (beveiliging)
 
@@ -82,6 +87,7 @@ En verder:
 5. **Rollen** (`student`, `docent`, `beoordelaar`, `admin`) staan op meerdere plekken: de schema-`CHECK`, `validRoles()`, `requireRole()`, de navigatie in `layouts/main.php` en drie redirect-per-rol-functies. Pas ze altijd allemaal tegelijk aan.
 6. **De JSON-vormen van de ontwerp-agents** (analyse, rubric, assessment, validatie) staan aan beide kanten: `QuestionDesign::normalize*()` in PHP en de JSON-schema's plus `validate_*()` in `bin/design_agents.py`, met dezelfde limieten (tekstvelden ≤ 800 tekens, lijstmaxima, `checks` precies zes, `weight` en `check` uit een vaste lijst). Verander je een veld of limiet, pas dan beide kanten aan, en ook de endpoints `open_design_jobs`/`submit_design_result` als de envelop verandert. Statusovergangen gaan altijd via `WHERE status = ? AND revision = ?` in `QuestionDesign`.
 7. **Het rubric-tekstformaat in `questions.criteria`:** `QuestionDesign::rubricToCriteriaText()` schrijft de kopjes `Modelantwoord:`, `Beoordelingscriteria:`, `Puntentoekenning:` en `Ook correct:`, regels `- [essentieel|aanvullend] naam: beschrijving` en `10 punten:`/`5 punten:`/`1 punt:`/`0 punten:`. `parse_rubric_criteria()` in de worker herkent die opbouw en beoordeelt dan per criterium (ARCHITECTURE §6.7). Verander je het formaat, pas dan de parser aan en maak `bin/fixtures/criteria_rubric.txt` opnieuw aan.
+8. **De JSON-vormen van de assessment-agents** (rubric, evidence, assessment, validation, decision, run_log) staan aan beide kanten: `AnswerAssessment::normalize*()` in PHP en de JSON-schema's plus `validate_*()` in `bin/assessment_agents.py`, met dezelfde limieten (tekst ≤ 800 tekens, citaat ≤ 300, `model_answer` ≤ 4000, criteria 1–10 met elk `nr` precies één keer, citaten 0–3, `issues`/`corrections`/`reasons` 0–10, `checks` precies zeven, `rounds` 1–3, enums `evidence_found`/`status`/`confidence`/`agreement` en `score` uit `{0, 1, 5, 10}`). De citaatnormalisatie staat ook dubbel: `verify_quotes()` in de worker en `AnswerAssessment::quoteFound()` in PHP. Verander je een veld of limiet, pas dan beide kanten aan, de fixtures in `bin/fixtures/assessment/`, en de endpoints `open_assessment_jobs`/`submit_assessment_result` als de envelop verandert. De worker mag alleen een run met status `pending` bijwerken (`WHERE id = ? AND status = 'pending'`); een docentscore ontstaat nooit automatisch, alleen via `answer_assessment_approve`.
 
 ## Valkuilen
 
@@ -110,3 +116,4 @@ En verder:
 - [ ] Contract met de worker ongewijzigd, of beide kanten aangepast en de uitrol beschreven
 - [ ] Nieuwe worker-instellingen hebben een `getattr`-default en staan in `config.py.sample` en `bin/README.md`
 - [ ] Docs bijgewerkt: `MANUAL.md` (gebruikersgedrag), `bin/README.md` (worker), `ARCHITECTURE.md` (structuur of contracten), `docs/security-issues.txt` (security-relevante wijzigingen)
+- [ ] Alle drie de mocktestsuites slagen (`test_design_agents`, `test_rubric_grading`, `test_assessment_agents`)

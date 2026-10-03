@@ -109,6 +109,32 @@ Klik op "Resultaten" bij een toets voor een lijst met inzendingen.
 *   **Bekijken**: Zie het antwoord van de student, de AI-feedback en eventuele docent-feedback onder elkaar.
 *   **Beoordelen (Blind)**: Een speciale modus om antwoorden na te kijken zonder dat je de naam van de student of de AI-score ziet. Dit bevordert objectiviteit.
 
+### Antwoorden agentic beoordelen
+Bij een vraag met **rubric-criteria** (zie "Vraag ontwerpen met AI") kun je een studentantwoord laten voorbeoordelen door drie samenwerkende AI-agents. Je ziet dan per criterium welk bewijs er in het antwoord staat, hoe de agents dat lezen en waar ze het (on)eens zijn. De AI doet een voorstel; **jij keurt de beoordeling goed**.
+
+**Wanneer het kan:** de toetspoging is ingeleverd, het antwoord is niet leeg, bij de toets staat **AI-beoordeling** aan, en de criteria van de vraag hebben de rubric-opbouw (de kopjes `Beoordelingscriteria:` en `Puntentoekenning:`). Agentic beoordelen kan bij toetsen die je zelf beheert, die met je gedeeld zijn, of als Admin. Een Beoordelaar ziet er niets van: de blinde beoordeling blijft blind.
+
+**Starten:** open bij "Resultaten" een inzending met **"Bekijken"**. Klik bij een antwoord op **"Agentic beoordelen"**, of bovenaan op **"Alle antwoorden agentic beoordelen"** voor de hele poging. Bij die laatste knop worden antwoorden die al een beoordeling hebben (of niet beoordeeld kunnen worden) overgeslagen; je ziet hoeveel er gestart en overgeslagen zijn. Het aantal starts per uur is begrensd. Terwijl de agents werken, ververst de pagina zichzelf; draaien ze niet, dan zie je daar een melding van en start de beoordeling zodra ze weer actief zijn.
+
+**Wat de drie agents doen:**
+1.  **Evidence Agent**: zoekt per criterium naar *letterlijke* citaten in het antwoord, en schrijft apart op wat die betekenen (interpretatie) en wat er ontbreekt. Hij vult niets aan en neemt niet aan wat de student "bedoelde".
+2.  **Assessment Agent**: beoordeelt elk criterium met de rubric en het bewijs (✓ volledig, ~ gedeeltelijk, ✗ onvoldoende) en kiest daarna een score van 0, 1, 5 of 10 met de puntentoekenning van de rubric. Hij verzint geen nieuwe criteria.
+3.  **Validation Agent**: controleert de voorlopige beoordeling kritisch (zeven controles, zoals "staat het gebruikte bewijs echt in het antwoord?" en "is er een andere redelijke lezing?"), mag statussen corrigeren en geeft een eindoordeel met een confidence (*hoog*, *middel* of *laag*).
+
+Zijn de Assessment en de Validation Agent het oneens over een essentieel criterium, dan volgt automatisch één extra ronde. Daarna beslist het systeem met vaste regels (geen AI) of menselijke beoordeling nodig is.
+
+**De pagina lezen:**
+*   Bovenaan staan de **voorgestelde score**, de confidence en het blok **"Menselijke beoordeling nodig: Ja/Nee"**. Bij "Ja" staan de redenen erbij, bijvoorbeeld: de agents zijn het oneens, een citaat staat niet letterlijk in het antwoord, de confidence is laag, de validatie bevestigt de beoordeling niet, de score past niet bij de criteria, of het antwoord bevat mogelijk instructies aan de AI. Ook bij "Nee" blijft het een voorstel.
+*   Per criterium zie je drie blokken: **Bewijs** (de citaten; een citaat dat niet letterlijk in het antwoord staat, krijgt de rode markering *niet letterlijk gevonden*), **Interpretatie** (wat het bewijs betekent en wat ontbreekt) en **Beoordeling** (conclusie, redenering en eventuele correcties van de validatie). Daarboven staan de drie oordelen naast elkaar (bijvoorbeeld *Evidence: gedeeltelijk · Assessment: deels · Validation: voldaan*) met een label *eens*, *klein verschil* of *conflict*. Een conflict krijgt een gekleurde rand.
+*   Onder **"Validatie"** staan de zeven controles, de gevonden problemen, de correcties en de uitleg. Een eventuele eerdere ronde staat ingeklapt, zodat je ziet wat er veranderde.
+*   **"Details van de run"** toont de gebruikte modellen, tijdsduren en de rubric waarmee is beoordeeld. Zijn de criteria van de vraag daarna gewijzigd, dan meldt de pagina dat; start dan opnieuw.
+
+**Aanpassen en goedkeuren:** onderaan pas je per criterium de status aan, de score (0–10) en de feedback voor de student, en klik je op **"Beoordeling goedkeuren"**. Is menselijke beoordeling nodig, dan moet je eerst aanvinken dat je de onzekerheden en conflicten zelf hebt beoordeeld. Pas bij goedkeuren worden score en feedback de **docentscore** en **docentfeedback** van het antwoord (net als bij handmatig beoordelen); ze tellen dan mee in het eindcijfer en de student ziet ze bij de resultaten. Een eerdere docentscore wordt daarbij vervangen. Na goedkeuring toont de pagina wie wanneer goedkeurde en waar je van de AI afweek.
+
+**Opnieuw beoordelen:** met **"Opnieuw beoordelen"** start je een nieuwe beoordeling (bijvoorbeeld als die mislukte of als de criteria zijn gewijzigd). De vorige blijft bewaard onder "Alle agentic beoordelingen van dit antwoord". Een goedgekeurde beoordeling en de docentscore blijven staan tot je een nieuwe beoordeling goedkeurt.
+
+> **De AI beslist niets definitief.** Zonder jouw goedkeuring verandert er niets aan de score van een student, en de student ziet de agentic beoordeling zelf nooit.
+
 ### Validatie & Rapportage
 Klik op **"Vergelijk AI"** op het dashboard.
 Hier zie je hoe goed de AI presteert ten opzichte van jouw beoordeling.
