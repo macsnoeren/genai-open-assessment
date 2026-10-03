@@ -47,7 +47,7 @@ class AnswerAssessmentController {
         $this->redirectWithError($answersUrl, $reason);
     }
     if ($this->remainingStarts() < 1) {
-        $this->redirectWithError($answersUrl, $this->rateLimitMessage());
+        $this->redirectWithError($answersUrl, ucfirst($this->rateLimitMessage()));
     }
 
     $id = $this->createRun($answer);
