@@ -86,7 +86,7 @@ En verder:
 
 ## Branches en commits
 
-- Tak af van `main`. Gebruik de naamgeving `dev/<onderwerp>` of `dev-<onderwerp>`.
+- Tak af van `main`. Gebruik de naamgeving `dev-<onderwerp>`.
 - Commitberichten zijn kort en in het Engels, zoals in de bestaande historie.
 - Raakt een wijziging zowel de webapp als de worker (contract of schema), vermeld dan in de PR welke kant eerst moet worden uitgerold en of er een overgangsvlag nodig is.
 
