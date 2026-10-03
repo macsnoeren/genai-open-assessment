@@ -60,7 +60,8 @@ $renderRound = function (array $round, bool $withDecision) use ($rubric, $eviden
         <span class="badge <?= e(AnswerAssessment::statusClass($status)) ?> fs-6"><?= e(AnswerAssessment::statusLabel($status)) ?></span>
         <span class="small text-muted">
             Run <?= (int)$run['id'] ?> · gestart <?= e($run['created_at']) ?>
-            <?php if (!empty($run['requested_by_name'])): ?> door <?= e($run['requested_by_name']) ?><?php endif; ?>
+            <?php if (!empty($run['requested_by_name'])): ?> door <?= e($run['requested_by_name']) ?>
+            <?php elseif ($run['requested_by'] === null): ?> automatisch<?php endif; ?>
         </span>
         <?php if ($isLatest): ?>
         <form action="/?action=answer_assessment_start" method="post" class="ms-auto mb-0">

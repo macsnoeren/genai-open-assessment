@@ -49,3 +49,10 @@ const DESIGN_MAX_REVISIONS = 6;          // maximale revision; daarna geen bijst
 const MAX_ASSESSMENT_RESULT_LENGTH = 100000; // bytes: JSON-body van de assessment-worker
 const ASSESSMENT_START_MAX_PER_HOUR = 100;   // gestarte runs per docent per uur (een bulkstart telt per antwoord)
 const ASSESSMENT_WORKER_STALE_SECONDS = 120; // daarna geldt de assessment-worker als niet actief
+
+// Automatisch agentic beoordelen: een ingeleverd, niet-leeg antwoord op een vraag met
+// rubric-criteria (bij een toets met AI-beoordeling aan) gaat naar de assessment-worker
+// in plaats van naar process_ai_feedback.py. Mislukt de agentic run, dan valt het antwoord
+// terug op de gewone AI-beoordeling. false = alleen handmatig starten.
+const AGENTIC_AUTO_ASSESSMENT = true;
+const ASSESSMENT_AUTO_START_BATCH = 20;      // automatisch gestarte runs per poll van de assessment-worker

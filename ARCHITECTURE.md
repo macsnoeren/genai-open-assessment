@@ -55,7 +55,7 @@ Belangrijke ontwerpkeuzes:
 
 - **Geen framework, geen Composer, geen build-stap.** Gewone PHP-bestanden met `require_once`. Dat houdt de deployment simpel: bestanden kopiëren, documentroot op `htdocs/` zetten en klaar.
 - **Pull in plaats van push.** De webserver roept nooit een LLM aan. De worker vraagt periodiek om werk. Daardoor blijft de webserver licht, kan de worker op een andere machine draaien (met GPU of met Ollama Cloud) en kan de webserver doorwerken als de worker uitvalt.
-- **De database is de wachtrij.** Een antwoord staat "in de wachtrij" zolang `student_answers.ai_feedback` leeg is, de poging is ingeleverd en AI-beoordeling voor de toets aanstaat. Er is geen aparte queue-tabel. De vraagontwerper en agentic beoordelen gebruiken hun eigen tabel (`question_designs`, `answer_assessments`) als wachtrij, met een statuskolom.
+- **De database is de wachtrij.** Een antwoord staat "in de wachtrij" zolang `student_answers.ai_feedback` leeg is, de poging is ingeleverd en AI-beoordeling voor de toets aanstaat. Er is geen aparte queue-tabel. De vraagontwerper en agentic beoordelen gebruiken hun eigen tabel (`question_designs`, `answer_assessments`) als wachtrij, met een statuskolom. Antwoorden op rubric-vragen gaan automatisch naar agentic beoordelen en dan niet naar de AI-feedbackworker (§6.8).
 - **De mens beslist.** AI-scores zijn adviezen. De docentscore (`teacher_score`) is leidend voor het eindcijfer.
 
 ---
@@ -391,7 +391,8 @@ erDiagram
 | Toestand | Voorwaarde |
 |---|---|
 | Concept (student bezig) | `student_exams.completed_at IS NULL` |
-| Wacht op AI | ingeleverd, `exams.ai_grading_enabled = 1`, `ai_feedback` leeg |
+| Wacht op AI | ingeleverd, `exams.ai_grading_enabled = 1`, `ai_feedback` leeg, en niet bij agentic beoordelen (zie §6.8) |
+| Agentic beoordeeld | een run in `answer_assessments` met status `pending`, `review` of `approved` |
 | AI-beoordeeld | `ai_feedback` gevuld |
 | Wacht op docent | ingeleverd, `teacher_score IS NULL` (zie `pending_assessments`) |
 | Docent-beoordeeld | `teacher_score` gevuld |
@@ -672,6 +673,17 @@ sequenceDiagram
 | extra ronde | bij minstens één `conflict` en zolang er rondes over zijn: Assessment opnieuw met de bevindingen van de validatie, daarna Validation opnieuw |
 | `human_review_needed` | waar zodra er een reden is, elk met een Nederlandse zin in `reasons`: een `conflict` (ook na de extra ronde), een niet-geverifieerd citaat bij een criterium dat (deels) voldaan heet, confidence `laag`, `validated = false`, een injection-vermoeden, een score die niet past bij de statussen (alle essentiële criteria voldaan maar minder dan 10; alles niet voldaan maar 5 of meer; 0 terwijl een essentieel criterium voldaan is) of een verschil tussen de score van Assessment en Validation |
 
+**Automatisch starten en de verdeling met de AI-feedbackworker** (`AGENTIC_AUTO_ASSESSMENT` in `config/app.php`, standaard aan). Elk antwoord gaat naar precies één van de twee workers:
+
+| Antwoord | Gaat naar |
+|---|---|
+| Heeft een agentic run met status `pending`, `review` of `approved` | agentic beoordelen; **niet** in `open_student_answers` |
+| Ingeleverd, AI-beoordeling aan, geen `ai_feedback`, niet leeg, criteria met de rubric-kopjes, en nog geen enkele run | wordt **automatisch** agentic gestart (run zonder `requested_by`); niet in `open_student_answers` |
+| Laatste run mislukt (`failed`) | vangnet: terug in `open_student_answers` (gewone AI-beoordeling); niet opnieuw automatisch gestart |
+| Al het andere (vrije criteria, leeg antwoord, …) | `open_student_answers`, zoals altijd |
+
+De voorwaarden staan op één plek: `AnswerAssessment::excludeFromAiGradingSql()` (gebruikt door `StudentAnswer::getPendingAiGrading()`) en `AnswerAssessment::createAutomaticRuns()` delen dezelfde SQL, en de rubric-herkenning (`looksLikeRubric()`, de kopjes `Beoordelingscriteria:` en `Puntentoekenning:`) is dezelfde als bij handmatig starten. Runs worden automatisch gestart op twee momenten: bij het inleveren (`StudentExamController::submitExam()`, alleen die poging) en bij elke poll van `open_assessment_jobs` (hooguit `ASSESSMENT_AUTO_START_BATCH` per keer), zodat ook antwoorden meekomen waarvoor de voorwaarden later gelden. Beide schrijven `answer_assessment_auto_start` in de audit log; die telt niet mee voor de rate limit per docent. Het API-contract met de AI-feedbackworker is ongewijzigd: alleen de selectie in `open_student_answers` verandert. Gevolg: de student ziet bij zo'n antwoord geen `ai_feedback` (alleen de docentscore na goedkeuring), en het antwoord telt niet mee in `exam_comparison`.
+
 **Robuustheid:** de worker telt pogingen per `assessment_id` en stuurt na `ASSESSMENT_MAX_ATTEMPTS` een `error` in (status `failed`, de docent kan opnieuw starten). Een 409 betekent dat de docent intussen opnieuw startte: het resultaat wordt overgeslagen. Starten is begrensd met `ASSESSMENT_START_MAX_PER_HOUR` per docent (één auditregel `answer_assessment_start` per gestart antwoord, ook bij een bulkstart).
 
 **Autorisatie:** `requireRole('docent')` plus leestoegang tot de toets (eigenaar, admin of gedeelde toets), altijd via het antwoord uit de database (`StudentAnswer::findForAssessment()`). De beoordelaar ziet niets (blind), de student ook niet.
@@ -746,7 +758,7 @@ Weet dat deze punten bestaan voordat je in de buurt iets wijzigt. Los ze bij voo
 | Eén ontwerp-worker tegelijk | `process_design_jobs.py`, geen claim-mechanisme | Twee workers doen dubbel werk; de `revision`-controle (409) voorkomt wel dat er iets wordt overschreven |
 | Eén assessment-worker tegelijk | `process_assessment_jobs.py`, geen claim-mechanisme | Twee workers beoordelen dubbel; de statuscontrole (409) voorkomt dat er iets wordt overschreven |
 | Agentic beoordelen alleen voor rubric-vragen | `parse_rubric_criteria()` in de worker; PHP kijkt alleen naar de kopjes | Een vraag met vrije criteria kan niet agentic worden beoordeeld; criteria met de kopjes maar een kapotte opbouw geven pas in de worker een fout (`failed`) |
-| Agentic beoordelen start alleen handmatig | `answer_assessment_start(_exam)` | Geen automatische start bij inleveren (bewust: kosten en controle) |
+| Rubric-antwoorden zonder AI-scores per model | `excludeFromAiGradingSql()` | Automatisch agentic beoordeelde antwoorden krijgen geen `ai_feedback` en tellen niet mee in `exam_comparison`; zonder draaiende assessment-worker blijven ze wachten (geen terugval op de AI-feedbackworker) |
 | Geen geschiedenis per ontwerpronde | `question_designs` overschrijft `analysis`, `assessment` en `validation` | Eerdere rondes zijn alleen via de audit log (`question_design_feedback`) na te gaan |
 | Rubric als platte tekst in `questions.criteria` | `QuestionDesign::rubricToCriteriaText()` ↔ `parse_rubric_criteria()` | De worker leidt de structuur uit de tekst af (contract 7, §6.7). Een docent die de opbouw loslaat, valt zonder melding terug op de gewone beoordeling |
 | Rolwijziging pas na opnieuw inloggen actief | sessie bevat `role` | Admin moet de gebruiker laten herinloggen |

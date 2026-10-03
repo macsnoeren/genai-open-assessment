@@ -250,8 +250,7 @@ class AnswerAssessmentController {
     if ((int)$answer['ai_grading_enabled'] !== 1) {
         return 'AI-beoordeling staat uit voor deze toets. Zet die aan bij de instellingen van de toets om agentic te beoordelen.';
     }
-    $criteria = (string)$answer['criteria'];
-    if (!preg_match('/^\s*Beoordelingscriteria\s*:\s*$/mi', $criteria) || !preg_match('/^\s*Puntentoekenning\s*:\s*$/mi', $criteria)) {
+    if (!AnswerAssessment::looksLikeRubric($answer['criteria'])) {
         return 'De criteria van deze vraag hebben geen rubric-opbouw (met de kopjes "Beoordelingscriteria:" en "Puntentoekenning:"); '
             . 'agentic beoordelen kan alleen met een rubric. Ontwerp de vraag met de AI-vraagontwerper of neem die opbouw over.';
     }

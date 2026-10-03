@@ -8,6 +8,7 @@
  * (at your option) any later version.
  */
 
+require_once __DIR__ . '/../../config/app.php';
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/StudentAnswer.php';
 
@@ -55,6 +56,16 @@ class AnswerAssessment {
 
   /** JSON-kolommen die decode() omzet naar arrays. */
   const JSON_COLUMNS = ['rubric', 'evidence', 'rounds', 'decision', 'run_log', 'teacher_criteria'];
+
+  /**
+   * Kopjes waaraan de webapp rubric-criteria herkent. Een grove controle: de
+   * worker parseert de criteria echt (parse_rubric_criteria) en stuurt anders
+   * een fout terug, waarna het antwoord terugvalt op de gewone AI-beoordeling.
+   */
+  const RUBRIC_HEADINGS = ['Beoordelingscriteria:', 'Puntentoekenning:'];
+
+  /** Statussen waarmee een antwoord bij agentic beoordelen hoort (niet bij process_ai_feedback). */
+  const ACTIVE_STATUSES = [self::STATUS_PENDING, self::STATUS_REVIEW, self::STATUS_APPROVED];
 
   /** Nederlands label voor een status. */
   public static function statusLabel(string $status): string {
@@ -147,10 +158,11 @@ class AnswerAssessment {
 
   /**
    * Nieuwe run (status pending) met snapshots van vraag, criteria en antwoord.
+   * $userId is null bij een automatisch gestarte run.
    * In dezelfde transactie worden de open en afgeronde runs van dit antwoord
    * (pending, review, failed) superseded; een goedgekeurde run blijft staan.
    */
-  public static function create(int $studentAnswerId, int $userId, string $question, string $criteria, string $answer): int {
+  public static function create(int $studentAnswerId, ?int $userId, string $question, string $criteria, string $answer): int {
     $pdo = Database::connect();
     $pdo->beginTransaction();
     try {
@@ -745,6 +757,101 @@ class AnswerAssessment {
       'decision' => $decision,
       'run_log' => self::normalizeRunLog($r['run_log'] ?? null),
     ];
+  }
+
+  // ---------------------------------------------------------------------
+  // Automatisch starten en de verdeling met process_ai_feedback
+  // ---------------------------------------------------------------------
+
+  /** True als de criteria de rubric-kopjes bevatten (zelfde regel als rubricSql()). */
+  public static function looksLikeRubric(?string $criteria): bool {
+    foreach (self::RUBRIC_HEADINGS as $heading) {
+      if (stripos((string)$criteria, $heading) === false) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /** SQL-voorwaarde voor looksLikeRubric() op een kolom, met de bijbehorende parameters. */
+  private static function rubricSql(string $column): array {
+    $parts = array_fill(0, count(self::RUBRIC_HEADINGS), "$column LIKE ?");
+    $params = array_map(fn($heading) => '%' . $heading . '%', self::RUBRIC_HEADINGS);
+    return ['(' . implode(' AND ', $parts) . ')', $params];
+  }
+
+  /**
+   * SQL-voorwaarden die bepalen welke antwoorden NIET naar process_ai_feedback
+   * gaan (te combineren met de wachtrij-voorwaarden van getPendingAiGrading()):
+   * - een antwoord met een actieve agentic run (pending, review of approved);
+   * - met AGENTIC_AUTO_ASSESSMENT: een niet-leeg antwoord op een vraag met
+   *   rubric-kopjes zonder enige run; dat wordt automatisch agentic gestart.
+   * Een antwoord waarvan de laatste run mislukte, gaat dus wel naar de gewone
+   * AI-beoordeling (vangnet).
+   *
+   * @return array [sql, params]; sql begint met " AND"
+   */
+  public static function excludeFromAiGradingSql(string $sa = 'sa', string $q = 'q'): array {
+    $placeholders = implode(', ', array_fill(0, count(self::ACTIVE_STATUSES), '?'));
+    $sql = " AND NOT EXISTS (SELECT 1 FROM answer_assessments aa
+                             WHERE aa.student_answer_id = $sa.id AND aa.status IN ($placeholders))";
+    $params = self::ACTIVE_STATUSES;
+    if (AGENTIC_AUTO_ASSESSMENT) {
+      [$autoSql, $autoParams] = self::autoEligibleSql($sa, $q);
+      $sql .= " AND NOT ($autoSql)";
+      $params = array_merge($params, $autoParams);
+    }
+    return [$sql, $params];
+  }
+
+  /**
+   * Voorwaarde "wordt automatisch agentic beoordeeld" voor een antwoord dat
+   * al in de AI-wachtrij zou staan (ingeleverd, AI-beoordeling aan, geen
+   * ai_feedback): niet leeg, rubric-kopjes in de criteria en nog geen run.
+   */
+  private static function autoEligibleSql(string $sa, string $q): array {
+    [$rubricSql, $params] = self::rubricSql("$q.criteria");
+    $sql = "TRIM(COALESCE($sa.answer, ''), ' ' || char(9) || char(10) || char(13)) != ''
+            AND $rubricSql
+            AND NOT EXISTS (SELECT 1 FROM answer_assessments aa2 WHERE aa2.student_answer_id = $sa.id)";
+    return [$sql, $params];
+  }
+
+  /**
+   * Start agentic runs (zonder aanvrager) voor de antwoorden die automatisch
+   * agentic beoordeeld worden, optioneel alleen binnen één toetspoging.
+   * Geeft [run-id => student_answer_id] terug; leeg als AGENTIC_AUTO_ASSESSMENT uit staat.
+   */
+  public static function createAutomaticRuns(?int $studentExamId, int $limit): array {
+    if (!AGENTIC_AUTO_ASSESSMENT) {
+      return [];
+    }
+    [$autoSql, $params] = self::autoEligibleSql('sa', 'q');
+    $sql = "
+      SELECT sa.id, sa.answer, q.question_text, q.criteria
+      FROM student_answers sa
+      JOIN student_exams se ON sa.student_exam_id = se.id
+      JOIN exams e ON se.exam_id = e.id
+      JOIN questions q ON sa.question_id = q.id
+      WHERE se.completed_at IS NOT NULL
+        AND e.ai_grading_enabled = 1
+        AND (sa.ai_feedback IS NULL OR sa.ai_feedback = '')
+        AND $autoSql";
+    if ($studentExamId !== null) {
+      $sql .= " AND sa.student_exam_id = ?";
+      $params[] = $studentExamId;
+    }
+    $sql .= " ORDER BY sa.id ASC LIMIT " . (int)$limit;
+
+    $pdo = Database::connect();
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
+    $created = [];
+    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+      $id = self::create((int)$row['id'], null, (string)$row['question_text'], (string)$row['criteria'], (string)$row['answer']);
+      $created[$id] = (int)$row['id'];
+    }
+    return $created;
   }
 
   // ---------------------------------------------------------------------

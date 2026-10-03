@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/AnswerAssessment.php';
 
 class StudentAnswer {
   
@@ -77,8 +78,14 @@ class StudentAnswer {
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
   }
 
+  /**
+   * Wachtrij van process_ai_feedback.py. Antwoorden die bij agentic beoordelen
+   * horen (een actieve run, of automatisch agentic te beoordelen) vallen erbuiten;
+   * zie AnswerAssessment::excludeFromAiGradingSql().
+   */
   public static function getPendingAiGrading($limit = null) {
     $pdo = Database::connect();
+    [$excludeSql, $params] = AnswerAssessment::excludeFromAiGradingSql('sa', 'q');
     $sql = "
         SELECT sa.id as student_answer_id, sa.answer, q.question_text, q.criteria, p.prompt_text
         FROM student_answers sa
@@ -89,6 +96,7 @@ class StudentAnswer {
         WHERE (sa.ai_feedback IS NULL OR sa.ai_feedback = '')
         AND se.completed_at IS NOT NULL
         AND e.ai_grading_enabled = 1
+        $excludeSql
         ORDER BY sa.id ASC
     ";
 
@@ -97,7 +105,7 @@ class StudentAnswer {
     }
 
     $stmt = $pdo->prepare($sql);
-    $stmt->execute();
+    $stmt->execute($params);
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
   }
 

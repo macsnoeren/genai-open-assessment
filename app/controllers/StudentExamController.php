@@ -15,6 +15,7 @@ require_once __DIR__ . '/../models/Questions.php';
 require_once __DIR__ . '/../models/StudentExam.php';
 require_once __DIR__ . '/../models/AuditLog.php';
 require_once __DIR__ . '/../models/StudentAnswer.php';
+require_once __DIR__ . '/../models/AnswerAssessment.php';
 
 /**
  * Class StudentExamController
@@ -359,6 +360,15 @@ class StudentExamController {
         AuditLog::log('exam_submit_final', ['student_exam_id' => $studentExamId], $isGuest ? 'Gast' : null);
         $stmt = $pdo->prepare("UPDATE student_exams SET completed_at = CURRENT_TIMESTAMP WHERE id = ? AND completed_at IS NULL");
         $stmt->execute([$studentExamId]);
+        if ($stmt->rowCount() > 0) {
+            // Antwoorden op rubric-vragen meteen agentic laten beoordelen (AGENTIC_AUTO_ASSESSMENT);
+            // de overige gaan zoals altijd naar process_ai_feedback.
+            $runs = AnswerAssessment::createAutomaticRuns($studentExamId, ASSESSMENT_AUTO_START_BATCH);
+            if ($runs) {
+                AuditLog::log('answer_assessment_auto_start', ['student_exam_id' => $studentExamId, 'runs' => $runs],
+                    $isGuest ? 'Gast' : null);
+            }
+        }
         
         if ($isGuest) {
              header("Location: /?action=student_view_results&student_exam_id={$studentExamId}");

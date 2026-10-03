@@ -53,7 +53,7 @@ Er is **geen geautomatiseerde testsuite** voor de webapp (alleen de mocktests va
 - Elke pagina is `/?action=<naam>`. De `switch` in `htdocs/index.php` roept een controllermethode aan. **Een nieuwe action is altijd ook een nieuwe `case`.**
 - **Controllers** (`app/controllers/`): één publieke methode per action. **Models** (`app/models/`): alleen statische methodes, prepared statements, arrays terug. **Views** (`app/views/`): `ob_start()`, daarna `$content = ob_get_clean()` en `require` van `layouts/main.php`.
 - Create en edit delen één formulier (`*_form.php`). De controller zet `$action`, `$title` en het object (of `null`).
-- De database is de wachtrij voor de worker: een antwoord met lege `ai_feedback`, een ingeleverde poging en `exams.ai_grading_enabled = 1` staat klaar voor AI-beoordeling. De vraagontwerper en agentic beoordelen hebben een eigen tabel als wachtrij (`question_designs`, `answer_assessments`).
+- De database is de wachtrij voor de worker: een antwoord met lege `ai_feedback`, een ingeleverde poging en `exams.ai_grading_enabled = 1` staat klaar voor AI-beoordeling. De vraagontwerper en agentic beoordelen hebben een eigen tabel als wachtrij (`question_designs`, `answer_assessments`). Een antwoord op een rubric-vraag gaat automatisch naar agentic beoordelen en **niet** naar de AI-worker (`AGENTIC_AUTO_ASSESSMENT`, `AnswerAssessment::excludeFromAiGradingSql()`); alleen na een mislukte agentic run valt het terug op de AI-worker.
 
 ## Verplichte patronen (beveiliging)
 

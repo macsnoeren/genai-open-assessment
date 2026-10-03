@@ -282,6 +282,16 @@ class ApiController {
         $limit = requestInt($_GET, 'limit');
         $limit = $limit === null ? 3 : max(1, min($limit, 10));
 
+        // Antwoorden die (inmiddels) aan de voorwaarden voldoen en nog geen run hebben,
+        // bijvoorbeeld omdat AI-beoordeling later is aangezet of de criteria een rubric werden.
+        $autoRuns = AnswerAssessment::createAutomaticRuns(null, ASSESSMENT_AUTO_START_BATCH);
+        if ($autoRuns) {
+            AuditLog::log('answer_assessment_auto_start', [
+                'api_key_id' => $this->apiKey['id'],
+                'runs' => $autoRuns,
+            ], 'API:' . $this->apiKey['name']);
+        }
+
         $jobs = [];
         foreach (AnswerAssessment::getPendingJobs($limit) as $row) {
             $jobs[] = [

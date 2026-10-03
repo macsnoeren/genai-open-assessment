@@ -12,12 +12,20 @@ De wijziging is **volledig additief**. Er breekt geen bestaand contract:
 | Onderdeel | Wijziging | Gevolg voor bestaande onderdelen |
 |---|---|---|
 | Database | Nieuwe tabel `answer_assessments` (+ index) | Wordt automatisch aangemaakt door `Database::migrate()` bij de eerste request |
-| Webapp | Nieuwe pagina's `answer_assessment_*`, knoppen "Agentic beoordelen" op de antwoordenpagina van een poging | Bestaande pagina's werken ongewijzigd; `ai_feedback` en de scores daarin veranderen niet |
+| Webapp | Nieuwe pagina's `answer_assessment_*`, knoppen "Agentic beoordelen" op de antwoordenpagina van een poging, **automatisch agentic beoordelen** van antwoorden op rubric-vragen (`AGENTIC_AUTO_ASSESSMENT`) | Antwoorden op rubric-vragen (bij toetsen met AI-beoordeling aan) gaan niet meer naar de AI-feedbackservice, behalve als de agentic run mislukt. Het formaat van `ai_feedback` verandert niet |
 | API | Nieuwe endpoints `open_assessment_jobs` en `submit_assessment_result` | Bestaande endpoints ongewijzigd |
 | Worker | Nieuwe bestanden `bin/process_assessment_jobs.py` en `bin/assessment_agents.py`; `bin/design_agents.py` gewijzigd (`Agent` herbruikbaar gemaakt, gedrag gelijk) | `process_ai_feedback.py` ongewijzigd; de ontwerp-worker gedraagt zich hetzelfde maar moet wel herstart worden |
 
 Er is **geen overgangsvlag** nodig. De volgorde is wel van belang: rol eerst
-de webapp uit. Start je de assessment-worker tegen een server met de oude code,
+de webapp uit, en **start de assessment-worker direct daarna**. Vanaf het moment
+dat de nieuwe webapp draait, krijgt de AI-feedbackservice geen antwoorden op
+rubric-vragen meer; die wachten op de assessment-worker. Wil je dat (tijdelijk)
+niet, zet dan `AGENTIC_AUTO_ASSESSMENT = false` in `config/app.php`: dan werkt
+agentic beoordelen alleen handmatig en krijgt de AI-feedbackservice alle
+antwoorden weer, behalve die met een handmatig gestarte agentic run.
+
+Bestaande antwoorden die al AI-feedback hebben, worden niet automatisch agentic
+beoordeeld. Wel antwoorden op rubric-vragen die nog op AI-feedback wachten. Start je de assessment-worker tegen een server met de oude code,
 dan meldt hij "Server kent open_assessment_jobs nog niet; rol eerst de nieuwe
 webapp uit." en doet hij verder niets.
 
@@ -113,8 +121,10 @@ moet verdwijnen zodra de worker draait.
 
 ## Terugdraaien
 
-- **Alleen de functie uitzetten:** stop het proces `process_assessment_jobs.py`.
-  Dat is voldoende: gestarte runs blijven in de wachtrij staan en de docent
+- **Alleen de functie uitzetten:** zet `AGENTIC_AUTO_ASSESSMENT = false` in
+  `config/app.php` (dan gaan rubric-antwoorden weer naar de AI-feedbackservice)
+  en stop het proces `process_assessment_jobs.py`. Alleen het proces stoppen is
+  niet genoeg: rubric-antwoorden blijven dan op de agents wachten en de docent
   ziet de melding dat de agents niet actief zijn. De rest van de applicatie
   merkt er niets van, en docentscores die al via een goedgekeurde agentic
   beoordeling zijn gezet, blijven gewone docentscores.

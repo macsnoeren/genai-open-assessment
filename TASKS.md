@@ -355,7 +355,7 @@ Deze vormen zijn de afspraak tussen PHP (`AnswerAssessment::normalize*()`) en Py
 
 ## Later (buiten dit prototype)
 
-- Automatisch starten bij inleveren (een vlag per toets, naast `ai_grading_enabled`).
+- ~~Automatisch starten bij inleveren~~: gedaan, globaal via `AGENTIC_AUTO_ASSESSMENT` in `config/app.php` (rubric-antwoorden gaan dan niet naar `process_ai_feedback.py`). Een vlag per toets kan later nog.
 - Citaten in het studentantwoord markeren (highlight) en per criterium aanklikken.
 - Kalibratie: agentic voorstellen vergelijken met de uiteindelijke docentscores, per vraag en per model.
 - Een gerichte extra Evidence-ronde voor alleen de criteria met een conflict.

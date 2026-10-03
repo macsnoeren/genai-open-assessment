@@ -251,6 +251,14 @@ antwoord) die in de UI wordt getoond. Maatregelen:
   - Verouderde resultaten: de worker mag alleen een run met status pending bijwerken
     (WHERE id = ? AND status = 'pending'); start de docent opnieuw, dan krijgt het
     oude resultaat 409 en overschrijft het niets.
+  - Automatisch starten (AGENTIC_AUTO_ASSESSMENT): bij inleveren en bij elke poll van
+    de assessment-worker (hooguit ASSESSMENT_AUTO_START_BATCH per keer) voor
+    ingeleverde, niet-lege antwoorden op rubric-vragen bij toetsen met
+    ai_grading_enabled = 1 en zonder ai_feedback. Dezelfde blootstelling als de
+    gewone AI-beoordeling (die anders hetzelfde antwoord zou krijgen); wel meer
+    LLM-aanroepen per antwoord. Elk antwoord gaat naar precies één worker
+    (excludeFromAiGradingSql), dus geen dubbele verwerking. Gelogd als
+    answer_assessment_auto_start.
   - Rate limit: ASSESSMENT_START_MAX_PER_HOUR (100) gestarte runs per docent per uur,
     één auditregel per gestart antwoord (ook bij een bulkstart). Alleen bij toetsen
     met ai_grading_enabled = 1. Wie de audit log leegmaakt, zet ook deze limiet terug.
