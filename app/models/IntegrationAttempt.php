@@ -15,6 +15,7 @@ require_once __DIR__ . '/StudentAnswer.php';
 require_once __DIR__ . '/Questions.php';
 require_once __DIR__ . '/AnswerAssessment.php';
 require_once __DIR__ . '/Integration.php';
+require_once __DIR__ . '/IntegrationEvent.php';
 
 /**
  * Een poging via een externe koppeling: een gewone gastpoging (student_exams,
@@ -477,5 +478,55 @@ class IntegrationAttempt {
       }
     }
     return $list;
+  }
+
+  // ---------------------------------------------------------------------
+  // Webhook-events (outbox, zie IntegrationEvent)
+  // ---------------------------------------------------------------------
+
+  /**
+   * Zet een event in de outbox voor een koppelingspoging. Doet niets bij een
+   * gewone poging of een koppeling zonder webhook-URL. De payload bevat geen
+   * toetsinhoud, alleen ids en de status (contract 9).
+   */
+  public static function notify(int $studentExamId, string $event, ?array $summary = null): void {
+    $attempt = self::findByStudentExam($studentExamId);
+    if (!$attempt || empty($attempt['webhook_url'])) {
+      return;
+    }
+    $summary = $summary ?? self::summary($attempt);
+    IntegrationEvent::enqueue($attempt['integration_id'], $studentExamId, $event, [
+      'event' => $event,
+      'attempt_id' => $studentExamId,
+      'external_ref' => (string)$attempt['external_ref'],
+      'status' => $summary['status'],
+      'review_needed' => $summary['review_needed'],
+      'occurred_at' => gmdate('Y-m-d\TH:i:s\Z'),
+    ]);
+  }
+
+  /** Na een AI-resultaat: attempt.graded als nu elk antwoord van de poging een AI-resultaat heeft. */
+  public static function checkGraded(int $studentAnswerId): void {
+    $answer = StudentAnswer::find($studentAnswerId);
+    $attempt = $answer ? self::findByStudentExam($answer['student_exam_id']) : null;
+    if (!$attempt || empty($attempt['webhook_url'])) {
+      return;
+    }
+    $summary = self::summary($attempt);
+    if ($summary['status'] === self::STATUS_GRADED) {
+      self::notify((int)$attempt['student_exam_id'], 'attempt.graded', $summary);
+    }
+  }
+
+  /** Na een menselijke beoordeling: attempt.reviewed als de poging nu reviewed is. */
+  public static function checkReviewed(int $studentExamId): void {
+    $attempt = self::findByStudentExam($studentExamId);
+    if (!$attempt || empty($attempt['webhook_url'])) {
+      return;
+    }
+    $summary = self::summary($attempt);
+    if ($summary['status'] === self::STATUS_REVIEWED) {
+      self::notify($studentExamId, 'attempt.reviewed', $summary);
+    }
   }
 }

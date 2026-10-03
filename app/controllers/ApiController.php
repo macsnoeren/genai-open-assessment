@@ -17,6 +17,7 @@ require_once __DIR__ . '/../models/AnswerAssessment.php';
 require_once __DIR__ . '/../models/Questions.php';
 require_once __DIR__ . '/../models/Integration.php';
 require_once __DIR__ . '/../models/IntegrationAttempt.php';
+require_once __DIR__ . '/../models/IntegrationEvent.php';
 require_once __DIR__ . '/../../config/database.php';
 
 /**
@@ -103,7 +104,7 @@ class ApiController {
                 'count' => count($answers),
             ], 'API:' . $this->apiKey['name']);
         }
-        echo json_encode(['answers' => $answers]);
+        $this->respondThenDeliverWebhooks(json_encode(['answers' => $answers]));
     }
 
     /**
@@ -151,6 +152,7 @@ class ApiController {
             'student_answer_id' => $answerId,
             'api_key_id' => $this->apiKey['id'],
         ], 'API:' . $this->apiKey['name']);
+        $this->afterAiResult($answerId);
         echo json_encode(['status' => 'success']);
     }
 
@@ -330,7 +332,7 @@ class ApiController {
                 'assessment_ids' => array_column($jobs, 'assessment_id'),
             ], 'API:' . $this->apiKey['name']);
         }
-        echo json_encode(['jobs' => $jobs]);
+        $this->respondThenDeliverWebhooks(json_encode(['jobs' => $jobs]));
     }
 
     /**
@@ -402,7 +404,53 @@ class ApiController {
 
         AuditLog::log('assessment_result_submit', $details + ['api_key_id' => $this->apiKey['id']],
             'API:' . $this->apiKey['name']);
+        if (!$hasError) {
+            $this->afterAiResult((int)$run['student_answer_id']);
+        }
         echo json_encode(['status' => 'success']);
+    }
+
+    /**
+     * Externe koppeling: is de poging van dit antwoord nu helemaal nagekeken,
+     * dan komt attempt.graded in de outbox. Een fout hier mag het antwoord aan
+     * de worker nooit breken (die zou het resultaat anders opnieuw insturen).
+     */
+    private function afterAiResult(int $studentAnswerId): void {
+        try {
+            IntegrationAttempt::checkGraded($studentAnswerId);
+        } catch (Throwable $e) {
+            error_log('Integratie-event na AI-resultaat mislukt: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Stuurt het antwoord aan de worker af en verstuurt daarna de webhooks die
+     * aan de beurt zijn (B8: webhooks gaan tijdens de polls van de workers).
+     * Met PHP-FPM sluit fastcgi_finish_request() het verzoek; onder mod_php
+     * sluiten Content-Length en Connection: close het voor de client af. Een
+     * webhookfout breekt een poll nooit.
+     */
+    private function respondThenDeliverWebhooks(string $json): void {
+        if (function_exists('fastcgi_finish_request')) {
+            echo $json;
+            fastcgi_finish_request();
+        } else {
+            ignore_user_abort(true);
+            if (!headers_sent()) {
+                header('Connection: close');
+                header('Content-Length: ' . strlen($json));
+            }
+            echo $json;
+            while (ob_get_level() > 0) {
+                ob_end_flush();
+            }
+            flush();
+        }
+        try {
+            IntegrationEvent::deliverDue(INTEGRATION_WEBHOOK_BATCH);
+        } catch (Throwable $e) {
+            error_log('Webhooks versturen mislukt: ' . $e->getMessage());
+        }
     }
 
     private function jsonError(int $code, string $message): void {

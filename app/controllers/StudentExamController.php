@@ -431,6 +431,14 @@ class StudentExamController {
                 AuditLog::log('answer_assessment_auto_start', ['student_exam_id' => $studentExamId, 'runs' => $runs],
                     $isGuest ? 'Gast' : null);
             }
+            if ($integrationAttempt) {
+                // Webhook attempt.submitted (outbox); een fout mag het inleveren niet breken.
+                try {
+                    IntegrationAttempt::notify($studentExamId, 'attempt.submitted');
+                } catch (Throwable $e) {
+                    error_log('Integratie-event attempt.submitted mislukt: ' . $e->getMessage());
+                }
+            }
         }
         
         if ($integrationAttempt) {
