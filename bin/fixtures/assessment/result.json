@@ -1,0 +1,227 @@
+{
+  "rubric": {
+    "model_answer": "PLC's zijn slecht beveiligd; een aanvaller kan het proces verstoren. Zet ze achter een firewall.",
+    "criteria": [
+      {
+        "nr": 1,
+        "name": "Zwakke beveiliging van de PLC",
+        "weight": "essentieel",
+        "description": "De student legt uit dat PLC's beperkt beveiligd zijn, bijvoorbeeld door ontbrekende authenticatie of versleuteling of door verouderde software, omdat ze voor gesloten netwerken zijn ontworpen."
+      },
+      {
+        "nr": 2,
+        "name": "Gevolgen van misbruik",
+        "weight": "essentieel",
+        "description": "De student noemt dat een aanvaller het fysieke proces kan verstoren, manipuleren of stilleggen, met gevolgen voor veiligheid, productie of milieu."
+      },
+      {
+        "nr": 3,
+        "name": "Juiste netwerkplaatsing",
+        "weight": "aanvullend",
+        "description": "De student noemt een passende maatregel, zoals netwerksegmentatie, een firewall, een DMZ of toegang via VPN."
+      }
+    ],
+    "levels": {
+      "10": "Volledig correct: beide essentiële criteria zijn juist en concreet uitgelegd; een maatregel is mooi meegenomen maar niet vereist.",
+      "5": "Gedeeltelijk correct: één essentieel criterium is juist uitgelegd, of beide worden genoemd maar te vaag of met een kleine fout.",
+      "1": "Minimaal: het antwoord bevat een losse juiste term (bijvoorbeeld 'hackers' of 'firewall') zonder uitleg waarom de directe verbinding een risico is.",
+      "0": "Onvoldoende: geen relevante reden, een inhoudelijk onjuist antwoord of geen antwoord."
+    },
+    "alternatives": [
+      "Een uitleg via bekende incidenten (zoals Stuxnet of aanvallen op waterzuiveringen) die de zwakke beveiliging en de fysieke gevolgen duidelijk maakt.",
+      "Een uitleg vanuit de CIA-driehoek waarin vooral integriteit en beschikbaarheid van het proces centraal staan."
+    ]
+  },
+  "evidence": {
+    "criteria": [
+      {
+        "nr": 1,
+        "evidence_found": "gedeeltelijk",
+        "evidence": [
+          "kan een hacker er makkelijk bij"
+        ],
+        "interpretation": "De student zegt dat een aanvaller makkelijk toegang krijgt, maar legt niet uit waarom: ontbrekende authenticatie, versleuteling of verouderde software worden niet genoemd.",
+        "confidence": "hoog",
+        "missing_evidence": "Een uitleg waarom de PLC slecht beveiligd is (bijvoorbeeld ontworpen voor gesloten netwerken, geen authenticatie)."
+      },
+      {
+        "nr": 2,
+        "evidence_found": "ja",
+        "evidence": [
+          "de machines in de fabriek laten stoppen of kapotmaken",
+          "gevaarlijk zijn voor de mensen die er werken"
+        ],
+        "interpretation": "De student noemt verstoring en beschadiging van het fysieke proces en de gevolgen voor de veiligheid.",
+        "confidence": "hoog",
+        "missing_evidence": ""
+      },
+      {
+        "nr": 3,
+        "evidence_found": "ja",
+        "evidence": [
+          "Je kunt daarom beter een firewall gebruiken."
+        ],
+        "interpretation": "De student noemt een firewall als maatregel.",
+        "confidence": "hoog",
+        "missing_evidence": ""
+      }
+    ],
+    "summary": "Het antwoord beschrijft de gevolgen en een maatregel, maar legt de zwakke beveiliging van de PLC zelf niet uit."
+  },
+  "rounds": [
+    {
+      "assessment": {
+        "criteria": [
+          {
+            "nr": 1,
+            "status": "deels",
+            "assessment": "Toegang door een aanvaller wordt genoemd, de oorzaak niet.",
+            "reasoning": "Het criterium vraagt om uitleg waarom de PLC beperkt beveiligd is. De student stelt alleen dat een hacker er makkelijk bij kan, zonder oorzaak.",
+            "evidence_used": [
+              "kan een hacker er makkelijk bij"
+            ],
+            "confidence": "middel"
+          },
+          {
+            "nr": 2,
+            "status": "voldaan",
+            "assessment": "Verstoring van het proces en gevolgen voor de veiligheid zijn concreet genoemd.",
+            "reasoning": "Stilleggen en beschadigen van machines en gevaar voor medewerkers dekken het criterium.",
+            "evidence_used": [
+              "de machines in de fabriek laten stoppen of kapotmaken",
+              "gevaarlijk zijn voor de mensen die er werken"
+            ],
+            "confidence": "hoog"
+          },
+          {
+            "nr": 3,
+            "status": "voldaan",
+            "assessment": "Een firewall is een passende maatregel.",
+            "reasoning": "Het aanvullende criterium vraagt een passende maatregel; een firewall wordt expliciet genoemd.",
+            "evidence_used": [
+              "Je kunt daarom beter een firewall gebruiken."
+            ],
+            "confidence": "hoog"
+          }
+        ],
+        "score": 5,
+        "confidence": "middel",
+        "feedback": "Je beschrijft goed wat een aanvaller met de machines kan doen en dat dit gevaarlijk is voor medewerkers. Je legt alleen niet uit waarom een PLC zo makkelijk binnen te dringen is, bijvoorbeeld door ontbrekende authenticatie of versleuteling."
+      },
+      "validation": {
+        "checks": [
+          {
+            "check": "evidence_present",
+            "ok": true,
+            "comment": "Alle gebruikte citaten staan letterlijk in het antwoord."
+          },
+          {
+            "check": "interpretation",
+            "ok": true,
+            "comment": "De interpretaties blijven dicht bij de tekst."
+          },
+          {
+            "check": "rubric_applied",
+            "ok": true,
+            "comment": "Elk criterium is met de rubric beoordeeld; er zijn geen criteria toegevoegd."
+          },
+          {
+            "check": "consistent",
+            "ok": true,
+            "comment": "De score 5 past bij één volledig voldaan essentieel criterium."
+          },
+          {
+            "check": "alternative_reading",
+            "ok": true,
+            "comment": "Ook welwillend gelezen noemt de student geen oorzaak van de zwakke beveiliging."
+          },
+          {
+            "check": "missing_or_conflicting",
+            "ok": true,
+            "comment": "Geen tegenstrijdig bewijs gevonden."
+          },
+          {
+            "check": "confidence",
+            "ok": true,
+            "comment": "Middel is passend: criterium 1 is een grensgeval tussen deels en niet."
+          }
+        ],
+        "validated": true,
+        "issues": [],
+        "corrections": [],
+        "final_assessment": {
+          "criteria": [
+            {
+              "nr": 1,
+              "status": "deels"
+            },
+            {
+              "nr": 2,
+              "status": "voldaan"
+            },
+            {
+              "nr": 3,
+              "status": "voldaan"
+            }
+          ],
+          "score": 5
+        },
+        "confidence": "middel",
+        "explanation": "De beoordeling is goed onderbouwd. Criterium 1 is deels voldaan; daarmee is 5 punten de juiste score."
+      }
+    }
+  ],
+  "decision": {
+    "criteria": [
+      {
+        "nr": 1,
+        "evidence_found": "gedeeltelijk",
+        "assessment_status": "deels",
+        "final_status": "deels",
+        "agreement": "eens",
+        "unverified_quotes": 0
+      },
+      {
+        "nr": 2,
+        "evidence_found": "ja",
+        "assessment_status": "voldaan",
+        "final_status": "voldaan",
+        "agreement": "eens",
+        "unverified_quotes": 0
+      },
+      {
+        "nr": 3,
+        "evidence_found": "ja",
+        "assessment_status": "voldaan",
+        "final_status": "voldaan",
+        "agreement": "eens",
+        "unverified_quotes": 0
+      }
+    ],
+    "score": 5,
+    "score_capped": false,
+    "confidence": "middel",
+    "human_review_needed": false,
+    "reasons": [],
+    "extra_rounds": 0
+  },
+  "run_log": {
+    "models": {
+      "evidence": "gpt-oss:120b-cloud",
+      "assessment": "gpt-oss:120b-cloud",
+      "validation": "gpt-oss:120b-cloud"
+    },
+    "durations": {
+      "evidence": 12.4,
+      "rounds": [
+        {
+          "assessment": 15.1,
+          "validation": 13.8
+        }
+      ]
+    },
+    "injection_suspected": false,
+    "started_at": "2026-10-03T10:00:00",
+    "finished_at": "2026-10-03T10:00:42"
+  }
+}

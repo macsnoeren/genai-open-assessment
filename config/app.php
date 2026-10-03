@@ -44,3 +44,8 @@ const MAX_DESIGN_INPUT_LENGTH = 2000;    // tekens: antwoord op een verduidelijk
 const MAX_DESIGN_RESULT_LENGTH = 60000;  // bytes: JSON-body van de ontwerp-worker
 const DESIGN_START_MAX_PER_HOUR = 10;    // nieuwe ontwerpen per docent per uur
 const DESIGN_MAX_REVISIONS = 6;          // maximale revision; daarna geen bijsturing meer
+
+// Agentic beoordelen van studentantwoorden (zie ARCHITECTURE.md §6.8)
+const MAX_ASSESSMENT_RESULT_LENGTH = 100000; // bytes: JSON-body van de assessment-worker
+const ASSESSMENT_START_MAX_PER_HOUR = 100;   // gestarte runs per docent per uur (een bulkstart telt per antwoord)
+const ASSESSMENT_WORKER_STALE_SECONDS = 120; // daarna geldt de assessment-worker als niet actief

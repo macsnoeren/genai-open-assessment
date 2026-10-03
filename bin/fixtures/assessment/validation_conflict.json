@@ -1,0 +1,28 @@
+{
+  "checks": [
+    {"check": "evidence_present", "ok": true, "comment": "Alle gebruikte citaten staan letterlijk in het antwoord."},
+    {"check": "interpretation", "ok": false, "comment": "Bij criterium 1 wordt 'een hacker kan er makkelijk bij' te welwillend gelezen als uitleg van de zwakke beveiliging."},
+    {"check": "rubric_applied", "ok": false, "comment": "Het criterium vraagt een uitleg waarom de PLC slecht beveiligd is; die ontbreekt."},
+    {"check": "consistent", "ok": true, "comment": "De score 5 blijft passen: criterium 2 is volledig voldaan."},
+    {"check": "alternative_reading", "ok": true, "comment": "Er is geen andere redelijke lezing waarin de oorzaak wel wordt genoemd."},
+    {"check": "missing_or_conflicting", "ok": true, "comment": "Geen tegenstrijdig bewijs gevonden."},
+    {"check": "confidence", "ok": false, "comment": "De confidence bij criterium 1 is te hoog voor zo'n grensgeval."}
+  ],
+  "validated": false,
+  "issues": [
+    {"nr": 1, "issue": "Een bewering dat iemand ergens bij kan, is geen uitleg van de beveiliging."}
+  ],
+  "corrections": [
+    {"nr": 1, "from": "deels", "to": "niet", "why": "Het antwoord noemt geen oorzaak van de zwakke beveiliging; alleen het gevolg (toegang) staat er."}
+  ],
+  "final_assessment": {
+    "criteria": [
+      {"nr": 1, "status": "niet"},
+      {"nr": 2, "status": "voldaan"},
+      {"nr": 3, "status": "voldaan"}
+    ],
+    "score": 5
+  },
+  "confidence": "middel",
+  "explanation": "Criterium 1 is niet voldaan in plaats van deels. De score blijft 5, omdat één essentieel criterium volledig is voldaan."
+}

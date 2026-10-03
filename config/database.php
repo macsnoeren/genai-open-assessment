@@ -83,6 +83,41 @@ class Database {
             )
         ");
     }
+
+    $stmt = $pdo->query("SELECT name FROM sqlite_master WHERE type='table' AND name='answer_assessments'");
+    if (!$stmt->fetch()) {
+        // Agentic beoordelingen van studentantwoorden. Zelfde definitie als in setup/schema.sql.
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS answer_assessments (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                student_answer_id INTEGER NOT NULL,
+                requested_by INTEGER,
+                status TEXT NOT NULL DEFAULT 'pending',
+                question_snapshot TEXT NOT NULL,
+                criteria_snapshot TEXT NOT NULL,
+                answer_snapshot TEXT NOT NULL,
+                rubric TEXT,
+                evidence TEXT,
+                rounds TEXT,
+                decision TEXT,
+                run_log TEXT,
+                final_score INTEGER,
+                human_review_needed INTEGER NOT NULL DEFAULT 0,
+                error_message TEXT,
+                teacher_criteria TEXT,
+                teacher_score INTEGER,
+                approved_by INTEGER,
+                approved_at DATETIME,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (student_answer_id) REFERENCES student_answers(id) ON DELETE CASCADE,
+                FOREIGN KEY (requested_by) REFERENCES users(id) ON DELETE SET NULL,
+                FOREIGN KEY (approved_by) REFERENCES users(id) ON DELETE SET NULL
+            )
+        ");
+        $pdo->exec("CREATE INDEX IF NOT EXISTS idx_answer_assessments_answer_status
+                    ON answer_assessments (student_answer_id, status)");
+    }
   }
   
     private static function createDefaultUser() {

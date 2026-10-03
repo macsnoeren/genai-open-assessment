@@ -1,0 +1,29 @@
+{
+  "criteria": [
+    {
+      "nr": 1,
+      "evidence_found": "gedeeltelijk",
+      "evidence": ["kan een hacker er makkelijk bij"],
+      "interpretation": "De student zegt dat een aanvaller makkelijk toegang krijgt, maar legt niet uit waarom: ontbrekende authenticatie, versleuteling of verouderde software worden niet genoemd.",
+      "confidence": "hoog",
+      "missing_evidence": "Een uitleg waarom de PLC slecht beveiligd is (bijvoorbeeld ontworpen voor gesloten netwerken, geen authenticatie)."
+    },
+    {
+      "nr": 2,
+      "evidence_found": "ja",
+      "evidence": ["de machines in de fabriek laten stoppen of kapotmaken", "gevaarlijk zijn voor de mensen die er werken"],
+      "interpretation": "De student noemt verstoring en beschadiging van het fysieke proces en de gevolgen voor de veiligheid.",
+      "confidence": "hoog",
+      "missing_evidence": ""
+    },
+    {
+      "nr": 3,
+      "evidence_found": "ja",
+      "evidence": ["Je kunt daarom beter een firewall gebruiken."],
+      "interpretation": "De student noemt een firewall als maatregel.",
+      "confidence": "hoog",
+      "missing_evidence": ""
+    }
+  ],
+  "summary": "Het antwoord beschrijft de gevolgen en een maatregel, maar legt de zwakke beveiliging van de PLC zelf niet uit."
+}

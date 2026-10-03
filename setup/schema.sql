@@ -131,3 +131,39 @@ CREATE TABLE IF NOT EXISTS question_designs (
     FOREIGN KEY (docent_id) REFERENCES users(id) ON DELETE SET NULL,
     FOREIGN KEY (question_id) REFERENCES questions(id) ON DELETE SET NULL
 );
+
+-- Agentic beoordelingen van studentantwoorden: een docent laat een antwoord op
+-- een vraag met rubric beoordelen door de assessment-agents (Evidence,
+-- Assessment, Validation). Elke start is een nieuwe rij (geschiedenis); een
+-- eerdere open of afgeronde run van hetzelfde antwoord krijgt status superseded.
+-- De tabel is ook de wachtrij voor de assessment-worker (status pending).
+-- Geen CHECK op status: de geldige waarden staan als constanten in AnswerAssessment.
+CREATE TABLE IF NOT EXISTS answer_assessments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    student_answer_id INTEGER NOT NULL,    -- Beoordeeld antwoord
+    requested_by INTEGER,                  -- Docent die de run startte (NULL als het account is verwijderd)
+    status TEXT NOT NULL DEFAULT 'pending', -- Zie AnswerAssessment::STATUS_*
+    question_snapshot TEXT NOT NULL,       -- Vraagtekst bij het starten
+    criteria_snapshot TEXT NOT NULL,       -- questions.criteria bij het starten (de worker parseert hieruit de rubric)
+    answer_snapshot TEXT NOT NULL,         -- Studentantwoord bij het starten
+    rubric TEXT,                           -- JSON: de door de worker geparste rubric (vastlegging)
+    evidence TEXT,                         -- JSON: uitvoer van de Evidence Agent
+    rounds TEXT,                           -- JSON: [{assessment, validation}] per ronde (1-3)
+    decision TEXT,                         -- JSON: beslissing van de orchestrator (deterministisch)
+    run_log TEXT,                          -- JSON: modellen, tijdsduren, injection-vermoeden, start- en eindtijd
+    final_score INTEGER,                   -- Voorgestelde score (0, 1, 5 of 10), uit decision
+    human_review_needed INTEGER NOT NULL DEFAULT 0, -- 1 = menselijke beoordeling nodig (uit decision)
+    error_message TEXT,                    -- Reden waarom de worker opgaf (status failed)
+    teacher_criteria TEXT,                 -- JSON: {nr: status} na aanpassing door de docent
+    teacher_score INTEGER,                 -- Door de docent goedgekeurde score (0-10)
+    approved_by INTEGER,                   -- Docent die goedkeurde
+    approved_at DATETIME,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    -- Een verwijderd antwoord (of de poging, vraag of toets erboven) verwijdert de runs;
+    -- een verwijderde docent laat de run staan.
+    FOREIGN KEY (student_answer_id) REFERENCES student_answers(id) ON DELETE CASCADE,
+    FOREIGN KEY (requested_by) REFERENCES users(id) ON DELETE SET NULL,
+    FOREIGN KEY (approved_by) REFERENCES users(id) ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS idx_answer_assessments_answer_status ON answer_assessments (student_answer_id, status);

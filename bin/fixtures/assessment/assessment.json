@@ -1,0 +1,31 @@
+{
+  "criteria": [
+    {
+      "nr": 1,
+      "status": "deels",
+      "assessment": "Toegang door een aanvaller wordt genoemd, de oorzaak niet.",
+      "reasoning": "Het criterium vraagt om uitleg waarom de PLC beperkt beveiligd is. De student stelt alleen dat een hacker er makkelijk bij kan, zonder oorzaak.",
+      "evidence_used": ["kan een hacker er makkelijk bij"],
+      "confidence": "middel"
+    },
+    {
+      "nr": 2,
+      "status": "voldaan",
+      "assessment": "Verstoring van het proces en gevolgen voor de veiligheid zijn concreet genoemd.",
+      "reasoning": "Stilleggen en beschadigen van machines en gevaar voor medewerkers dekken het criterium.",
+      "evidence_used": ["de machines in de fabriek laten stoppen of kapotmaken", "gevaarlijk zijn voor de mensen die er werken"],
+      "confidence": "hoog"
+    },
+    {
+      "nr": 3,
+      "status": "voldaan",
+      "assessment": "Een firewall is een passende maatregel.",
+      "reasoning": "Het aanvullende criterium vraagt een passende maatregel; een firewall wordt expliciet genoemd.",
+      "evidence_used": ["Je kunt daarom beter een firewall gebruiken."],
+      "confidence": "hoog"
+    }
+  ],
+  "score": 5,
+  "confidence": "middel",
+  "feedback": "Je beschrijft goed wat een aanvaller met de machines kan doen en dat dit gevaarlijk is voor medewerkers. Je legt alleen niet uit waarom een PLC zo makkelijk binnen te dringen is, bijvoorbeeld door ontbrekende authenticatie of versleuteling."
+}

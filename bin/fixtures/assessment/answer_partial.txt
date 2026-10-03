@@ -1,0 +1,1 @@
+Als een PLC direct aan het internet hangt, kan een hacker er makkelijk bij. Die kan dan de machines in de fabriek laten stoppen of kapotmaken. Dat kan ook gevaarlijk zijn voor de mensen die er werken. Je kunt daarom beter een firewall gebruiken.
