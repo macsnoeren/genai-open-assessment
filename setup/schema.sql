@@ -78,6 +78,7 @@ CREATE TABLE IF NOT EXISTS api_keys (
     name TEXT,
     api_key TEXT UNIQUE NOT NULL, -- SHA-256 hash van de key
     active INTEGER DEFAULT 1,
+    scope TEXT NOT NULL DEFAULT 'worker', -- worker (AI-workers) | integration (externe koppeling); zie ApiKey::SCOPE_*
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -162,3 +163,71 @@ CREATE TABLE IF NOT EXISTS answer_assessments (
     FOREIGN KEY (requested_by) REFERENCES users(id) ON DELETE SET NULL
 );
 CREATE INDEX IF NOT EXISTS idx_answer_assessments_answer_status ON answer_assessments (student_answer_id, status);
+
+-- Externe koppelingen: een andere website (leeromgeving, cursusplatform) laat haar
+-- eigen deelnemers hier een toets maken. Beheerd door de admin. De API-key (scope
+-- integration) hoort bij precies één koppeling; wordt de key verwijderd, dan
+-- verdwijnt de koppeling mee. Aan- en uitzetten gaat via api_keys.active.
+CREATE TABLE IF NOT EXISTS integrations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,                   -- Naam van de externe website (uniek, gecontroleerd in Integration::nameExists())
+    api_key_id INTEGER NOT NULL UNIQUE,   -- API-key van de koppeling (scope integration)
+    return_origin TEXT NOT NULL,          -- scheme://host[:port]; de terugkeer-URL moet precies deze origin hebben
+    webhook_url TEXT,                     -- HTTPS-URL voor webhooks; NULL = geen webhooks
+    webhook_secret TEXT NOT NULL,         -- Geheim voor de HMAC-SHA256-handtekening (in platte tekst: nodig om te ondertekenen)
+    min_confidence TEXT NOT NULL DEFAULT 'hoog', -- hoog|middel|laag: onder deze confidence is review_needed waar
+    created_by INTEGER,                   -- Admin die de koppeling aanmaakte
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (api_key_id) REFERENCES api_keys(id) ON DELETE CASCADE,
+    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+);
+
+-- Toetsen die een koppeling mag gebruiken (alleen met ai_grading_enabled = 1 te starten).
+CREATE TABLE IF NOT EXISTS integration_exams (
+    integration_id INTEGER NOT NULL,
+    exam_id INTEGER NOT NULL,
+    PRIMARY KEY (integration_id, exam_id),
+    FOREIGN KEY (integration_id) REFERENCES integrations(id) ON DELETE CASCADE,
+    FOREIGN KEY (exam_id) REFERENCES exams(id) ON DELETE CASCADE
+);
+
+-- Pogingen via een koppeling: een gewone gastpoging (student_exams, student_id NULL)
+-- met deze extra rij. De status wordt niet opgeslagen maar berekend
+-- (IntegrationAttempt::summary()). Een verwijderde koppeling verwijdert deze rij;
+-- de poging blijft dan als gewone gastpoging bestaan.
+CREATE TABLE IF NOT EXISTS integration_attempts (
+    student_exam_id INTEGER PRIMARY KEY,  -- De toetspoging (ook het attempt_id in de API)
+    integration_id INTEGER NOT NULL,      -- Koppeling die de poging startte
+    external_ref TEXT NOT NULL,           -- Eigen referentie van de externe website (uniek per koppeling)
+    return_url TEXT NOT NULL,             -- Terugkeer-URL na inleveren (zelfde origin als integrations.return_origin)
+    launch_token_hash TEXT UNIQUE,        -- SHA-256 van de eenmalige startlink
+    launch_expires_at DATETIME,           -- Verlooptijd van de startlink (UTC)
+    launch_used_at DATETIME,              -- Moment waarop de startlink is gebruikt (NULL = nog niet gestart)
+    reviewed_at DATETIME,                 -- Gezet door integration_attempt_review (menselijke beoordeling afgerond)
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (integration_id, external_ref),
+    FOREIGN KEY (student_exam_id) REFERENCES student_exams(id) ON DELETE CASCADE,
+    FOREIGN KEY (integration_id) REFERENCES integrations(id) ON DELETE CASCADE
+);
+
+-- Outbox voor webhooks: één rij per (poging, event), at-least-once afgeleverd
+-- tijdens de polls van de workers (IntegrationEvent::deliverDue()).
+CREATE TABLE IF NOT EXISTS integration_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,  -- Ook het event_id in de payload (om te ontdubbelen)
+    integration_id INTEGER NOT NULL,
+    student_exam_id INTEGER NOT NULL,
+    event TEXT NOT NULL,                   -- attempt.submitted | attempt.graded | attempt.reviewed
+    payload TEXT NOT NULL,                 -- JSON zonder event_id (wordt bij het versturen toegevoegd); geen toetsinhoud
+    attempts INTEGER NOT NULL DEFAULT 0,   -- Aantal mislukte afleverpogingen
+    next_attempt_at DATETIME DEFAULT CURRENT_TIMESTAMP, -- Volgende poging (NULL = opgegeven)
+    delivered_at DATETIME,                 -- Moment van een 2xx-antwoord
+    last_status INTEGER,                   -- Laatste HTTP-status (0 = geen antwoord)
+    last_error TEXT,                       -- Laatste fout (max. 300 tekens)
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (student_exam_id, event),
+    FOREIGN KEY (integration_id) REFERENCES integrations(id) ON DELETE CASCADE,
+    FOREIGN KEY (student_exam_id) REFERENCES student_exams(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_integration_events_due ON integration_events (delivered_at, next_attempt_at);

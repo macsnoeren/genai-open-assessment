@@ -113,6 +113,91 @@ class Database {
         $pdo->exec("CREATE INDEX IF NOT EXISTS idx_answer_assessments_answer_status
                     ON answer_assessments (student_answer_id, status)");
     }
+
+    $keyColumns = $pdo->query("PRAGMA table_info(api_keys)")->fetchAll(PDO::FETCH_COLUMN, 1);
+    if (!in_array('scope', $keyColumns, true)) {
+        // Scope van een key; bestaande keys zijn van de workers en krijgen dus 'worker'.
+        $pdo->exec("ALTER TABLE api_keys ADD COLUMN scope TEXT NOT NULL DEFAULT 'worker'");
+    }
+
+    // Externe koppeling. Zelfde definities als in setup/schema.sql.
+    $stmt = $pdo->query("SELECT name FROM sqlite_master WHERE type='table' AND name='integrations'");
+    if (!$stmt->fetch()) {
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS integrations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                api_key_id INTEGER NOT NULL UNIQUE,
+                return_origin TEXT NOT NULL,
+                webhook_url TEXT,
+                webhook_secret TEXT NOT NULL,
+                min_confidence TEXT NOT NULL DEFAULT 'hoog',
+                created_by INTEGER,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (api_key_id) REFERENCES api_keys(id) ON DELETE CASCADE,
+                FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+            )
+        ");
+    }
+
+    $stmt = $pdo->query("SELECT name FROM sqlite_master WHERE type='table' AND name='integration_exams'");
+    if (!$stmt->fetch()) {
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS integration_exams (
+                integration_id INTEGER NOT NULL,
+                exam_id INTEGER NOT NULL,
+                PRIMARY KEY (integration_id, exam_id),
+                FOREIGN KEY (integration_id) REFERENCES integrations(id) ON DELETE CASCADE,
+                FOREIGN KEY (exam_id) REFERENCES exams(id) ON DELETE CASCADE
+            )
+        ");
+    }
+
+    $stmt = $pdo->query("SELECT name FROM sqlite_master WHERE type='table' AND name='integration_attempts'");
+    if (!$stmt->fetch()) {
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS integration_attempts (
+                student_exam_id INTEGER PRIMARY KEY,
+                integration_id INTEGER NOT NULL,
+                external_ref TEXT NOT NULL,
+                return_url TEXT NOT NULL,
+                launch_token_hash TEXT UNIQUE,
+                launch_expires_at DATETIME,
+                launch_used_at DATETIME,
+                reviewed_at DATETIME,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE (integration_id, external_ref),
+                FOREIGN KEY (student_exam_id) REFERENCES student_exams(id) ON DELETE CASCADE,
+                FOREIGN KEY (integration_id) REFERENCES integrations(id) ON DELETE CASCADE
+            )
+        ");
+    }
+
+    $stmt = $pdo->query("SELECT name FROM sqlite_master WHERE type='table' AND name='integration_events'");
+    if (!$stmt->fetch()) {
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS integration_events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                integration_id INTEGER NOT NULL,
+                student_exam_id INTEGER NOT NULL,
+                event TEXT NOT NULL,
+                payload TEXT NOT NULL,
+                attempts INTEGER NOT NULL DEFAULT 0,
+                next_attempt_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                delivered_at DATETIME,
+                last_status INTEGER,
+                last_error TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE (student_exam_id, event),
+                FOREIGN KEY (integration_id) REFERENCES integrations(id) ON DELETE CASCADE,
+                FOREIGN KEY (student_exam_id) REFERENCES student_exams(id) ON DELETE CASCADE
+            )
+        ");
+        $pdo->exec("CREATE INDEX IF NOT EXISTS idx_integration_events_due
+                    ON integration_events (delivered_at, next_attempt_at)");
+    }
   }
   
     private static function createDefaultUser() {

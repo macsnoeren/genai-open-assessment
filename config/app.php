@@ -56,3 +56,18 @@ const ASSESSMENT_WORKER_STALE_SECONDS = 120; // daarna geldt de assessment-worke
 // terug op de gewone AI-beoordeling. false = alleen handmatig starten.
 const AGENTIC_AUTO_ASSESSMENT = true;
 const ASSESSMENT_AUTO_START_BATCH = 20;      // automatisch gestarte runs per poll van de assessment-worker
+
+// Externe koppeling: andere websites laten hun deelnemers hier een toets maken
+// (zie ARCHITECTURE.md §6.9 en docs/integration-api.md)
+const INTEGRATION_LAUNCH_TTL = 900;            // seconden: geldigheid van een eenmalige startlink
+const INTEGRATION_START_MAX_PER_HOUR = 300;    // gestarte pogingen (ook nieuwe startlinks) per koppeling per uur
+const MAX_INTEGRATION_BODY = 100000;           // bytes: JSON-body van de integratie-endpoints
+const INTEGRATION_WEBHOOK_TIMEOUT = 3;         // seconden per webhookverzoek
+const INTEGRATION_WEBHOOK_BATCH = 3;           // webhooks per worker-poll
+const INTEGRATION_WEBHOOK_MAX_ATTEMPTS = 8;    // daarna geeft de aflevering van een event het op
+
+// ALLEEN VOOR DE DOCKER-DEV: staat http toe naar localhost, 127.0.0.1 en
+// host.docker.internal (terugkeer-URL en webhooks). Komt bewust uit een
+// omgevingsvariabele, zodat er nooit per ongeluk true wordt gecommit.
+// Nooit zetten in productie.
+define('INTEGRATION_ALLOW_HTTP', getenv('INTEGRATION_ALLOW_HTTP') === '1');

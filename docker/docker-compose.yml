@@ -7,6 +7,12 @@ services:
       - "8080:80"
     volumes:
       - db_data:/var/www/html/database
+    # Externe koppeling testen met de demo-site op de host (docs/integration-demo/):
+    # webhooks naar host.docker.internal en http in plaats van https. Alleen voor dev.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      INTEGRATION_ALLOW_HTTP: "1"
 
 volumes:
   db_data:
