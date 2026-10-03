@@ -293,6 +293,10 @@ switch ($action) {
    $docent->resetAiResultsAttempt();
    break;
 
+ case 'ai_results_reset_exam':
+   $docent->resetAiResultsExam();
+   break;
+
  case 'api_keys':
    $apiKeyController->index();
    break;

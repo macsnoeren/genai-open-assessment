@@ -393,8 +393,10 @@ public function viewExamResults($examId) {
     $canEdit = $this->canEditExam($exam);
     $studentExams = StudentExam::findWithStudentDetailsByExam($examId);
     // Knop "AI opnieuw" per poging; completed_at en integration_name zitten al in de rij
+    $aiResettableCount = 0;
     foreach ($studentExams as &$se) {
         $se['can_reset_ai'] = $canEdit && $this->aiResetBlockedReason($se, $exam, !empty($se['integration_name']) || !empty($se['external_ref'])) === null;
+        $aiResettableCount += $se['can_reset_ai'] ? 1 : 0;
     }
     unset($se);
     require __DIR__ . '/../views/docent/exam_results.php';
@@ -687,6 +689,70 @@ public function viewStudentAnswers($studentExamId) {
     $_SESSION['success_message'] = 'AI-resultaten van ' . $studentExam['name'] . ' verwijderd: '
         . $counts['ai_feedback'] . ' AI-feedback, ' . $counts['agentic_runs'] . ' agentic beoordelingen. '
         . 'De AI beoordeelt de antwoorden opnieuw.';
+    header('Location: ' . $redirect);
+    exit;
+  }
+
+  /**
+   * Verwijdert de AI-resultaten van alle ingeleverde pogingen van een toets in
+   * één keer, zodat de AI ze opnieuw beoordeelt. Pogingen die niet kunnen (niet
+   * ingeleverd, externe koppeling) worden overgeslagen en geteld.
+   */
+  public function resetAiResultsExam() {
+    validateCsrfToken();
+    requireRole('docent');
+
+    $examId = requestInt($_POST, 'exam_id');
+    $this->checkExamOwnership($examId, true);
+    $exam = Exam::find($examId);
+
+    $redirect = '/?action=exam_results&exam_id=' . (int)$examId;
+    $error = null;
+    if ((int)$exam['ai_grading_enabled'] !== 1) {
+        $error = 'AI-beoordeling staat uit voor deze toets. Zet die eerst aan; anders worden de AI-resultaten alleen verwijderd.';
+    } elseif ($this->aiResetRateLimited()) {
+        $error = $this->aiResetRateLimitMessage();
+    }
+
+    $answerIdsByAttempt = [];
+    $skipped = [];
+    $skippedCounts = [];
+    if ($error === null) {
+        foreach (StudentExam::findWithStudentDetailsByExam($examId) as $se) {
+            $studentExamId = (int)$se['student_exam_id'];
+            $isIntegration = !empty($se['integration_name']) || !empty($se['external_ref']);
+            $reason = $this->aiResetBlockedReason($se, $exam, $isIntegration);
+            $answerIds = $reason === null ? StudentAnswer::answerIdsByStudentExam($studentExamId) : [];
+            if ($reason === null && $answerIds) {
+                $answerIdsByAttempt[$studentExamId] = $answerIds;
+                continue;
+            }
+            $label = $reason === null ? 'geen antwoorden' : ($isIntegration ? 'externe koppeling' : 'nog niet ingeleverd');
+            $skipped[] = ['student_exam_id' => $studentExamId, 'reason' => $label];
+            $skippedCounts[$label] = ($skippedCounts[$label] ?? 0) + 1;
+        }
+        if (!$answerIdsByAttempt) {
+            $error = 'Deze toets heeft geen pogingen waarvan de AI-resultaten opnieuw kunnen worden uitgevoerd.';
+        }
+    }
+    if ($error !== null) {
+        $_SESSION['error'] = $error;
+        header('Location: ' . $redirect);
+        exit;
+    }
+
+    $counts = $this->performAiReset('exam', (int)$examId, $answerIdsByAttempt, ['skipped' => $skipped]);
+    $message = 'AI-resultaten van ' . count($answerIdsByAttempt) . ' pogingen verwijderd: '
+        . $counts['ai_feedback'] . ' AI-feedback, ' . $counts['agentic_runs'] . ' agentic beoordelingen. '
+        . 'De AI beoordeelt de antwoorden opnieuw.';
+    if ($skippedCounts) {
+        $parts = [];
+        foreach ($skippedCounts as $label => $n) {
+            $parts[] = $n . ' ' . $label;
+        }
+        $message .= ' Overgeslagen: ' . implode(', ', $parts) . '.';
+    }
+    $_SESSION['success_message'] = $message;
     header('Location: ' . $redirect);
     exit;
   }

@@ -10,7 +10,17 @@
  ob_start();
  ?>
 
-<h2>Resultaten toets</h2>
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <h2 class="mb-0">Resultaten toets</h2>
+    <?php if (!empty($canEdit) && !empty($aiResettableCount)): ?>
+    <form action="/?action=ai_results_reset_exam" method="post" class="mb-0">
+        <?= csrfInput() ?>
+        <input type="hidden" name="exam_id" value="<?= (int)$exam['id'] ?>">
+        <button type="submit" class="btn btn-sm btn-outline-warning"
+                data-confirm="De AI-resultaten van alle <?= (int)$aiResettableCount ?> ingeleverde pogingen van deze toets verwijderen en opnieuw laten uitvoeren? Pogingen via een externe koppeling worden overgeslagen. De docentbeoordelingen blijven staan.">AI-resultaten van alle pogingen opnieuw laten uitvoeren</button>
+    </form>
+    <?php endif; ?>
+</div>
 
 <div class="card">
 <div class="table-responsive">
