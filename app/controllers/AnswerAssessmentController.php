@@ -116,6 +116,9 @@ class AnswerAssessmentController {
     [$run, $answer] = $this->loadRun(requestInt($_GET, 'id'));
     $run = AnswerAssessment::decode($run);
     $history = AnswerAssessment::historyByAnswer($answer['id']);
+    // Opnieuw beoordelen alleen vanaf de actuele run, niet vanaf een vervangen run in de geschiedenis
+    $latest = AnswerAssessment::latestByAnswer($answer['id']);
+    $isLatest = $latest !== null && (int)$latest['id'] === (int)$run['id'];
     $criteriaChanged = $this->normalizeNewlines((string)$answer['criteria'])
         !== $this->normalizeNewlines((string)$run['criteria_snapshot']);
     $workerActive = $this->isAssessmentWorkerActive();

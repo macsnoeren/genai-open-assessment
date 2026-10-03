@@ -110,6 +110,37 @@ class AnswerAssessment {
     return ['eens' => 'eens', 'klein_verschil' => 'klein verschil', 'conflict' => 'conflict'][$agreement] ?? $agreement;
   }
 
+  /** Bootstrap-klasse voor een confidence-badge. */
+  public static function confidenceClass(string $confidence): string {
+    return ['hoog' => 'bg-success', 'middel' => 'bg-info text-dark', 'laag' => 'bg-danger'][$confidence] ?? 'bg-secondary';
+  }
+
+  /**
+   * Normalisatie voor de citaatcontrole: kleine letters, witruimte samengevoegd,
+   * aanhalingstekens gelijkgetrokken en leestekens aan de randen weg.
+   * Spiegel van _normalize_quote() in bin/assessment_agents.py.
+   */
+  private static function normalizeQuote(string $text): string {
+    $text = mb_strtolower($text, 'UTF-8');
+    $text = str_replace(['‘', '’', '‚', '‛', '`', '´'], "'", $text);
+    $text = str_replace(['“', '”', '„', '‟', '«', '»'], '"', $text);
+    $text = preg_replace('/\s+/u', ' ', $text);
+    return trim($text, " .,;:!?…'\"");
+  }
+
+  /**
+   * True als het citaat (na normalisatie) letterlijk in het antwoord staat.
+   * Een citaat korter dan 3 tekens telt als niet gevonden. Zelfde regel als
+   * verify_quotes() in de worker, die de orchestrator-beslissing hierop baseert.
+   */
+  public static function quoteFound(string $answer, string $quote): bool {
+    $quote = self::normalizeQuote($quote);
+    if (mb_strlen($quote, 'UTF-8') < 3) {
+      return false;
+    }
+    return mb_strpos(self::normalizeQuote($answer), $quote, 0, 'UTF-8') !== false;
+  }
+
   // ---------------------------------------------------------------------
   // Aanmaken en lezen
   // ---------------------------------------------------------------------
