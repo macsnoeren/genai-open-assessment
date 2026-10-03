@@ -54,6 +54,35 @@ class Database {
         // Zichtbaarheid voor ingelogde studenten; bestaande toetsen worden standaard NIET gepubliceerd.
         $pdo->exec("ALTER TABLE exams ADD COLUMN published INTEGER DEFAULT 0");
     }
+
+    $stmt = $pdo->query("SELECT name FROM sqlite_master WHERE type='table' AND name='question_designs'");
+    if (!$stmt->fetch()) {
+        // AI-vraagontwerpen (agentic vraagontwerper). Zelfde definitie als in setup/schema.sql.
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS question_designs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                exam_id INTEGER NOT NULL,
+                docent_id INTEGER,
+                question_text TEXT NOT NULL,
+                model_answer TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'analysis_pending',
+                revision INTEGER NOT NULL DEFAULT 1,
+                analysis TEXT,
+                teacher_answers TEXT,
+                assessment TEXT,
+                validation TEXT,
+                teacher_feedback TEXT,
+                error_message TEXT,
+                question_id INTEGER,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                approved_at DATETIME,
+                FOREIGN KEY (exam_id) REFERENCES exams(id) ON DELETE CASCADE,
+                FOREIGN KEY (docent_id) REFERENCES users(id) ON DELETE SET NULL,
+                FOREIGN KEY (question_id) REFERENCES questions(id) ON DELETE SET NULL
+            )
+        ");
+    }
   }
   
     private static function createDefaultUser() {

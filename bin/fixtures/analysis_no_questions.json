@@ -1,0 +1,21 @@
+{
+  "summary": "De vraag toetst of de student begrijpt waarom een PLC niet direct aan internet hoort. Vraag en gewenst antwoord sluiten goed op elkaar aan; er is geen aanvullende informatie nodig.",
+  "question_clear": true,
+  "answer_matches_question": true,
+  "essential_elements": [
+    {
+      "element": "PLC's hebben vaak beperkte of geen beveiliging (geen authenticatie, geen versleuteling, verouderde firmware).",
+      "why": "Dit is de kern van het waarom: zonder deze oorzaak is er geen verklaring."
+    },
+    {
+      "element": "Een aanvaller kan via internet het proces manipuleren of stilleggen, met fysieke gevolgen voor mens, machine of milieu.",
+      "why": "Het gevolg maakt duidelijk waarom het risico ernstig is."
+    },
+    {
+      "element": "Een PLC hoort achter een gescheiden netwerk (segmentatie, firewall, DMZ) en niet direct bereikbaar te zijn.",
+      "why": "Het gewenste antwoord noemt de juiste plaatsing als onderdeel van de uitleg."
+    }
+  ],
+  "issues": [],
+  "clarifying_questions": []
+}

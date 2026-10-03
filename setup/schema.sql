@@ -103,3 +103,31 @@ CREATE TABLE IF NOT EXISTS prompts (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
+
+-- AI-vraagontwerpen: een docent laat een open vraag + gewenst antwoord door de
+-- ontwerp-agents uitwerken tot een rubric. De tabel is ook de wachtrij voor de
+-- ontwerp-worker (status analysis_pending of assessment_pending).
+-- Geen CHECK op status: de geldige waarden staan als constanten in QuestionDesign.
+CREATE TABLE IF NOT EXISTS question_designs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    exam_id INTEGER NOT NULL,             -- Toets waarin de goedgekeurde vraag komt
+    docent_id INTEGER,                    -- Docent die het ontwerp startte (NULL als het account is verwijderd)
+    question_text TEXT NOT NULL,          -- Oorspronkelijke vraag van de docent
+    model_answer TEXT NOT NULL,           -- Gewenst antwoord van de docent
+    status TEXT NOT NULL DEFAULT 'analysis_pending', -- Zie QuestionDesign::STATUS_*
+    revision INTEGER NOT NULL DEFAULT 1,  -- Omhoog bij elke docentactie; de worker stuurt hem terug (tegen verouderde resultaten)
+    analysis TEXT,                        -- JSON: uitvoer van de Analysis Agent
+    teacher_answers TEXT,                 -- JSON: [{question, why, answer}] op de verduidelijkende vragen
+    assessment TEXT,                      -- JSON: uitvoer van de Assessment Agent (rubric + uitleg)
+    validation TEXT,                      -- JSON: uitvoer van de Validation Agent (controles + verbeterde rubric)
+    teacher_feedback TEXT,                -- Laatste bijsturing van de docent
+    error_message TEXT,                   -- Reden waarom de worker opgaf (status failed)
+    question_id INTEGER,                  -- Vraag die bij goedkeuring is aangemaakt
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    approved_at DATETIME,
+    -- Een verwijderde toets verwijdert zijn ontwerpen; een verwijderde docent of vraag laat het ontwerp staan.
+    FOREIGN KEY (exam_id) REFERENCES exams(id) ON DELETE CASCADE,
+    FOREIGN KEY (docent_id) REFERENCES users(id) ON DELETE SET NULL,
+    FOREIGN KEY (question_id) REFERENCES questions(id) ON DELETE SET NULL
+);

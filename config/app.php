@@ -37,3 +37,10 @@ const GUEST_COOKIE_LIFETIME = 86400 * 30;
 const MAX_ANSWER_LENGTH = 20000;       // tekens per studentantwoord
 const MAX_AI_FEEDBACK_LENGTH = 20000;  // tekens AI-feedback via de API
 const MAX_NAME_LENGTH = 100;
+
+// AI-vraagontwerper (zie TASKS.md / ARCHITECTURE.md §6.5)
+const MAX_DESIGN_TEXT_LENGTH = 4000;     // tekens: vraag en gewenst antwoord
+const MAX_DESIGN_INPUT_LENGTH = 2000;    // tekens: antwoord op een verduidelijkende vraag, bijsturing
+const MAX_DESIGN_RESULT_LENGTH = 60000;  // bytes: JSON-body van de ontwerp-worker
+const DESIGN_START_MAX_PER_HOUR = 10;    // nieuwe ontwerpen per docent per uur
+const DESIGN_MAX_REVISIONS = 6;          // maximale revision; daarna geen bijsturing meer

@@ -1,0 +1,18 @@
+{
+  "summary": "De vraag toetst of de student begrijpt waarom een PLC niet direct aan internet hoort. Het gewenste antwoord noemt de belangrijkste risico's en de maatregel netwerksegmentatie, maar laat open hoeveel redenen de student moet geven en of maatregelen verplicht zijn.",
+  "question_clear": true,
+  "answer_matches_question": true,
+  "essential_elements": [
+    {"element": "PLC's hebben vaak beperkte of geen beveiliging (geen authenticatie, geen versleuteling, verouderde firmware).", "why": "Dit is de kern van het waarom: zonder deze oorzaak is er geen verklaring."},
+    {"element": "Een aanvaller kan via internet het proces manipuleren of stilleggen, met fysieke gevolgen voor mens, machine of milieu.", "why": "Het gevolg maakt duidelijk waarom het risico ernstig is."},
+    {"element": "Een PLC hoort achter een gescheiden netwerk (segmentatie, firewall, DMZ) en niet direct bereikbaar te zijn.", "why": "Het gewenste antwoord noemt de juiste plaatsing als onderdeel van de uitleg."}
+  ],
+  "issues": [
+    {"issue": "Het is niet duidelijk hoeveel redenen de student moet noemen voor de volle score.", "why": "Zonder aantal kan een beoordelaar een antwoord met één goede reden zowel als volledig als gedeeltelijk zien."},
+    {"issue": "Het gewenste antwoord noemt maatregelen, maar de vraag vraagt alleen naar het waarom.", "why": "Als maatregelen verplicht zijn, worden studenten afgerekend op iets wat de vraag niet vraagt."}
+  ],
+  "clarifying_questions": [
+    {"question": "Hoeveel verschillende redenen moet een student minimaal noemen voor de volle score?", "why": "Dit bepaalt de grens tussen volledig en gedeeltelijk correct."},
+    {"question": "Moet de student ook een maatregel noemen (zoals segmentatie of een firewall), of is alleen het waarom voldoende?", "why": "De vraag vraagt naar het waarom; zonder dit antwoord is niet te bepalen of een maatregel essentieel of aanvullend is."}
+  ]
+}

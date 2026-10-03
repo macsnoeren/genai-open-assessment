@@ -1,0 +1,30 @@
+{
+  "checks": [
+    {"check": "coverage", "ok": true, "comment": "Alle essentiële elementen uit het gewenste antwoord komen terug in de criteria."},
+    {"check": "clarity_independence", "ok": true, "comment": "De criteria overlappen niet en zijn elk afzonderlijk te beoordelen."},
+    {"check": "alternatives", "ok": true, "comment": "Er is ruimte voor uitleg via incidenten of de CIA-driehoek."},
+    {"check": "not_too_literal", "ok": false, "comment": "Het eerste criterium noemt drie specifieke tekortkomingen; een student die 'verouderde software' noemt, moet ook punten krijgen."},
+    {"check": "levels", "ok": true, "comment": "De niveaus sluiten logisch aan op de twee essentiële criteria."},
+    {"check": "consistency", "ok": true, "comment": "Geen tegenstrijdigheden gevonden."}
+  ],
+  "changes": [
+    {"change": "Het eerste criterium beschrijft zwakke beveiliging nu in algemene termen met voorbeelden.", "why": "Zo wordt het criterium niet te letterlijk aan het modelantwoord gekoppeld."}
+  ],
+  "rubric": {
+    "criteria": [
+      {"name": "Zwakke beveiliging van de PLC", "description": "De student legt uit dat PLC's beperkt beveiligd zijn, bijvoorbeeld door ontbrekende authenticatie of versleuteling of door verouderde software, omdat ze voor gesloten netwerken zijn ontworpen.", "weight": "essentieel", "why": "Dit is de oorzaak van het risico en dus de kern van de vraag."},
+      {"name": "Gevolgen van misbruik", "description": "De student noemt dat een aanvaller het fysieke proces kan verstoren, manipuleren of stilleggen, met gevolgen voor veiligheid, productie of milieu.", "weight": "essentieel", "why": "Zonder de gevolgen blijft onduidelijk waarom het risico ernstig is."},
+      {"name": "Juiste netwerkplaatsing", "description": "De student noemt een passende maatregel, zoals netwerksegmentatie, een firewall, een DMZ of toegang via VPN.", "weight": "aanvullend", "why": "De docent wil maatregelen waarderen, maar de vraag vraagt vooral naar het waarom."}
+    ],
+    "level_10": "Volledig correct: beide essentiële criteria zijn juist en concreet uitgelegd; een maatregel is mooi meegenomen maar niet vereist.",
+    "level_5": "Gedeeltelijk correct: één essentieel criterium is juist uitgelegd, of beide worden genoemd maar te vaag of met een kleine fout.",
+    "level_1": "Minimaal: het antwoord bevat een losse juiste term (bijvoorbeeld 'hackers' of 'firewall') zonder uitleg waarom de directe verbinding een risico is.",
+    "level_0": "Onvoldoende: geen relevante reden, een inhoudelijk onjuist antwoord of geen antwoord.",
+    "alternative_answers": [
+      "Een uitleg via bekende incidenten (zoals Stuxnet of aanvallen op waterzuiveringen) die de zwakke beveiliging en de fysieke gevolgen duidelijk maakt.",
+      "Een uitleg vanuit de CIA-driehoek waarin vooral integriteit en beschikbaarheid van het proces centraal staan."
+    ]
+  },
+  "suggested_question_text": "",
+  "explanation": "Het voorstel is grotendeels goed. Het eerste criterium is algemener geformuleerd zodat ook andere juiste voorbeelden van zwakke beveiliging punten opleveren."
+}
