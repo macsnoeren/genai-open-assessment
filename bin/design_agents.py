@@ -292,9 +292,12 @@ BLOCK_TAGS = ["vraag", "gewenst_antwoord", "analyse", "antwoorden_docent",
 _TAG_PATTERN = re.compile(r"</?\s*(?:" + "|".join(BLOCK_TAGS) + r")\s*>", re.IGNORECASE)
 
 
-def _block(tag: str, content: str) -> str:
-    """Bakent invoer af; blokmarkeringen in de inhoud zelf worden verwijderd."""
-    return f"<{tag}>\n{_TAG_PATTERN.sub('', content).strip()}\n</{tag}>"
+def _block(tag: str, content: str, pattern=_TAG_PATTERN) -> str:
+    """
+    Bakent invoer af; blokmarkeringen in de inhoud zelf worden verwijderd.
+    Een ander bestand met eigen bloklabels geeft zijn eigen pattern mee.
+    """
+    return f"<{tag}>\n{pattern.sub('', content).strip()}\n</{tag}>"
 
 
 def _as_json(value) -> str:
@@ -481,20 +484,33 @@ OUTPUTFORMAAT (JSON):
 
 
 class Agent:
-    """Eén LLM-stap met een vaste system prompt, een JSON-schema en een validator."""
+    """
+    Eén LLM-stap met een vaste system prompt, een JSON-schema en een validator.
+    Herbruikbaar voor andere agents (zie assessment_agents.py): die zetten een
+    eigen num_predict en num_ctx en overschrijven zo nodig _call_llm().
+    """
     name = "Agent"
     system_prompt = ""
     schema: Dict = {}
     validator: Callable[[Dict], Optional[Dict]] = staticmethod(lambda parsed: None)
+    num_predict = NUM_PREDICT_DESIGN
+    num_ctx = DESIGN_NUM_CTX
 
     def __init__(self, model: Optional[str] = None):
         self.model = model or DESIGN_MODEL
+        # Duur (seconden) van de laatste run(), ook als die mislukte
+        self.last_duration = 0.0
+
+    def _call_llm(self, user_message: str):
+        """Eén aanroep van het model; geeft (geparste JSON of None, duur) terug."""
+        return call_ollama(
+            self.model, self.system_prompt, user_message, self.schema,
+            num_predict=self.num_predict, num_ctx=self.num_ctx,
+        )
 
     def run(self, user_message: str) -> Optional[Dict]:
-        parsed, duration = call_ollama(
-            self.model, self.system_prompt, user_message, self.schema,
-            num_predict=NUM_PREDICT_DESIGN, num_ctx=DESIGN_NUM_CTX,
-        )
+        parsed, duration = self._call_llm(user_message)
+        self.last_duration = duration
         if parsed is None:
             print(f"[{self.name}/{self.model}] Geen bruikbare JSON na {duration:.1f}s.")
             return None
