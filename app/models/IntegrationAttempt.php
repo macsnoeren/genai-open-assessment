@@ -480,6 +480,28 @@ class IntegrationAttempt {
     return $list;
   }
 
+  /**
+   * Slaat een menselijke beoordeling van de externe website op, in één
+   * transactie: per antwoord teacher_score en teacher_feedback (een mens, dus
+   * de docentscore), daarna reviewed_at.
+   * @param array $grades student_answer_id => ['score' => int, 'feedback' => string]
+   */
+  public static function saveReview(int $studentExamId, array $grades): void {
+    $pdo = Database::connect();
+    $pdo->beginTransaction();
+    try {
+      foreach ($grades as $answerId => $grade) {
+        StudentAnswer::updateTeacherGrade($answerId, $grade['score'], $grade['feedback']);
+      }
+      $pdo->prepare("UPDATE integration_attempts SET reviewed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+                     WHERE student_exam_id = ?")->execute([$studentExamId]);
+      $pdo->commit();
+    } catch (Throwable $e) {
+      $pdo->rollBack();
+      throw $e;
+    }
+  }
+
   // ---------------------------------------------------------------------
   // Webhook-events (outbox, zie IntegrationEvent)
   // ---------------------------------------------------------------------

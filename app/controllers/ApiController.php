@@ -687,4 +687,112 @@ class ApiController {
         $limit = $limit === null ? 50 : max(1, min($limit, 100));
         $this->jsonOut(200, ['attempts' => IntegrationAttempt::listForIntegration($integration['id'], $filter, $limit)]);
     }
+
+    /**
+     * POST integration_attempt_review: de externe website meldt een menselijke
+     * beoordeling terug. Met grades worden dat de docentscores (teacher_score
+     * komt altijd van een mens); zonder grades wordt de poging alleen als
+     * afgehandeld gemarkeerd. Alleen bij status graded of reviewed.
+     */
+    public function integrationAttemptReview() {
+        header('Content-Type: application/json');
+        $integration = $this->requireIntegration();
+        $input = $this->readJsonBody(MAX_INTEGRATION_BODY);
+        if ($input === null) {
+            return;
+        }
+
+        $attemptId = requestInt($input, 'attempt_id');
+        if ($attemptId === null || !(is_int($input['attempt_id']) || is_string($input['attempt_id']))) {
+            $this->jsonError(400, 'Invalid attempt_id');
+            return;
+        }
+        $attempt = IntegrationAttempt::findForIntegration($integration['id'], $attemptId);
+        if (!$attempt) {
+            $this->jsonError(404, 'Unknown attempt');
+            return;
+        }
+
+        $reviewer = $input['reviewer'] ?? '';
+        if (!is_string($reviewer)) {
+            $this->jsonError(400, 'Invalid reviewer');
+            return;
+        }
+        $reviewer = trim($reviewer);
+        if (mb_strlen($reviewer) > MAX_NAME_LENGTH || preg_match('/[\x00-\x1f\x7f]/', $reviewer)) {
+            $this->jsonError(400, 'Invalid reviewer (max ' . MAX_NAME_LENGTH . ' characters)');
+            return;
+        }
+
+        $rawGrades = $input['grades'] ?? [];
+        if (!is_array($rawGrades) || !array_is_list($rawGrades)) {
+            $this->jsonError(400, 'Invalid grades (expected a list)');
+            return;
+        }
+        // Alleen antwoorden van DEZE poging, uit de database
+        $answersByQuestion = [];
+        foreach (StudentAnswer::allByStudentExam($attemptId) as $answer) {
+            $answersByQuestion[(int)$answer['question_id']] = $answer;
+        }
+        $grades = [];
+        foreach ($rawGrades as $i => $grade) {
+            $questionId = is_array($grade) ? requestInt($grade, 'question_id') : null;
+            $answer = $questionId !== null ? ($answersByQuestion[$questionId] ?? null) : null;
+            if ($answer === null || !(is_int($grade['question_id']) || is_string($grade['question_id']))) {
+                $this->jsonError(400, 'Invalid question_id in grades[' . $i . ']');
+                return;
+            }
+            if (isset($grades[(int)$answer['id']])) {
+                $this->jsonError(400, 'Duplicate question_id in grades[' . $i . ']');
+                return;
+            }
+            $score = $grade['score'] ?? null;
+            if (!is_int($score) || $score < 0 || $score > 10) {
+                $this->jsonError(400, 'Invalid score in grades[' . $i . '] (integer 0-10)');
+                return;
+            }
+            $feedback = $grade['feedback'] ?? null;
+            if ($feedback !== null && (!is_string($feedback) || mb_strlen($feedback) > 5000)) {
+                $this->jsonError(400, 'Invalid feedback in grades[' . $i . '] (max 5000 characters)');
+                return;
+            }
+            $grades[(int)$answer['id']] = [
+                'score' => $score,
+                // Zonder feedback blijft de bestaande docentfeedback staan.
+                'feedback' => $feedback ?? (string)($answer['teacher_feedback'] ?? ''),
+                'old' => $answer,
+            ];
+        }
+
+        $status = IntegrationAttempt::summary($attempt)['status'];
+        if (!in_array($status, [IntegrationAttempt::STATUS_GRADED, IntegrationAttempt::STATUS_REVIEWED], true)) {
+            $this->jsonOut(409, ['error' => 'Not graded yet', 'status' => $status]);
+            return;
+        }
+
+        IntegrationAttempt::saveReview($attemptId, $grades);
+        foreach ($grades as $answerId => $grade) {
+            $old = $grade['old'];
+            $this->integrationLog('teacher_grade', [
+                'student_answer_id' => $answerId,
+                'student_exam_id' => $attemptId,
+                'teacher_score' => ['old' => $old['teacher_score'], 'new' => $grade['score']],
+                'teacher_feedback' => ['old' => (string)($old['teacher_feedback'] ?? ''), 'new' => $grade['feedback']],
+                'source' => 'integration',
+                'reviewer' => $reviewer,
+            ]);
+        }
+        $this->integrationLog('integration_attempt_review', [
+            'attempt_id' => $attemptId,
+            'external_ref' => $attempt['external_ref'],
+            'reviewer' => $reviewer,
+            'grades' => count($grades),
+        ]);
+        try {
+            IntegrationAttempt::checkReviewed($attemptId);
+        } catch (Throwable $e) {
+            error_log('Integratie-event attempt.reviewed mislukt: ' . $e->getMessage());
+        }
+        $this->jsonOut(200, ['status' => 'success']);
+    }
 }

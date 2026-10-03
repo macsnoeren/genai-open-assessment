@@ -18,6 +18,7 @@ require_once __DIR__ . '/../models/StudentAnswer.php';
 require_once __DIR__ . '/../models/StudentExam.php';
 require_once __DIR__ . '/../models/QuestionDesign.php';
 require_once __DIR__ . '/../models/AnswerAssessment.php';
+require_once __DIR__ . '/../models/IntegrationAttempt.php';
 
 /**
  * Class DocentController
@@ -503,6 +504,13 @@ public function viewStudentAnswers($studentExamId) {
         $changes['teacher_feedback'] = ['old' => $answer['teacher_feedback'] ?? '', 'new' => $feedback];
     }
     AuditLog::log('teacher_grade', $changes);
+
+    // Externe koppeling: heeft nu elk antwoord een docentscore, dan attempt.reviewed.
+    try {
+        IntegrationAttempt::checkReviewed($studentExamId);
+    } catch (Throwable $e) {
+        error_log('Integratie-event attempt.reviewed mislukt: ' . $e->getMessage());
+    }
 
     header('Location: /?action=' . $redirectAction . '&student_exam_id=' . $studentExamId . '#answer-' . $studentAnswerId);
     exit;
