@@ -14,6 +14,9 @@ require_once __DIR__ . '/../models/ApiKey.php';
 require_once __DIR__ . '/../models/StudentAnswer.php';
 require_once __DIR__ . '/../models/QuestionDesign.php';
 require_once __DIR__ . '/../models/AnswerAssessment.php';
+require_once __DIR__ . '/../models/Questions.php';
+require_once __DIR__ . '/../models/Integration.php';
+require_once __DIR__ . '/../models/IntegrationAttempt.php';
 require_once __DIR__ . '/../../config/database.php';
 
 /**
@@ -22,8 +25,11 @@ require_once __DIR__ . '/../../config/database.php';
  */
 class ApiController {
 
-    /** Geverifieerde API-key (id + name) van het huidige verzoek. */
+    /** Geverifieerde API-key (id, name, scope) van het huidige verzoek. */
     private $apiKey = null;
+
+    /** De koppeling bij een integratiekey (zie requireIntegration()). */
+    private $integration = null;
 
     /**
      * Leest de API-key uit de Authorization: Bearer <key> of X-Api-Key header.
@@ -402,5 +408,196 @@ class ApiController {
     private function jsonError(int $code, string $message): void {
         http_response_code($code);
         echo json_encode(['error' => $message]);
+    }
+
+    private function jsonOut(int $code, array $data): void {
+        http_response_code($code);
+        echo json_encode($data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
+    }
+
+    // ---------------------------------------------------------------------
+    // Integratie-API voor externe websites (contract 9, docs/integration-api.md)
+    // ---------------------------------------------------------------------
+
+    /**
+     * Eist een geldige key met scope integration die bij een koppeling hoort.
+     * Alle queries hierna filteren op $this->integration['id'].
+     */
+    private function requireIntegration(): array {
+        $this->verifyApiKey(ApiKey::SCOPE_INTEGRATION);
+        $this->integration = Integration::findByApiKeyId($this->apiKey['id']);
+        if (!$this->integration) {
+            AuditLog::log('api_auth_failed', ['api_key_id' => $this->apiKey['id'], 'reason' => 'no integration'],
+                'API:' . $this->apiKey['name']);
+            http_response_code(401);
+            header('WWW-Authenticate: Bearer');
+            echo json_encode(['error' => 'Unauthorized: Invalid or missing API Key']);
+            exit;
+        }
+        return $this->integration;
+    }
+
+    /** Audit log voor de koppeling (gebruikersnaam API:<naam>, ook de bron voor de rate limit). */
+    private function integrationLog(string $action, array $details): void {
+        AuditLog::log($action, ['integration_id' => (int)$this->integration['id']] + $details,
+            'API:' . $this->apiKey['name']);
+    }
+
+    /**
+     * Leest een JSON-object uit de body van een POST.
+     * Geeft null (en heeft dan al 405, 413 of 400 gestuurd) als dat niet lukt.
+     */
+    private function readJsonBody(int $max): ?array {
+        if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
+            header('Allow: POST');
+            $this->jsonError(405, 'Method not allowed');
+            return null;
+        }
+        $raw = file_get_contents('php://input', false, null, 0, $max + 1);
+        if ($raw === false || strlen($raw) > $max) {
+            $this->jsonError(413, 'Body too large (max ' . $max . ' bytes)');
+            return null;
+        }
+        $input = json_decode($raw, true);
+        if (!is_array($input) || array_is_list($input) && $input !== []) {
+            $this->jsonError(400, 'Invalid JSON: expected an object');
+            return null;
+        }
+        return $input;
+    }
+
+    /** GET-only endpoints: een ander verzoek geeft 405. */
+    private function requireGet(): bool {
+        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'GET') {
+            header('Allow: GET');
+            $this->jsonError(405, 'Method not allowed');
+            return false;
+        }
+        return true;
+    }
+
+    /** GET integration_exams: de gekoppelde toetsen die gestart kunnen worden (AI-beoordeling aan). */
+    public function integrationExams() {
+        header('Content-Type: application/json');
+        $integration = $this->requireIntegration();
+        if (!$this->requireGet()) {
+            return;
+        }
+        $exams = [];
+        foreach (Integration::startableExams($integration['id']) as $exam) {
+            $exams[] = [
+                'exam_id' => (int)$exam['id'],
+                'title' => (string)$exam['title'],
+                'question_count' => (int)$exam['question_count'],
+            ];
+        }
+        $this->jsonOut(200, ['exams' => $exams]);
+    }
+
+    /**
+     * POST integration_attempt_start: start een poging (201) of geeft een nieuwe
+     * startlink voor een bestaande, nog niet ingeleverde poging met dezelfde
+     * external_ref (200). Zie B5 in TASKS.md en docs/integration-api.md.
+     */
+    public function integrationAttemptStart() {
+        header('Content-Type: application/json');
+        $integration = $this->requireIntegration();
+        $input = $this->readJsonBody(MAX_INTEGRATION_BODY);
+        if ($input === null) {
+            return;
+        }
+
+        $examId = requestInt($input, 'exam_id');
+        if ($examId === null || !(is_int($input['exam_id']) || is_string($input['exam_id']))) {
+            $this->jsonError(400, 'Invalid exam_id');
+            return;
+        }
+        $ref = $input['external_ref'] ?? null;
+        if (!is_string($ref) || !preg_match('/^[A-Za-z0-9._:-]{1,100}$/', $ref)) {
+            $this->jsonError(400, 'Invalid external_ref (1-100 characters A-Z a-z 0-9 . _ : -)');
+            return;
+        }
+        $displayName = $input['display_name'] ?? null;
+        if ($displayName !== null && !is_string($displayName)) {
+            $this->jsonError(400, 'Invalid display_name');
+            return;
+        }
+        $displayName = trim((string)$displayName);
+        if (mb_strlen($displayName) > MAX_NAME_LENGTH || preg_match('/[\x00-\x1f\x7f]/', $displayName)) {
+            $this->jsonError(400, 'Invalid display_name (max ' . MAX_NAME_LENGTH . ' characters)');
+            return;
+        }
+        if ($displayName === '') {
+            $displayName = 'Deelnemer';
+        }
+        $returnUrl = $input['return_url'] ?? null;
+        if (!is_string($returnUrl) || !Integration::allowsReturnUrl($integration, $returnUrl)) {
+            $this->jsonError(400, 'Invalid return_url (must be on ' . $integration['return_origin'] . ')');
+            return;
+        }
+
+        $exam = Integration::allowedExam($integration['id'], $examId);
+        if (!$exam) {
+            $this->jsonError(404, 'Unknown exam');
+            return;
+        }
+        if (!Question::idsByExam($examId)) {
+            $this->jsonError(400, 'Exam has no questions');
+            return;
+        }
+
+        if (AuditLog::countRecent('integration_attempt_start', 60, null, 'API:' . $this->apiKey['name'])
+                >= INTEGRATION_START_MAX_PER_HOUR) {
+            $this->integrationLog('integration_rate_limited', ['endpoint' => 'integration_attempt_start']);
+            header('Retry-After: 600');
+            $this->jsonError(429, 'Too many attempts started, try again later');
+            return;
+        }
+
+        $created = null;
+        $existing = IntegrationAttempt::findByRef($integration['id'], $ref);
+        if (!$existing) {
+            $created = IntegrationAttempt::create($integration['id'], $examId, $ref, $displayName, $returnUrl);
+            if ($created === null) {
+                // Gelijktijdige start met dezelfde external_ref: verder als bestaande poging.
+                $existing = IntegrationAttempt::findByRef($integration['id'], $ref);
+            }
+        }
+
+        if ($created !== null) {
+            $attemptId = $created['attempt_id'];
+            $token = $created['token'];
+            $expiresAt = $created['expires_at'];
+            $status = IntegrationAttempt::STATUS_NOT_STARTED;
+            $code = 201;
+        } else {
+            $attemptId = (int)$existing['student_exam_id'];
+            if ((int)$existing['exam_id'] !== $examId) {
+                $this->jsonOut(409, ['error' => 'external_ref is already used for another exam', 'attempt_id' => $attemptId]);
+                return;
+            }
+            if (!empty($existing['completed_at'])) {
+                $this->jsonOut(409, ['error' => 'Attempt already submitted', 'attempt_id' => $attemptId]);
+                return;
+            }
+            $launch = IntegrationAttempt::newLaunchToken($attemptId);
+            $token = $launch['token'];
+            $expiresAt = $launch['expires_at'];
+            $status = $existing['launch_used_at'] ? IntegrationAttempt::STATUS_IN_PROGRESS : IntegrationAttempt::STATUS_NOT_STARTED;
+            $code = 200;
+        }
+
+        $this->integrationLog('integration_attempt_start', [
+            'attempt_id' => $attemptId,
+            'exam_id' => $examId,
+            'external_ref' => $ref,
+            'new' => $code === 201,
+        ]);
+        $this->jsonOut($code, [
+            'attempt_id' => $attemptId,
+            'launch_url' => appBaseUrl() . '/?action=integration_launch&token=' . $token,
+            'expires_at' => $expiresAt,
+            'status' => $status,
+        ]);
     }
 }

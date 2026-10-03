@@ -45,6 +45,15 @@ switch ($action) {
     case 'submit_assessment_result':
         $controller->submitAssessmentResult();
         break;
+
+    // Integratie-API voor externe websites (scope integration, contract 9)
+    case 'integration_exams':
+        $controller->integrationExams();
+        break;
+
+    case 'integration_attempt_start':
+        $controller->integrationAttemptStart();
+        break;
         
     default:
         http_response_code(404);
