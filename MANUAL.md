@@ -140,6 +140,15 @@ Zijn de Assessment en de Validation Agent het oneens over een essentieel criteri
 
 > **De AI beslist niets definitief.** De agentic beoordeling is een AI-beoordeling en geen cijfer; de docentscore geef je altijd zelf.
 
+### AI opnieuw laten beoordelen
+Wil je dat de AI een ingeleverde poging opnieuw beoordeelt, bijvoorbeeld na een wijziging van de prompt of rubric, met een beter model, of omdat een AI-beoordeling vreemd of mislukt is? Dan verwijder je de AI-resultaten en laat je de AI opnieuw beoordelen.
+*   **Wat verdwijnt:** de **AI-feedback** en de **agentic beoordeling** van de antwoorden. De oude AI-scores staan nog in de audit log.
+*   **Wat blijft:** jouw **docentbeoordeling** (score en feedback) wordt nooit aangeraakt. Eerdere agentic beoordelingen blijven bewaard als "Vervangen" onder "Alle agentic beoordelingen van dit antwoord".
+*   **Waar:** op de antwoordenpagina ("Bekijken") staat bij elk antwoord met een AI-resultaat de knop **"AI opnieuw laten beoordelen"**, en bovenaan in de kaart "AI-resultaten" de knop **"Alle AI-resultaten opnieuw laten uitvoeren"** voor de hele poging. Bij "Resultaten" staat per student de knop **"AI opnieuw"**, zodat je de poging niet eerst hoeft te openen, en boven de lijst de knop **"AI-resultaten van alle pogingen opnieuw laten uitvoeren"** voor de hele toets.
+*   **Daarna:** de AI beoordeelt de antwoorden vanzelf opnieuw, precies zoals na het inleveren: een antwoord op een rubric-vraag krijgt meteen een nieuwe agentic beoordeling, de andere antwoorden krijgen bij de volgende ronde van de AI nieuwe AI-feedback. Tot die tijd ziet de student geen AI-resultaat.
+*   **Wanneer het niet kan:** als de poging nog niet is ingeleverd, als **AI-beoordeling uit** staat voor de toets (dan zou er alleen iets verdwijnen), bij een poging via een **externe koppeling** (die website heeft de beoordeling al ontvangen), en als je niet de eigenaar van de toets bent (ook niet bij een gedeelde toets; een Admin mag het wel). De antwoordenpagina vertelt je waarom de knop ontbreekt. Bij de knop voor de hele toets worden pogingen die niet kunnen overgeslagen; je ziet hoeveel.
+*   Het aantal keer per uur is begrensd (een hele poging of toets telt als één keer).
+
 ### Pogingen via een externe koppeling
 Een beheerder kan een andere website (bijvoorbeeld een leeromgeving) koppelen, zodat deelnemers daar een toets van deze applicatie maken zonder account (zie "Externe koppelingen" bij de beheerders).
 *   **Herkennen:** bij "Resultaten" staat bij zo'n poging de badge **"Koppeling: <naam>"**; als je erover beweegt, zie je de referentie van de externe website. Op de antwoordenpagina staat bovenaan een melding met de naam van de koppeling en de referentie. Er is geen deelbare resultatenlink: de deelnemer ziet hier geen resultaat, dat bepaalt de externe website.
