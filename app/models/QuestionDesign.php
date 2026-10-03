@@ -9,6 +9,7 @@
  */
 
 require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/Questions.php';
 
 /**
  * AI-vraagontwerpen: een vraag + gewenst antwoord die de ontwerp-agents
@@ -53,6 +54,19 @@ class QuestionDesign {
       case self::STATUS_FAILED: return 'Mislukt';
       default: return 'Onbekend';
     }
+  }
+
+  /** Nederlands label voor een controle van de Validation Agent. */
+  public static function checkLabel(string $check): string {
+    $labels = [
+      'coverage' => 'Dekking van het gewenste antwoord',
+      'clarity_independence' => 'Duidelijke en onafhankelijke criteria',
+      'alternatives' => 'Ruimte voor alternatieve antwoorden',
+      'not_too_literal' => 'Niet te letterlijk gekoppeld aan het modelantwoord',
+      'levels' => 'Logische puntverdeling over de niveaus',
+      'consistency' => 'Geen tegenstrijdigheden',
+    ];
+    return $labels[$check] ?? $check;
   }
 
   /** True als de worker nog aan dit ontwerp moet werken. */
@@ -361,6 +375,66 @@ class QuestionDesign {
       'suggested_question_text' => self::cleanText($v['suggested_question_text'] ?? null) ?? '',
       'explanation' => self::cleanText($v['explanation'] ?? null) ?? '',
     ];
+  }
+
+  // ---------------------------------------------------------------------
+  // Goedkeuren
+  // ---------------------------------------------------------------------
+
+  /**
+   * Platte tekst voor questions.criteria (de beoordelingsworker gebruikt die via
+   * {{criteria}}). Bevat bewust niet de labels "Model:" en "Aantal punten:"
+   * uit het ai_feedback-formaat (contract 1).
+   */
+  public static function rubricToCriteriaText(string $modelAnswer, array $rubric): string {
+    $lines = ['Modelantwoord:', trim($modelAnswer), '', 'Beoordelingscriteria:'];
+    foreach ($rubric['criteria'] ?? [] as $c) {
+      $lines[] = '- [' . $c['weight'] . '] ' . $c['name'] . ': ' . $c['description'];
+    }
+    $lines[] = '';
+    $lines[] = 'Puntentoekenning:';
+    $lines[] = '10 punten: ' . ($rubric['level_10'] ?? '');
+    $lines[] = '5 punten: ' . ($rubric['level_5'] ?? '');
+    $lines[] = '1 punt: ' . ($rubric['level_1'] ?? '');
+    $lines[] = '0 punten: ' . ($rubric['level_0'] ?? '');
+    if (!empty($rubric['alternative_answers'])) {
+      $lines[] = '';
+      $lines[] = 'Ook correct:';
+      foreach ($rubric['alternative_answers'] as $alt) {
+        $lines[] = '- ' . $alt;
+      }
+    }
+    return implode("\n", $lines);
+  }
+
+  /**
+   * review → approved: maakt in één transactie de vraag aan en koppelt die aan
+   * het ontwerp. Geeft het id van de nieuwe vraag terug, of null als het
+   * ontwerp niet (meer) in review staat met deze revision.
+   */
+  public static function approve($id, $rev, $examId, $questionText, $criteria): ?int {
+    $pdo = Database::connect();
+    $pdo->beginTransaction();
+    try {
+      $questionId = Question::create($examId, $questionText, $criteria);
+      $stmt = $pdo->prepare("
+        UPDATE question_designs
+        SET status = ?, question_id = ?, approved_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ? AND status = ? AND revision = ?
+      ");
+      $stmt->execute([self::STATUS_APPROVED, $questionId, $id, self::STATUS_REVIEW, $rev]);
+      if ($stmt->rowCount() === 0) {
+        $pdo->rollBack();
+        return null;
+      }
+      $pdo->commit();
+      return $questionId;
+    } catch (Throwable $e) {
+      if ($pdo->inTransaction()) {
+        $pdo->rollBack();
+      }
+      throw $e;
+    }
   }
 
   // ---------------------------------------------------------------------

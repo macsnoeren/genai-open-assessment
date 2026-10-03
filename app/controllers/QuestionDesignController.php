@@ -23,6 +23,9 @@ require_once __DIR__ . '/../models/QuestionDesign.php';
  */
 class QuestionDesignController {
 
+  /** Maximale lengte (tekens) van de beoordelingscriteria bij goedkeuren. */
+  private const MAX_CRITERIA_LENGTH = 30000;
+
   /**
    * Shows the form to start a new question design.
    */
@@ -115,6 +118,80 @@ class QuestionDesignController {
         'id' => (int)$design['id'],
         'answered' => count(array_filter($answers, fn($a) => $a['answer'] !== '')),
         'questions' => count($answers),
+    ]);
+
+    header('Location: ' . $viewUrl);
+    exit;
+  }
+
+  /**
+   * Approves the (possibly edited) question and rubric: only now a question is added to the exam.
+   */
+  public function approve() {
+    validateCsrfToken();
+    requireRole('docent');
+
+    $design = $this->loadDesignForWrite(requestInt($_POST, 'id'));
+    $viewUrl = '/?action=question_design_view&id=' . (int)$design['id'];
+    if ($design['status'] !== QuestionDesign::STATUS_REVIEW) {
+        $this->redirectWithError($viewUrl, 'Dit ontwerp kan nu niet worden goedgekeurd.');
+    }
+
+    $questionText = $this->readText('question_text', MAX_DESIGN_TEXT_LENGTH);
+    $criteria = $this->readText('criteria', self::MAX_CRITERIA_LENGTH);
+    if ($questionText === null || $criteria === null) {
+        $this->redirectWithError($viewUrl, 'De vraag of de beoordelingscriteria zijn te lang.');
+    }
+    if ($questionText === '' || $criteria === '') {
+        $this->redirectWithError($viewUrl, 'De vraag en de beoordelingscriteria zijn verplicht.');
+    }
+
+    $revision = requestInt($_POST, 'revision');
+    // exam_id uit de database, niet van de client
+    $questionId = $revision === null ? null
+        : QuestionDesign::approve($design['id'], $revision, (int)$design['exam_id'], $questionText, $criteria);
+    if ($questionId === null) {
+        $this->redirectWithError($viewUrl, 'Dit formulier is verouderd. Bekijk de actuele stand en probeer het opnieuw.');
+    }
+    AuditLog::log('question_design_approve', ['id' => (int)$design['id'], 'question_id' => $questionId]);
+
+    $_SESSION['success_message'] = 'De vraag is goedgekeurd en toegevoegd aan de toets.';
+    header('Location: /?action=questions&exam_id=' . (int)$design['exam_id']);
+    exit;
+  }
+
+  /**
+   * Sends the teacher's feedback back to the AI for a new round (assessment + validation).
+   */
+  public function feedback() {
+    validateCsrfToken();
+    requireRole('docent');
+
+    $design = $this->loadDesignForWrite(requestInt($_POST, 'id'));
+    $viewUrl = '/?action=question_design_view&id=' . (int)$design['id'];
+    if ($design['status'] !== QuestionDesign::STATUS_REVIEW) {
+        $this->redirectWithError($viewUrl, 'Bijsturen kan alleen als het voorstel klaar is voor beoordeling.');
+    }
+    if ((int)$design['revision'] >= DESIGN_MAX_REVISIONS) {
+        $this->redirectWithError($viewUrl, 'Maximaal aantal rondes bereikt; pas de rubric zelf aan.');
+    }
+
+    $feedback = $this->readText('feedback', MAX_DESIGN_INPUT_LENGTH);
+    if ($feedback === null) {
+        $this->redirectWithError($viewUrl, 'De feedback mag maximaal ' . MAX_DESIGN_INPUT_LENGTH . ' tekens lang zijn.');
+    }
+    if ($feedback === '') {
+        $this->redirectWithError($viewUrl, 'Schrijf eerst wat de AI moet aanpassen.');
+    }
+
+    $revision = requestInt($_POST, 'revision');
+    if ($revision === null || !QuestionDesign::requestRevision($design['id'], $revision, $feedback)) {
+        $this->redirectWithError($viewUrl, 'Dit formulier is verouderd. Bekijk de actuele stand en probeer het opnieuw.');
+    }
+    AuditLog::log('question_design_feedback', [
+        'id' => (int)$design['id'],
+        'revision' => $revision + 1,
+        'feedback' => $feedback,
     ]);
 
     header('Location: ' . $viewUrl);

@@ -145,6 +145,14 @@ switch ($action) {
    $questionDesignController->answer();
    break;
 
+ case 'question_design_feedback':
+   $questionDesignController->feedback();
+   break;
+
+ case 'question_design_approve':
+   $questionDesignController->approve();
+   break;
+
  case 'question_design_delete':
    $questionDesignController->delete();
    break;

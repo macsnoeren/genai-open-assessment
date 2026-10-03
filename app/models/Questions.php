@@ -26,6 +26,7 @@ class Question {
 			  VALUES (?, ?, ?)
 			  ");
     $stmt->execute([$examId, $text, $criteria]);
+    return (int)$pdo->lastInsertId();
   }
   
   public static function find($id) {

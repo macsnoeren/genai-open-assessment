@@ -154,6 +154,151 @@ $statusClass = [
 </div>
 <?php endif; ?>
 
+<?php
+// Tijdens een nieuwe ronde staat de uitvoer van de vorige ronde er nog; markeer die.
+$previousRound = $isPending ? ' <span class="badge bg-light text-muted border ms-2">vorige ronde</span>' : '';
+?>
+
+<?php if (!empty($design['teacher_feedback'])): ?>
+<div class="card mb-4">
+    <div class="card-header fw-bold">Jouw laatste bijsturing</div>
+    <div class="card-body"><?= nl2br(e($design['teacher_feedback'])) ?></div>
+</div>
+<?php endif; ?>
+
+<?php if ($design['assessment']): ?>
+<div class="card mb-4">
+    <div class="card-header fw-bold">Assessmentvoorstel<?= $previousRound ?></div>
+    <div class="card-body">
+        <?php $rubric = $design['assessment']['rubric']; require __DIR__ . '/question_design_rubric.php'; ?>
+        <?php if ($design['assessment']['explanation'] !== ''): ?>
+            <h6>Uitleg</h6>
+            <p class="mb-0"><?= e($design['assessment']['explanation']) ?></p>
+        <?php endif; ?>
+    </div>
+</div>
+<?php endif; ?>
+
+<?php $validation = $design['validation']; ?>
+<?php if ($validation): ?>
+<div class="card mb-4">
+    <div class="card-header fw-bold">Validatie<?= $previousRound ?></div>
+    <div class="card-body">
+        <h6>Controles</h6>
+        <ul class="list-unstyled">
+            <?php foreach ($validation['checks'] as $check): ?>
+            <li class="mb-2">
+                <?php if ($check['ok']): ?>
+                    <span class="text-success fw-bold" aria-label="in orde">&#10003;</span>
+                <?php else: ?>
+                    <span class="text-danger fw-bold" aria-label="niet in orde">&#10007;</span>
+                <?php endif; ?>
+                <span class="fw-semibold"><?= e(QuestionDesign::checkLabel($check['check'])) ?></span>
+                <?php if ($check['comment'] !== ''): ?><br><small class="text-muted ms-4"><?= e($check['comment']) ?></small><?php endif; ?>
+            </li>
+            <?php endforeach; ?>
+        </ul>
+
+        <h6>Belangrijkste wijzigingen</h6>
+        <?php if (empty($validation['changes'])): ?>
+            <p class="text-muted">Geen wijzigingen ten opzichte van het voorstel.</p>
+        <?php else: ?>
+        <ul>
+            <?php foreach ($validation['changes'] as $change): ?>
+            <li><?= e($change['change']) ?>
+                <?php if ($change['why'] !== ''): ?><br><small class="text-muted">Waarom: <?= e($change['why']) ?></small><?php endif; ?>
+            </li>
+            <?php endforeach; ?>
+        </ul>
+        <?php endif; ?>
+
+        <h6 class="mt-4">Verbeterde rubric</h6>
+        <?php $rubric = $validation['rubric']; require __DIR__ . '/question_design_rubric.php'; ?>
+
+        <?php if ($validation['explanation'] !== ''): ?>
+            <h6>Uitleg</h6>
+            <p><?= e($validation['explanation']) ?></p>
+        <?php endif; ?>
+        <?php if ($validation['suggested_question_text'] !== ''): ?>
+            <h6>Voorgestelde vraagtekst</h6>
+            <p class="mb-0"><?= nl2br(e($validation['suggested_question_text'])) ?></p>
+        <?php endif; ?>
+    </div>
+</div>
+<?php endif; ?>
+
+<?php if ($status === QuestionDesign::STATUS_REVIEW && $validation): ?>
+<div class="card mb-4 border-primary">
+    <div class="card-header fw-bold">Aanpassen en goedkeuren</div>
+    <div class="card-body">
+        <p class="text-muted">
+            Pas de vraag en de beoordelingscriteria naar wens aan. Pas na goedkeuring komt de vraag in de toets;
+            je kunt hem daarna nog gewoon bewerken.
+        </p>
+        <form action="/?action=question_design_approve" method="post">
+            <?= csrfInput() ?>
+            <input type="hidden" name="id" value="<?= (int)$design['id'] ?>">
+            <input type="hidden" name="revision" value="<?= (int)$design['revision'] ?>">
+            <div class="mb-3">
+                <label class="form-label" for="approveQuestion">Vraag</label>
+                <?php if ($validation['suggested_question_text'] !== ''): ?>
+                <div class="alert alert-info py-2 small mb-2">
+                    <strong>Suggestie van de AI:</strong> <?= nl2br(e($validation['suggested_question_text'])) ?><br>
+                    Neem deze zelf over als je hem wilt gebruiken.
+                </div>
+                <?php endif; ?>
+                <textarea name="question_text" id="approveQuestion" class="form-control" rows="3" required
+                          maxlength="<?= (int)MAX_DESIGN_TEXT_LENGTH ?>"><?= e($design['question_text']) ?></textarea>
+            </div>
+            <div class="mb-3">
+                <label class="form-label" for="approveCriteria">Beoordelingscriteria</label>
+                <div class="form-text mt-0 mb-1">Opgebouwd uit de gevalideerde rubric. Dit is de tekst die de AI bij het beoordelen gebruikt.</div>
+                <textarea name="criteria" id="approveCriteria" class="form-control font-monospace" rows="14" required><?=
+                    e(QuestionDesign::rubricToCriteriaText($design['model_answer'], $validation['rubric'])) ?></textarea>
+            </div>
+            <button type="submit" class="btn btn-success"
+                    data-confirm="De vraag met deze criteria toevoegen aan de toets?">Goedkeuren en vraag toevoegen</button>
+        </form>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header fw-bold">Bijsturen</div>
+    <div class="card-body">
+    <?php if ((int)$design['revision'] >= DESIGN_MAX_REVISIONS): ?>
+        <p class="text-muted mb-0">Maximaal aantal rondes bereikt; pas de rubric zelf aan in het formulier hierboven.</p>
+    <?php else: ?>
+        <p class="text-muted">
+            Niet tevreden? Beschrijf wat er anders moet. De AI maakt dan een nieuw voorstel en valideert dat opnieuw.
+        </p>
+        <form action="/?action=question_design_feedback" method="post">
+            <?= csrfInput() ?>
+            <input type="hidden" name="id" value="<?= (int)$design['id'] ?>">
+            <input type="hidden" name="revision" value="<?= (int)$design['revision'] ?>">
+            <div class="mb-3">
+                <label class="form-label" for="designFeedback">Feedback voor de AI</label>
+                <textarea name="feedback" id="designFeedback" class="form-control" rows="3" required
+                          maxlength="<?= (int)MAX_DESIGN_INPUT_LENGTH ?>"></textarea>
+            </div>
+            <button type="submit" class="btn btn-outline-primary">Opnieuw laten uitwerken</button>
+        </form>
+    <?php endif; ?>
+    </div>
+</div>
+<?php endif; ?>
+
+<?php if ($status === QuestionDesign::STATUS_APPROVED): ?>
+<div class="alert alert-success">
+    Goedgekeurd op <?= e($design['approved_at']) ?>.
+    <?php if ($design['question_id']): ?>
+        De vraag staat in de toets: <a href="/?action=questions&exam_id=<?= (int)$exam['id'] ?>" class="alert-link">naar de vragen</a>.
+    <?php else: ?>
+        De vraag die uit dit ontwerp is gemaakt, is inmiddels uit de toets verwijderd.
+        <a href="/?action=questions&exam_id=<?= (int)$exam['id'] ?>" class="alert-link">Naar de vragen</a>.
+    <?php endif; ?>
+</div>
+<?php endif; ?>
+
 <?php if ($isPending): ?>
 <script nonce="<?= e(cspNonce()) ?>">
 setTimeout(function () { window.location.reload(); }, 10000);
