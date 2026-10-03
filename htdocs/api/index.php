@@ -29,6 +29,14 @@ switch ($action) {
     case 'submit_ai_feedback':
         $controller->submitAiFeedback();
         break;
+
+    case 'open_design_jobs':
+        $controller->getOpenDesignJobs();
+        break;
+
+    case 'submit_design_result':
+        $controller->submitDesignResult();
+        break;
         
     default:
         http_response_code(404);

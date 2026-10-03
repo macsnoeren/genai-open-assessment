@@ -105,7 +105,7 @@ class QuestionDesign {
   }
 
   private static function encode(array $value): string {
-    return json_encode($value, JSON_UNESCAPED_UNICODE);
+    return json_encode($value, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
   }
 
   // ---------------------------------------------------------------------
@@ -192,6 +192,175 @@ class QuestionDesign {
     ");
     $stmt->execute([self::STATUS_ANALYSIS_PENDING, self::STATUS_ASSESSMENT_PENDING, $id, self::STATUS_FAILED, $rev]);
     return $stmt->rowCount() > 0;
+  }
+
+  // ---------------------------------------------------------------------
+  // Normalisatie van de agent-uitvoer (spiegel van validate_*() in de worker)
+  // Alleen bekende velden worden overgenomen, lijsten afgekapt op hun maximum.
+  // null betekent: de uitvoer voldoet niet aan het contract.
+  // ---------------------------------------------------------------------
+
+  /** Alleen strings, getrimd en afgekapt op $max tekens; null bij een ander type. */
+  public static function cleanText($v, int $max = self::MAX_TEXT): ?string {
+    if (!is_string($v)) {
+      return null;
+    }
+    $v = trim($v);
+    if (!mb_check_encoding($v, 'UTF-8')) {
+      $v = mb_convert_encoding($v, 'UTF-8', 'UTF-8');
+    }
+    return mb_strlen($v, 'UTF-8') > $max ? mb_substr($v, 0, $max, 'UTF-8') : $v;
+  }
+
+  /** Lijst (array met volgnummers) of een lege array. */
+  private static function listOf($v): array {
+    return (is_array($v) && array_is_list($v)) ? $v : [];
+  }
+
+  /**
+   * Normaliseert een lijst van objecten met een verplicht tekstveld $key en een
+   * optioneel tekstveld 'why'. Items zonder (geldig) $key vallen weg.
+   */
+  private static function normalizeItems($items, string $key, int $max): array {
+    $out = [];
+    foreach (self::listOf($items) as $item) {
+      if (!is_array($item)) {
+        continue;
+      }
+      $text = self::cleanText($item[$key] ?? null);
+      if ($text === null || $text === '') {
+        continue;
+      }
+      $out[] = [$key => $text, 'why' => self::cleanText($item['why'] ?? null) ?? ''];
+      if (count($out) >= $max) {
+        break;
+      }
+    }
+    return $out;
+  }
+
+  /** Rubric: 1–6 criteria, vier niveaus (10/5/1/0) en 0–5 alternatieve antwoorden. */
+  public static function normalizeRubric($r): ?array {
+    if (!is_array($r)) {
+      return null;
+    }
+    $criteria = [];
+    foreach (self::listOf($r['criteria'] ?? null) as $c) {
+      if (!is_array($c)) {
+        continue;
+      }
+      $name = self::cleanText($c['name'] ?? null);
+      $description = self::cleanText($c['description'] ?? null);
+      $weight = $c['weight'] ?? null;
+      if ($name === null || $name === '' || $description === null || $description === ''
+          || !in_array($weight, self::WEIGHTS, true)) {
+        continue;
+      }
+      $criteria[] = [
+        'name' => $name,
+        'description' => $description,
+        'weight' => $weight,
+        'why' => self::cleanText($c['why'] ?? null) ?? '',
+      ];
+      if (count($criteria) >= self::MAX_CRITERIA) {
+        break;
+      }
+    }
+    if (!$criteria) {
+      return null;
+    }
+
+    $rubric = ['criteria' => $criteria];
+    foreach (['level_10', 'level_5', 'level_1', 'level_0'] as $level) {
+      $text = self::cleanText($r[$level] ?? null);
+      if ($text === null || $text === '') {
+        return null;
+      }
+      $rubric[$level] = $text;
+    }
+
+    $alternatives = [];
+    foreach (self::listOf($r['alternative_answers'] ?? null) as $alt) {
+      $text = self::cleanText($alt);
+      if ($text !== null && $text !== '') {
+        $alternatives[] = $text;
+      }
+      if (count($alternatives) >= self::MAX_ALTERNATIVE_ANSWERS) {
+        break;
+      }
+    }
+    $rubric['alternative_answers'] = $alternatives;
+    return $rubric;
+  }
+
+  /** Uitvoer van de Analysis Agent. */
+  public static function normalizeAnalysis($a): ?array {
+    if (!is_array($a)) {
+      return null;
+    }
+    $summary = self::cleanText($a['summary'] ?? null);
+    $questionClear = $a['question_clear'] ?? null;
+    $answerMatches = $a['answer_matches_question'] ?? null;
+    if ($summary === null || $summary === '' || !is_bool($questionClear) || !is_bool($answerMatches)) {
+      return null;
+    }
+    $elements = self::normalizeItems($a['essential_elements'] ?? null, 'element', self::MAX_ESSENTIAL_ELEMENTS);
+    if (!$elements) {
+      return null;
+    }
+    return [
+      'summary' => $summary,
+      'question_clear' => $questionClear,
+      'answer_matches_question' => $answerMatches,
+      'essential_elements' => $elements,
+      'issues' => self::normalizeItems($a['issues'] ?? null, 'issue', self::MAX_ISSUES),
+      'clarifying_questions' => self::normalizeItems($a['clarifying_questions'] ?? null, 'question', self::MAX_CLARIFYING_QUESTIONS),
+    ];
+  }
+
+  /** Uitvoer van de Assessment Agent: {rubric, explanation}. */
+  public static function normalizeAssessment($a): ?array {
+    if (!is_array($a)) {
+      return null;
+    }
+    $rubric = self::normalizeRubric($a['rubric'] ?? null);
+    if ($rubric === null) {
+      return null;
+    }
+    return ['rubric' => $rubric, 'explanation' => self::cleanText($a['explanation'] ?? null) ?? ''];
+  }
+
+  /** Uitvoer van de Validation Agent: zes controles (elk één keer), wijzigingen en een verbeterde rubric. */
+  public static function normalizeValidation($v): ?array {
+    if (!is_array($v)) {
+      return null;
+    }
+    $checks = [];
+    foreach (self::listOf($v['checks'] ?? null) as $c) {
+      if (!is_array($c)) {
+        continue;
+      }
+      $name = $c['check'] ?? null;
+      if (!in_array($name, self::CHECKS, true) || isset($checks[$name]) || !is_bool($c['ok'] ?? null)) {
+        continue;
+      }
+      $checks[$name] = ['check' => $name, 'ok' => $c['ok'], 'comment' => self::cleanText($c['comment'] ?? null) ?? ''];
+    }
+    if (count($checks) !== count(self::CHECKS)) {
+      return null;
+    }
+    $rubric = self::normalizeRubric($v['rubric'] ?? null);
+    if ($rubric === null) {
+      return null;
+    }
+    return [
+      // Vaste volgorde, ongeacht de volgorde van het model
+      'checks' => array_map(fn($name) => $checks[$name], self::CHECKS),
+      'changes' => self::normalizeItems($v['changes'] ?? null, 'change', self::MAX_CHANGES),
+      'rubric' => $rubric,
+      'suggested_question_text' => self::cleanText($v['suggested_question_text'] ?? null) ?? '',
+      'explanation' => self::cleanText($v['explanation'] ?? null) ?? '',
+    ];
   }
 
   // ---------------------------------------------------------------------

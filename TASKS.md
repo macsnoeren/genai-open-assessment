@@ -186,15 +186,15 @@ Deze vormen zijn de afspraak tussen PHP (`QuestionDesign::normalize*()`) en Pyth
 
 ## Fase 3: API voor de ontwerp-worker
 
-- [ ] **3.1 Normaliseren: hulpfunctie en rubric.** In `QuestionDesign`: `cleanText($v, int $max): ?string` (alleen strings, trim, afkappen) en `normalizeRubric($r): ?array`. Neem alleen bekende velden over, kap lijsten af op hun maximum, accepteer `weight` alleen als `essentieel` of `aanvullend` en geef `null` terug als er een verplicht onderdeel ontbreekt (geen criteria of een niveau leeg).
-- [ ] **3.2 Normaliseren: analyse.** `normalizeAnalysis($a): ?array` volgens het contract. `clarifying_questions` mag leeg zijn, `essential_elements` niet.
-- [ ] **3.3 Normaliseren: assessment en validatie.** `normalizeAssessment($a): ?array` en `normalizeValidation($v): ?array`. Bij `checks` neem je alleen de zes bekende `check`-waarden over, elk één keer, en `rubric` gaat via `normalizeRubric`.
+- [x] **3.1 Normaliseren: hulpfunctie en rubric.** In `QuestionDesign`: `cleanText($v, int $max): ?string` (alleen strings, trim, afkappen) en `normalizeRubric($r): ?array`. Neem alleen bekende velden over, kap lijsten af op hun maximum, accepteer `weight` alleen als `essentieel` of `aanvullend` en geef `null` terug als er een verplicht onderdeel ontbreekt (geen criteria of een niveau leeg).
+- [x] **3.2 Normaliseren: analyse.** `normalizeAnalysis($a): ?array` volgens het contract. `clarifying_questions` mag leeg zijn, `essential_elements` niet.
+- [x] **3.3 Normaliseren: assessment en validatie.** `normalizeAssessment($a): ?array` en `normalizeValidation($v): ?array`. Bij `checks` neem je alleen de zes bekende `check`-waarden over, elk één keer, en `rubric` gaat via `normalizeRubric`.
   *Klaar als:* een kort PHP-script in Docker de fixtures normaliseert zonder `null`, en een fixture waaruit `level_0` is verwijderd `null` geeft.
-- [ ] **3.4 Jobs ophalen.** `ApiController::getOpenDesignJobs()`: `verifyApiKey()`, `database/last_design_ping.txt` schrijven, `limit` 1–10 (standaard 3), `getPendingJobs()`, elke rij decoderen en omzetten naar de jobvorm uit het contract (`step` volgt uit de status, `previous_rubric` = `validation['rubric']` of `null`). Audit `api_design_jobs` alleen als er jobs zijn (anders loopt de log vol door het pollen). Voeg `case 'open_design_jobs'` toe in `htdocs/api/index.php`.
-- [ ] **3.5 Resultaat ontvangen: envelop.** `ApiController::submitDesignResult()`: `verifyApiKey()`, alleen POST (anders 405), body niet groter dan `MAX_DESIGN_RESULT_LENGTH` (anders 413), geldige JSON met `design_id`, `revision`, `step` en óf `result` óf `error` (anders 400). Voeg `case 'submit_design_result'` toe.
-- [ ] **3.6 Resultaat ontvangen: controle en fout.** Ontwerp niet gevonden: 404. Past `step` niet bij de huidige status of wijkt `revision` af: 409 `{"error":"Stale result"}`. Bij `error`: `markFailed()` met de (afgekapte) reden.
-- [ ] **3.7 Resultaat ontvangen: opslaan.** Normaliseer per `step` (ongeldig: 400 met de reden), roep `saveAnalysis()` of `saveAssessment()` aan (geeft die `false`, dan 409), audit `design_result_submit` en antwoord met `{"status":"success","next_status":…}` (de status na de update).
-- [ ] **3.8 Rooktest met curl.** Maak als admin een API-key aan. Daarna:
+- [x] **3.4 Jobs ophalen.** `ApiController::getOpenDesignJobs()`: `verifyApiKey()`, `database/last_design_ping.txt` schrijven, `limit` 1–10 (standaard 3), `getPendingJobs()`, elke rij decoderen en omzetten naar de jobvorm uit het contract (`step` volgt uit de status, `previous_rubric` = `validation['rubric']` of `null`). Audit `api_design_jobs` alleen als er jobs zijn (anders loopt de log vol door het pollen). Voeg `case 'open_design_jobs'` toe in `htdocs/api/index.php`.
+- [x] **3.5 Resultaat ontvangen: envelop.** `ApiController::submitDesignResult()`: `verifyApiKey()`, alleen POST (anders 405), body niet groter dan `MAX_DESIGN_RESULT_LENGTH` (anders 413), geldige JSON met `design_id`, `revision`, `step` en óf `result` óf `error` (anders 400). Voeg `case 'submit_design_result'` toe.
+- [x] **3.6 Resultaat ontvangen: controle en fout.** Ontwerp niet gevonden: 404. Past `step` niet bij de huidige status of wijkt `revision` af: 409 `{"error":"Stale result"}`. Bij `error`: `markFailed()` met de (afgekapte) reden.
+- [x] **3.7 Resultaat ontvangen: opslaan.** Normaliseer per `step` (ongeldig: 400 met de reden), roep `saveAnalysis()` of `saveAssessment()` aan (geeft die `false`, dan 409), audit `design_result_submit` en antwoord met `{"status":"success","next_status":…}` (de status na de update).
+- [x] **3.8 Rooktest met curl.** Maak als admin een API-key aan. Daarna:
   ```bash
   KEY=...; API=http://localhost:8080/api/index.php
   curl -s -H "Authorization: Bearer $KEY" "$API?action=open_design_jobs"
