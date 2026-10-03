@@ -45,6 +45,15 @@
     <a href="/?action=delete_student_exam&student_exam_id=<?= (int)$se['student_exam_id'] ?>" 
        data-confirm="Weet je zeker dat je dit resultaat wilt verwijderen? Alle antwoorden en feedback gaan verloren." class="btn btn-sm btn-outline-danger ms-1">Verwijderen</a>
     <?php endif; ?>
+    <?php if (!empty($se['can_reset_ai'])): ?>
+    <form action="/?action=ai_results_reset_attempt" method="post" class="d-inline">
+        <?= csrfInput() ?>
+        <input type="hidden" name="student_exam_id" value="<?= (int)$se['student_exam_id'] ?>">
+        <input type="hidden" name="return" value="exam_results">
+        <button type="submit" class="btn btn-sm btn-outline-warning ms-1"
+                data-confirm="Alle AI-resultaten van <?= e($se['name']) ?> bij deze toets verwijderen en opnieuw laten uitvoeren? De docentbeoordeling blijft staan.">AI opnieuw</button>
+    </form>
+    <?php endif; ?>
       </td>
     </tr>
     <?php endforeach; ?>
