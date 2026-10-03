@@ -283,6 +283,20 @@ class DecideTest(unittest.TestCase):
         self.assertTrue(decision["human_review_needed"])
         self.assertTrue(any("past niet bij de statussen" in r for r in decision["reasons"]))
 
+    def test_all_essential_met_but_score_below_10_needs_human_review(self):
+        # Gezien in een live test: Validation verlaagde 10 naar 5 om een ontbrekend aanvullend criterium
+        assessment = load("assessment")
+        assessment["criteria"][0]["status"] = "voldaan"
+        assessment["score"] = 10
+        validation = load("validation")
+        validation["final_assessment"]["criteria"][0]["status"] = "voldaan"
+        validation["final_assessment"]["criteria"][2]["status"] = "niet"
+        validation["final_assessment"]["score"] = 5
+        decision = decide(RUBRIC, ANSWER, load("evidence"), [{"assessment": assessment, "validation": validation}], False)
+        self.assertTrue(decision["human_review_needed"])
+        self.assertTrue(any("normaal 10 punten" in r for r in decision["reasons"]))
+        self.assertTrue(any("andere score: 10 tegenover 5" in r for r in decision["reasons"]))
+
     def test_two_steps_apart_on_additional_criterion_is_conflict(self):
         validation = load("validation")
         validation["final_assessment"]["criteria"][2]["status"] = "niet"

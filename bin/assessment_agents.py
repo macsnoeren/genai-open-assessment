@@ -562,15 +562,18 @@ en <studentantwoord>.
 
 TAKEN, voor elk criterium (elk nummer precies één keer, ook als er geen bewijs is):
 - evidence: 0 tot {MAX_QUOTES} LETTERLIJKE citaten uit het studentantwoord die bij dit criterium horen.
-  Kopieer de tekst exact, woord voor woord en met dezelfde spelling: geen parafrase, geen samenvatting,
-  geen losse stukken aan elkaar en geen weglatingstekens (...). Kies het kortste stuk tekst dat het
-  punt draagt. Staat er niets relevants, dan is de lijst leeg.
+  Kopieer de tekst exact, woord voor woord en met dezelfde spelling: geen parafrase, geen samenvatting
+  en geen losse stukken aan elkaar. Gebruik NOOIT weglatingstekens ("..." of "…"): wil je een stuk
+  overslaan, geef dan twee aparte citaten. Kies het kortste aaneengesloten stuk tekst dat het punt
+  draagt. Staat er niets relevants, dan is de lijst leeg.
 - evidence_found: "ja" als de citaten het criterium volledig dekken, "gedeeltelijk" als ze het deels
   dekken of te vaag zijn, "nee" als er geen bewijs is.
 - interpretation: wat de citaten betekenen voor dit criterium. Dit is jouw uitleg; houd die
   gescheiden van de citaten.
 - missing_evidence: concreet wat er voor dit criterium ontbreekt in het antwoord, of "" als niets ontbreekt.
-- confidence: "hoog", "middel" of "laag": hoe zeker je bent van evidence_found.
+- confidence: "hoog", "middel" of "laag": hoe zeker je bent van evidence_found, NIET of het criterium
+  voldaan is. Ontbreekt een criterium duidelijk, dan is dat "nee" met confidence "hoog". Kies "laag"
+  alleen bij twijfel, bijvoorbeeld een vage of dubbelzinnige formulering.
 
 REGELS:
 - Vul niets aan en neem niet aan wat de student "bedoelde". Alleen wat er staat, telt als bewijs.
@@ -600,7 +603,8 @@ TAKEN:
    - assessment: je conclusie in één zin; reasoning: waarom, in termen van het criterium.
    - evidence_used: alleen citaten uit <evidence> waarop je oordeel steunt, letterlijk overgenomen.
      Geen nieuwe citaten verzinnen. Leeg als er geen bewijs is.
-   - confidence: "hoog", "middel" of "laag" voor dit criterium.
+   - confidence: "hoog", "middel" of "laag": hoe zeker je bent van je oordeel, NIET of het criterium
+     voldaan is. Een criterium dat duidelijk ontbreekt, is "niet" met confidence "hoog".
 2. Beoordeel alleen de criteria uit de rubric. Verzin geen nieuwe criteria en eis niets wat de rubric
    niet eist.
 3. Inhoud gaat boven formulering. Andere woorden, eigen voorbeelden of een invalshoek uit
@@ -608,7 +612,8 @@ TAKEN:
 4. Gebruik de evidence-analyse, maar controleer die met het studentantwoord zelf. Zonder bewijs is
    een criterium niet voldaan: neem niet aan wat de student bedoelde.
 5. Kies daarna de score met de puntentoekenning: alleen 0, 1, 5 of 10. Voor 10 punten moeten alle
-   essentiële criteria voldaan zijn; aanvullende criteria zijn daarvoor niet nodig.
+   essentiële criteria voldaan zijn; aanvullende criteria zijn daarvoor NIET nodig. Een niet voldaan
+   aanvullend criterium verlaagt de score dus niet.
 6. confidence: hoe zeker je bent van de beoordeling als geheel.
 7. feedback: korte feedback aan de student in de je-vorm (hooguit drie zinnen): wat goed is en wat
    ontbreekt, in termen van de criteria.
@@ -647,10 +652,12 @@ LEVER:
 - corrections: alleen met een duidelijke reden (0 tot {MAX_CORRECTIONS}): nr, from (de status in de
   beoordeling), to (jouw status) en why.
 - final_assessment: ALTIJD volledig: de status van elk criterium (elk nummer precies één keer,
-  inclusief je correcties) en de score volgens de puntentoekenning (0, 1, 5 of 10; 10 alleen als alle
-  essentiële criteria voldaan zijn).
-- confidence: wees eerlijk; kies "laag" bij een grensgeval, een onduidelijk antwoord of twijfel over
-  het bewijs.
+  inclusief je correcties) en de score volgens de puntentoekenning (0, 1, 5 of 10). Voor 10 punten
+  moeten alle essentiële criteria voldaan zijn; aanvullende criteria zijn daarvoor NIET nodig. Een
+  ontbrekend aanvullend criterium is dus nooit een reden om een 10 te verlagen.
+- confidence: hoe zeker je bent van het eindoordeel, NIET hoe goed het antwoord is. Een duidelijk fout
+  of leeg antwoord beoordeel je met confidence "hoog". Kies "laag" bij een grensgeval, een onduidelijk
+  antwoord of twijfel over het bewijs.
 - explanation: je conclusie in twee of drie zinnen.
 
 Corrigeer niet zonder reden: een beoordeling die klopt, bevestig je. Een controle is alleen ok als je
@@ -812,12 +819,18 @@ def decide(rubric: Dict, answer: str, evidence: Dict, rounds: List[Dict], inject
         score_capped = True
 
     statuses = list(final_by_nr.values())
-    if essential and all(status == "voldaan" for status in essential) and score < 5:
-        reasons.append(f"De score {score} past niet bij de statussen: alle essentiële criteria zijn voldaan.")
+    if essential and all(status == "voldaan" for status in essential) and score < 10:
+        reasons.append(f"De score {score} past niet bij de statussen: alle essentiële criteria zijn voldaan, "
+                       "en daarvoor geeft de puntentoekenning normaal 10 punten.")
     elif all(status == "niet" for status in statuses) and score >= 5:
         reasons.append(f"De score {score} past niet bij de statussen: geen enkel criterium is (deels) voldaan.")
     elif score == 0 and any(status == "voldaan" for status in essential):
         reasons.append("De score 0 past niet bij de statussen: een essentieel criterium is voldaan.")
+
+    assessment_score = last["assessment"]["score"]
+    if assessment_score != last["validation"]["final_assessment"]["score"]:
+        reasons.append(f"Assessment en Validation geven een andere score: {assessment_score} tegenover "
+                       f"{last['validation']['final_assessment']['score']}.")
 
     # Confidence: de laagste van de validatie en van de essentiële criteria
     confidences = [last["validation"]["confidence"]]

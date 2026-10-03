@@ -115,3 +115,34 @@ MAX_ANSWER_CHARS = 4000
 # Contextvenster voor de agents. Ruimer dan NUM_CTX, want de Validation Agent
 # krijgt vraag, antwoord, analyse en rubricvoorstel mee. Default 16384.
 # DESIGN_NUM_CTX = 16384
+
+# =========================
+# Agentic beoordelen van studentantwoorden (process_assessment_jobs.py)
+# Alle instellingen hieronder zijn optioneel; zonder deze regels gelden de defaults.
+# =========================
+
+# Model voor de Evidence- en Assessment-agent. Default: DESIGN_MODEL (en anders
+# het laatste model uit LLM_MODELS). Test NIET met lokale modellen.
+# ASSESSMENT_MODEL = "gpt-oss:120b-cloud"
+
+# Optioneel een ander model voor de Validation Agent, voor een onafhankelijkere
+# controle. Default: ASSESSMENT_MODEL.
+# ASSESSMENT_VALIDATION_MODEL = "gpt-oss:120b-cloud"
+
+# Tokenbudget per agent-aanroep (inclusief denktokens). Default 6000. Wordt
+# begrensd op NUM_PREDICT_MAX: bij afkapping verdubbelt het budget tot die grens.
+# NUM_PREDICT_ASSESSMENT = 6000
+
+# Contextvenster voor de agents. De Validation Agent krijgt rubric, evidence,
+# beoordeling en antwoord mee. Default: het grootste van RUBRIC_NUM_CTX en 16384.
+# ASSESSMENT_NUM_CTX = 16384
+
+# Extra rondes (Assessment en Validation opnieuw) als de agents het oneens zijn
+# over een essentieel criterium. 0 tot 2, default 1.
+# ASSESSMENT_MAX_EXTRA_ROUNDS = 1
+
+# Seconden tussen twee keer ophalen van open beoordelingen. Default 15.
+# ASSESSMENT_POLL_INTERVAL = 15
+
+# Pogingen per beoordeling voordat die op "mislukt" komt. Default 3.
+# ASSESSMENT_MAX_ATTEMPTS = 3
