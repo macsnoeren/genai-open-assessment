@@ -18,6 +18,7 @@ De applicatie bestaat uit een webapplicatie en **los gedeployde worker-processen
 | **AI-feedbackworker** | Python 3, `requests` | `bin/process_ai_feedback.py` | Haalt ingeleverde antwoorden op, laat ze door één of meer LLM's beoordelen via Ollama, stuurt de feedback terug |
 | **AI-ontwerpworker** | Python 3, `requests` | `bin/process_design_jobs.py` + `bin/design_agents.py` | Werkt vraagontwerpen van docenten uit met drie agents (analyse, rubricvoorstel, validatie), zie §6.6 |
 | **AI-assessmentworker** | Python 3, `requests` | `bin/process_assessment_jobs.py` + `bin/assessment_agents.py` | Beoordeelt antwoorden op rubric-vragen agentic met drie agents (evidence, assessment, validatie) als voorstel voor de docent, zie §6.8 |
+| *Externe website* (geen onderdeel van deze repo) | willekeurig | voorbeeld: `docs/integration-demo/demo_site.py` | Laat haar deelnemers via een koppeling een toets maken: integratie-API (scope `integration`) en webhooks, zie §6.9 |
 
 ```mermaid
 flowchart LR
@@ -55,6 +56,7 @@ Belangrijke ontwerpkeuzes:
 
 - **Geen framework, geen Composer, geen build-stap.** Gewone PHP-bestanden met `require_once`. Dat houdt de deployment simpel: bestanden kopiëren, documentroot op `htdocs/` zetten en klaar.
 - **Pull in plaats van push.** De webserver roept nooit een LLM aan. De worker vraagt periodiek om werk. Daardoor blijft de webserver licht, kan de worker op een andere machine draaien (met GPU of met Ollama Cloud) en kan de webserver doorwerken als de worker uitvalt.
+  - **Eén bewuste uitzondering: webhooks van de externe koppeling (§6.9).** Alleen daar doet de webserver zelf uitgaande HTTP-verzoeken, en alleen naar een webhook-URL die de admin heeft ingesteld (`https`, geen redirects, korte timeout). Ze worden verstuurd tijdens de polls van de workers, ná het antwoord aan de worker, zodat een trage ontvanger een poll niet vertraagt.
 - **De database is de wachtrij.** Een antwoord staat "in de wachtrij" zolang `student_answers.ai_feedback` leeg is, de poging is ingeleverd en AI-beoordeling voor de toets aanstaat. Er is geen aparte queue-tabel. De vraagontwerper en agentic beoordelen gebruiken hun eigen tabel (`question_designs`, `answer_assessments`) als wachtrij, met een statuskolom. Antwoorden op rubric-vragen gaan automatisch naar agentic beoordelen en dan niet naar de AI-feedbackworker (§6.8).
 - **De mens beslist.** AI-scores zijn adviezen. De docentscore (`teacher_score`) is altijd een menselijke beoordeling en leidend voor het eindcijfer; geen enkele AI-uitvoer (ook agentic niet) komt daarin.
 
@@ -71,7 +73,9 @@ Belangrijke ontwerpkeuzes:
 │   ├── images/, site.webmanifest
 ├── app/
 │   ├── controllers/         # Eén klasse per domein; publieke methode = één action
+│   │                        #   (o.a. IntegrationController: beheer van externe koppelingen)
 │   ├── models/              # Statische data-access-klassen (PDO, prepared statements)
+│   │                        #   (o.a. Integration, IntegrationAttempt, IntegrationEvent, §6.9)
 │   ├── views/
 │   │   ├── layouts/main.php # Enige layout: navbar, flash-berichten, modal, cookiebanner, JS-helpers
 │   │   ├── auth/            # Login, registratie, wachtwoord wijzigen
@@ -104,7 +108,9 @@ Belangrijke ontwerpkeuzes:
 │   ├── dataset_import.py       # Importeert de Mohler ASAG-dataset voor validatie-onderzoek
 │   └── README.md
 ├── docker/                  # Lokale testomgeving (php:8.2-apache), zie docker/README.md
-└── docs/                    # Paper, security-review, uitrolhandleiding
+└── docs/                    # Paper, security-review, uitrolhandleidingen
+    ├── integration-api.md   # Integratie-API en webhooks, voor ontwikkelaars van een externe website
+    └── integration-demo/    # Demo-"externe website" (demo_site.py, alleen standaardbibliotheek)
 ```
 
 ---
@@ -225,9 +231,11 @@ Alle routes staan in de `switch` van [htdocs/index.php](htdocs/index.php). Per c
 | `StudentExamController` | `student_dashboard`, `exams_list` | student |
 | | `start_exam`, `my_exams` | ingelogd |
 | | `guest`, `guest_start`, `guest_logout`, `take_exam`, `submit_exam`, `student_view_results` | ingelogd **of** gast met geldig token |
+| | `integration_launch` (landingspagina, GET), `integration_launch_start` (POST + CSRF) | publiek, met een geldige eenmalige startlink (§4.3) |
 | `QuestionDesignController` | `question_design_create`, `question_design_store`, `question_design_view`, `question_design_answer`, `question_design_feedback`, `question_design_approve`, `question_design_retry`, `question_design_delete` (alleen eigenaar van de toets of admin) | docent |
 | `AnswerAssessmentController` | `answer_assessment_start`, `answer_assessment_start_exam`, `answer_assessment_view` (leestoegang tot de toets: eigenaar, admin of gedeelde toets; niet de beoordelaar) | docent |
 | `ApiKeyController` | `api_keys`, `api_key_create`, `api_key_toggle`, `api_key_delete` | admin |
+| `IntegrationController` | `integrations`, `integration_create`, `integration_store`, `integration_edit`, `integration_update`, `integration_rotate_secret`, `integration_toggle`, `integration_delete`, `integration_view` | admin |
 | `PromptController` | `prompts`, `prompt_*`, `prompt_help` | admin |
 | (direct in router) | `privacy` | publiek |
 
@@ -273,12 +281,20 @@ Komt een token in de URL binnen (bijvoorbeeld via de deellink die de docent kopi
 
 Een gastpoging herken je aan `student_exams.student_id IS NULL`.
 
+**Pogingen via een externe koppeling (§6.9)** hergebruiken dit mechanisme, maar starten anders:
+
+1. De server van de externe website roept `integration_attempt_start` aan (API, scope `integration`). Dat maakt een gastpoging plus een rij in `integration_attempts` met een **launch-token** (64 hex, alleen als SHA-256-hash opgeslagen, `INTEGRATION_LAUNCH_TTL` geldig).
+2. `GET integration_launch&token=…` toont alleen een landingspagina en verbruikt niets.
+3. De knop doet `POST integration_launch_start` (CSRF). Die verbruikt het token atomair (één `UPDATE` die het token wist, alleen als het nog geldig is), zet `guest_access_token` en redirect naar `take_exam`. Twee stappen omdat een muterende GET niet mag, en omdat een `SameSite=Strict`-cookie die tijdens een navigatie vanaf een andere site wordt gezet, pas wordt meegestuurd vanuit een navigatie op onze eigen site.
+4. Een koppelingspoging komt **niet** in `guest_history`, toont geen resultatenpagina (`take_exam` na inleveren, `student_view_results` en `submit_exam` sturen door naar de terugkeer-URL), wordt niet hervat via de publieke gastlink en `guest_logout` stuurt niet naar die link. Op `take_exam` staat de origin van de terugkeer-URL in de CSP-`form-action`, omdat browsers die regel ook toepassen op de redirect na de POST van het inleverformulier.
+
 ### 4.4 Overige beveiligingsmaatregelen
 
 - **Sessie:** cookie met HttpOnly, SameSite=Strict en Secure (ook achter een proxy via `X-Forwarded-Proto`). `session_regenerate_id()` bij login en bij een wachtwoordwijziging. Na `SESSION_IDLE_TIMEOUT` volgt automatisch uitloggen.
 - **Wachtwoorden:** `password_hash()`, minimaal `PASSWORD_MIN_LENGTH` tekens met een letter en een cijfer. Wie het eigen wachtwoord wijzigt, moet het huidige opgeven.
+- **API-keys hebben een scope** (`api_keys.scope`): `worker` (de AI-workers; ook alle bestaande keys) of `integration` (één externe koppeling). `ApiController::verifyApiKey($scope)` geeft `401` bij een ongeldige of uitgeschakelde key en `403` (audit `api_scope_denied`) bij een geldige key met de verkeerde scope. Zo kan een externe partij nooit bij `open_student_answers` (alle studentantwoorden). Integratie-endpoints filteren alles op de koppeling van de key; een poging van een andere koppeling geeft `404`, geen `403`.
 - **Rate limiting gebeurt via de audit log:** `AuditLog::countRecent()` telt recente `login_failed`- en `guest_start`-regels per IP of e-mailadres. Wie de audit log leegmaakt, zet dus ook de lockouts terug.
-- **Headers:** centraal in `sendSecurityHeaders()`: CSP met nonce, `nosniff`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`, HSTS (alleen over HTTPS).
+- **Headers:** centraal in `sendSecurityHeaders()` (een tweede aanroep vóór de output vervangt de CSP; alleen gebruikt om de `form-action` van een koppelingspoging uit te breiden): CSP met nonce, `nosniff`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`, HSTS (alleen over HTTPS).
 - **Foutafhandeling:** `registerErrorHandling()` logt exceptions server-side en toont de gebruiker alleen een generieke 500-melding.
 - De volledige security-review en de status per bevinding staan in [docs/security-issues.txt](docs/security-issues.txt).
 
@@ -303,6 +319,13 @@ erDiagram
     questions |o--o{ question_designs : "question_id (SET NULL)"
     student_answers ||--o{ answer_assessments : "CASCADE"
     users |o--o{ answer_assessments : "requested_by (SET NULL)"
+    api_keys ||--|| integrations : "api_key_id (CASCADE)"
+    integrations ||--o{ integration_exams : "CASCADE"
+    exams ||--o{ integration_exams : "CASCADE"
+    student_exams ||--o| integration_attempts : "PK = student_exam_id (CASCADE)"
+    integrations ||--o{ integration_attempts : "CASCADE"
+    integrations ||--o{ integration_events : "CASCADE"
+    student_exams ||--o{ integration_events : "CASCADE"
 
     users { int id PK
         text name
@@ -343,7 +366,33 @@ erDiagram
     api_keys { int id PK
         text name
         text api_key "SHA-256"
-        int active }
+        int active
+        text scope "worker|integration" }
+    integrations { int id PK
+        text name
+        int api_key_id FK
+        text return_origin
+        text webhook_url "NULL = geen webhooks"
+        text webhook_secret
+        text min_confidence "hoog|middel|laag" }
+    integration_exams { int integration_id PK
+        int exam_id PK }
+    integration_attempts { int student_exam_id PK
+        int integration_id FK
+        text external_ref "uniek per koppeling"
+        text return_url
+        text launch_token_hash "SHA-256, NULL na gebruik"
+        datetime launch_expires_at
+        datetime launch_used_at "eerste start"
+        datetime reviewed_at }
+    integration_events { int id PK
+        int integration_id FK
+        int student_exam_id FK
+        text event "UNIQUE met student_exam_id"
+        text payload "JSON"
+        int attempts
+        datetime next_attempt_at "NULL = opgegeven"
+        datetime delivered_at }
     audit_log { int id PK
         int user_id FK
         text user_name
@@ -393,6 +442,8 @@ erDiagram
 | Wacht op docent | ingeleverd, `teacher_score IS NULL` (zie `pending_assessments`) |
 | Docent-beoordeeld | `teacher_score` gevuld |
 
+**Status van een koppelingspoging** (`not_started`, `in_progress`, `grading`, `graded`, `reviewed`): wordt **niet opgeslagen** maar elke keer berekend uit `launch_used_at`, `completed_at`, de AI-resultaten per antwoord (`ai_feedback`, `answer_assessments`), `teacher_score` en `reviewed_at`. Zie §6.9.
+
 **Statusmachine van een vraagontwerp** (`question_designs.status`, constanten in `QuestionDesign`; bewust geen `CHECK` in het schema):
 
 ```mermaid
@@ -429,7 +480,7 @@ Elke start is een **nieuwe rij** (de geschiedenis blijft bewaard); `AnswerAssess
 Bijzonderheden:
 
 - **Wijzigt de prompt van een toets, dan wordt alle AI-feedback van die toets gewist** (`StudentAnswer::clearAiFeedbackByExam`). De worker beoordeelt daarna alles opnieuw.
-- **Dupliceren** kopieert de vragen, pogingen en antwoorden **met** docentscores en **zonder** AI-feedback. De kopie is niet gedeeld en niet gepubliceerd. Vraagontwerpen en agentic beoordelingen worden bewust niet gekopieerd.
+- **Dupliceren** kopieert de vragen, pogingen en antwoorden **met** docentscores en **zonder** AI-feedback. De kopie is niet gedeeld en niet gepubliceerd. Vraagontwerpen, agentic beoordelingen en de koppelingsgegevens van pogingen (`integration_attempts`, events) worden bewust niet gekopieerd: een kopie van een koppelingspoging is een gewone gastpoging.
 - **`updateExam()` raakt de agentic beoordelingen niet**: die beoordelen hun eigen snapshot. Een agentic beoordeling schrijft **nooit** `teacher_score` of `teacher_feedback`: dat zijn altijd menselijke beoordelingen.
 - Het eindcijfer is het gemiddelde van de `teacher_score`s. Per AI-bron (elk model uit `ai_feedback`, plus `Agentic AI`) wordt apart een gemiddelde berekend, alleen ter vergelijking. Alle AI-scores komen uit `StudentAnswer::aiScores()`.
 
@@ -487,13 +538,21 @@ sequenceDiagram
 | Authenticatie | `Authorization: Bearer <64 hex>` of `X-Api-Key: <64 hex>`. **Nooit** in de query string. |
 | Opslag van de key | SHA-256-hash in `api_keys`. De ruwe key wordt één keer getoond bij het aanmaken. Oude keys die nog in platte tekst staan, worden bij het eerste gebruik automatisch gehasht. |
 | Fout bij authenticatie | `401`, header `WWW-Authenticate: Bearer`, regel `api_auth_failed` in de audit log |
+| Scope | De zes worker-endpoints hieronder eisen een key met scope `worker`, de integratie-endpoints scope `integration`; anders `403` (`api_scope_denied`) |
 | `GET open_student_answers` | optioneel `limit` (1–100) → `{"answers": [...]}`. Schrijft `database/last_api_ping.txt`. |
 | `POST submit_ai_feedback` | JSON-body `{"student_answer_id": int, "ai_feedback": string}`. Maximaal `MAX_AI_FEEDBACK_LENGTH` tekens. Antwoorden: `200`, `400`, `404`, `405` of `413`. |
 | `GET open_design_jobs` | optioneel `limit` (1–10, standaard 3) → `{"jobs": [{design_id, revision, step: "analysis"\|"assessment", question_text, model_answer, analysis\|null, teacher_answers: [{question, why, answer}], teacher_feedback, previous_rubric\|null}]}`. Schrijft `database/last_design_ping.txt`. Zie §6.6. |
 | `POST submit_design_result` | JSON-body `{"design_id", "revision", "step", "result": {…}}` of `{…, "error": "reden"}`, maximaal `MAX_DESIGN_RESULT_LENGTH` bytes. Bij `analysis` is `result` de analyse, bij `assessment` `{"assessment": {…}, "validation": {…}}`. Antwoorden: `200 {"status":"success","next_status":"…"}`, `400` (ongeldig, ook als de uitvoer niet door de normalisatie komt), `404`, `405`, `409` (status, stap of revision klopt niet meer: verouderd resultaat) of `413`. |
 | `GET open_assessment_jobs` | optioneel `limit` (1–10, standaard 3) → `{"jobs": [{assessment_id, question_text, criteria, answer}]}` (alle drie uit de snapshot van de run). Schrijft `database/last_assessment_ping.txt`. Zie §6.8. |
 | `POST submit_assessment_result` | JSON-body `{"assessment_id", "result": {"rubric", "evidence", "rounds": [{"assessment", "validation"}], "decision", "run_log"}}` of `{"assessment_id", "error": "reden"}`, maximaal `MAX_ASSESSMENT_RESULT_LENGTH` bytes. Antwoorden: `200 {"status":"success"}`, `400` (ongeldig; de melding noemt het onderdeel dat niet door `AnswerAssessment::normalizeResult()` komt), `404`, `405`, `409` (status is niet meer `pending`: verouderd) of `413`. |
+| `GET integration_exams` | **Scope `integration`** (contract 9, §6.9). De gekoppelde toetsen met AI aan: `{"exams": [{exam_id, title, question_count}]}` |
+| `POST integration_attempt_start` | Body `{exam_id, external_ref, return_url, display_name?}` → `201` (nieuw) of `200` (nieuwe startlink, idempotent per `external_ref`): `{attempt_id, launch_url, expires_at, status}`. Fouten `400`, `404`, `409`, `413`, `429` |
+| `GET integration_attempt&attempt_id=N` | Samenvatting van de poging (status, `review_needed`, confidence, redenen, scores, antwoorden). `404` als hij niet van deze koppeling is |
+| `GET integration_attempts&filter=open\|needs_review\|all&limit=1..100` | `{"attempts": [{attempt_id, external_ref, exam_id, status, review_needed, updated_at}]}` |
+| `POST integration_attempt_review` | Body `{attempt_id, reviewer?, grades?: [{question_id, score 0..10, feedback?}]}` → `200`; `400`, `404`, `409` (nog niet `graded`), `413` |
 | Foutformaat | `{"error": "..."}` |
+
+De volledige beschrijving van de integratie-API, voor ontwikkelaars van een externe website, staat in [docs/integration-api.md](docs/integration-api.md).
 
 **Heartbeat:** de layout toont "Parser Actief" als `last_api_ping.txt` jonger is dan 120 seconden. De ontwerppagina meldt dat de AI-ontwerpassistent niet actief is als `last_design_ping.txt` ouder is dan 120 seconden terwijl een ontwerp wacht. De pagina van een agentic beoordeling doet hetzelfde met `last_assessment_ping.txt` en `ASSESSMENT_WORKER_STALE_SECONDS`.
 
@@ -519,7 +578,7 @@ Bij een rubric-beoordeling (§6.7) volgt onder `Feedback:` een blok `Criteria:` 
 preg_match_all('/Model:\s+(.+?)\s+.*?Aantal punten:\s+(\d+)/is', $ai_feedback, $m, PREG_SET_ORDER);
 ```
 
-Deze regex staat op één plek: `StudentAnswer::aiScores()`. Die geeft per antwoord de AI-scores per bron terug (de modellen uit `ai_feedback`, plus de agentic beoordeling als bron `Agentic AI`, §6.8) en wordt gebruikt door `DocentController` (`viewStudentAnswers`, `compareExamResults`, `exportExamComparison`) en `StudentExamController::viewResults`.
+Deze regex staat op één plek: `StudentAnswer::aiScores()`. Die geeft per antwoord de AI-scores per bron terug (de modellen uit `ai_feedback`, plus de agentic beoordeling als bron `Agentic AI`, §6.8) en wordt gebruikt door `DocentController` (`viewStudentAnswers`, `compareExamResults`, `exportExamComparison`) en `StudentExamController::viewResults`. Daarnaast leest `StudentAnswer::hasInjectionWarning()` of de tekst met `WAARSCHUWING:` begint (voor de confidence van de externe koppeling, §6.9).
 
 **Regels:**
 
@@ -691,6 +750,52 @@ De voorwaarden staan op één plek: `AnswerAssessment::excludeFromAiGradingSql()
 
 **Autorisatie:** `requireRole('docent')` plus leestoegang tot de toets (eigenaar, admin of gedeelde toets), altijd via het antwoord uit de database (`StudentAnswer::findForAssessment()`). De beoordelaar ziet niets (blind), de student ook niet.
 
+### 6.9 Externe koppeling
+
+Een andere website (leeromgeving, cursusplatform) laat haar eigen deelnemers een toets maken, zonder account hier. De admin maakt per website een **koppeling** (`integrations`): naam, API-key met scope `integration`, `return_origin`, optioneel een `webhook_url` met geheim, een drempel `min_confidence` en de toetsen die de koppeling mag gebruiken (`integration_exams`, alleen met `ai_grading_enabled = 1`). De flow, de endpoints en de JSON staan in [docs/integration-api.md](docs/integration-api.md) (**contract 9**); de launch-flow voor de browser in §4.3.
+
+- **Pogingen hergebruiken `student_exams`.** Een koppelingspoging is een gastpoging met een extra rij in `integration_attempts` (sleutel `student_exam_id`, ook het `attempt_id` in de API). Geen `ALTER` op `student_exams`; `Exam::duplicate()` kopieert de koppeling niet. Starten is idempotent per `(koppeling, external_ref)`: dezelfde ref en toets geeft een nieuwe startlink (het oude token vervalt), een andere toets of een ingeleverde poging `409`.
+- **Nakijken:** niets nieuws. Rubric-antwoorden gaan naar agentic beoordelen, de rest naar de AI-feedbackworker (§6.8).
+- **Terugkeer-URL:** na het inleveren redirect naar `return_url` plus `attempt_id`, `external_ref` en `status` (geen scores, niet ondertekend). `return_url` moet exact de geregistreerde origin hebben (`Integration::allowsReturnUrl()`); dat voorkomt een open redirect.
+
+**Status (B6), berekend in `IntegrationAttempt::summary()`, niet opgeslagen:**
+
+| Status | Voorwaarde |
+|---|---|
+| `not_started` | `launch_used_at IS NULL` |
+| `in_progress` | gestart, `completed_at IS NULL` |
+| `grading` | ingeleverd, nog niet elk antwoord heeft een AI-resultaat |
+| `graded` | elk antwoord heeft een AI-resultaat: een agentic run `done`, of `ai_feedback` gevuld (ook zonder score) |
+| `reviewed` | `reviewed_at` gezet (review-endpoint), of elk antwoord heeft een `teacher_score` |
+
+Een mislukte agentic run valt terug op de AI-feedbackworker (§6.8); de poging blijft dan `grading` tot die klaar is.
+
+**Confidence en `review_needed` per antwoord (B7), in `IntegrationAttempt::answerResult()`:**
+
+| Bron | Confidence | `review_needed` als |
+|---|---|---|
+| Agentic run `done` | `decision.confidence` | `human_review_needed`, of onder `min_confidence` |
+| `ai_feedback` zonder score | `laag` ("Geen AI-score") | altijd |
+| `ai_feedback` met injectiewaarschuwing (`StudentAnswer::hasInjectionWarning()`) | `laag` | altijd |
+| één model | `middel` | onder de drempel |
+| ≥ 2 modellen, gelijke scores | `hoog` | nooit door de bron zelf |
+| ≥ 2 modellen, min ≤ 1 en max ≥ 5 | `laag` ("Modellen zijn het oneens") | altijd |
+| ≥ 2 modellen, overige verschillen | `middel` | onder de drempel |
+
+Per poging: de laagste confidence, `review_needed` als één antwoord het nodig heeft (alleen bij `graded`; na `reviewed` is het `false`), redenen met het vraagnummer ervoor. De AI-score per antwoord is de agentic `final_score` of het gemiddelde van de modelscores (uit `StudentAnswer::aiScores()`, contract 1); per poging het gemiddelde met één decimaal.
+
+**Webhooks (B8), outbox `integration_events`:**
+
+- `IntegrationAttempt::notify()` zet een event in de outbox (`INSERT OR IGNORE` op `UNIQUE (student_exam_id, event)`: elk event één keer per poging), alleen bij een koppeling met `webhook_url`. Aanhaakpunten: `submitExam()` (`attempt.submitted`), `submitAiFeedback()`/`submitAssessmentResult()` via `checkGraded()` (`attempt.graded`), en het review-endpoint en `saveTeacherFeedback()` via `checkReviewed()` (`attempt.reviewed`).
+- `IntegrationEvent::deliverDue(INTEGRATION_WEBHOOK_BATCH)` draait aan het eind van `open_student_answers` en `open_assessment_jobs`, **ná** het antwoord aan de worker (`fastcgi_finish_request()`, of onder mod_php `Content-Length` + `Connection: close` + flush), in een `try/catch` die alleen logt. Geen cron, geen eigen proces.
+- Per event eerst een **claim** (`UPDATE … SET next_attempt_at = now + 120 s WHERE id = ? AND next_attempt_at = ?`), zodat twee gelijktijdige polls niet dubbel afleveren. Daarna curl: POST, `X-Assessment-Event`, `X-Assessment-Timestamp`, `X-Assessment-Signature: sha256=HMAC(secret, ts + "." + body)`, geen redirects, alleen `https` (plus `http` met de dev-vlag), timeout `INTEGRATION_WEBHOOK_TIMEOUT`; het antwoord wordt niet opgeslagen.
+- 2xx = afgeleverd. Anders backoff `30 s · 2^(n-1)` (maximaal 1 uur); na `INTEGRATION_WEBHOOK_MAX_ATTEMPTS` mislukte pogingen `next_attempt_at = NULL` en audit `integration_webhook_gave_up`. Aflevering is at-least-once: de ontvanger ontdubbelt op `event_id`. Events van een uitgeschakelde koppeling wachten.
+- De payload bevat geen toetsinhoud: `event_id`, `event`, `attempt_id`, `external_ref`, `status`, `review_needed`, `occurred_at`. Het statusendpoint blijft de bron van waarheid.
+
+**Terugmelden (B10):** `integration_attempt_review` schrijft de meegestuurde scores in één transactie als `teacher_score`/`teacher_feedback` (een mens bij de externe website; audit `teacher_grade` met `source: integration` en de beoordelaar) en zet `reviewed_at`. Zonder `grades` alleen `reviewed_at`. Alleen bij `graded` of `reviewed`.
+
+**Instellingen** (`config/app.php`): `INTEGRATION_LAUNCH_TTL`, `INTEGRATION_START_MAX_PER_HOUR` (rate limit per koppeling via de audit log, gebruikersnaam `API:<naam>`), `MAX_INTEGRATION_BODY`, `INTEGRATION_WEBHOOK_TIMEOUT`, `INTEGRATION_WEBHOOK_BATCH`, `INTEGRATION_WEBHOOK_MAX_ATTEMPTS`, en `INTEGRATION_ALLOW_HTTP` (alleen uit de omgevingsvariabele, alleen voor de Docker-dev: `http` naar `localhost`, `127.0.0.1` en `host.docker.internal`).
+
 ---
 
 ## 7. Deployment
@@ -698,7 +803,7 @@ De voorwaarden staan op één plek: `AnswerAssessment::excludeFromAiGradingSql()
 | Omgeving | Hoe |
 |---|---|
 | **Lokaal testen** | `./docker/start.sh` start `php:8.2-apache` op poort 8080 met de documentroot op `htdocs/`. De database staat in volume `db_data`, en de entrypoint draait `init_db.php` als er nog geen database is. **De code wordt bij het bouwen in de image gekopieerd** (geen bind mount), dus na elke wijziging opnieuw bouwen. Met `docker compose down -v` (in `docker/`) begin je met een schone database. Standaardlogin: `admin@school.nl` / `admin123` (bij de eerste login moet het wachtwoord worden gewijzigd). |
-| **Productie (web)** | nginx + PHP-FPM, documentroot `htdocs/`, map `database/` schrijfbaar voor de webgebruiker. Zorg dat de `Authorization`-header PHP bereikt (`fastcgi_param HTTP_AUTHORIZATION $http_authorization;`). Werkwijze: [docs/rollout-new-version.md](docs/rollout-new-version.md). |
+| **Productie (web)** | nginx + PHP-FPM, documentroot `htdocs/`, map `database/` schrijfbaar voor de webgebruiker. Zorg dat de `Authorization`-header PHP bereikt (`fastcgi_param HTTP_AUTHORIZATION $http_authorization;`). Voor de externe koppeling: `php-curl` en uitgaand HTTPS naar de webhookhosts ([docs/rollout-external-integration.md](docs/rollout-external-integration.md)). Werkwijze: [docs/rollout-new-version.md](docs/rollout-new-version.md). |
 | **Productie (worker)** | Een aparte machine met Python 3, `requests` en een draaiende Ollama. Voor cloud-modellen eenmalig `ollama signin`. Daarna `python process_ai_feedback.py` in `bin/`, voor de vraagontwerper als tweede proces `python process_design_jobs.py` (zie [docs/rollout-agentic-design.md](docs/rollout-agentic-design.md)) en voor agentic beoordelen als derde proces `python process_assessment_jobs.py` (zie [docs/rollout-agentic-assessment.md](docs/rollout-agentic-assessment.md)). |
 
 Breekt een wijziging het API-contract, het feedbackformaat of de authenticatie, dan moeten webapp en worker **tegelijk** worden bijgewerkt. Bouw daarom een overgangsweg in (zoals `LEGACY_API_KEY_IN_QUERY`) en beschrijf de uitrol, met terugdraaiscenario, in `docs/`.
@@ -726,7 +831,7 @@ Breekt een wijziging het API-contract, het feedbackformaat of de authenticatie, 
 
 ### 8.3 Nieuw API-endpoint voor de worker
 
-1. Voeg een methode toe aan `ApiController`. Begin met `$this->verifyApiKey()` en valideer de invoer zoals in `submitAiFeedback()`. Antwoorden en fouten zijn altijd JSON.
+1. Voeg een methode toe aan `ApiController`. Begin met `$this->verifyApiKey(ApiKey::SCOPE_WORKER)` (of `requireIntegration()` voor een integratie-endpoint: scope `integration`, alles filteren op de koppeling) en valideer de invoer zoals in `submitAiFeedback()`. Antwoorden en fouten zijn altijd JSON.
 2. Voeg een `case` toe in `htdocs/api/index.php`.
 3. Laat de worker de key via `API_HEADERS` meesturen en `api_params()` gebruiken.
 4. Leg het endpoint vast in §6.2 van dit document en in `bin/README.md`.
@@ -766,6 +871,11 @@ Weet dat deze punten bestaan voordat je in de buurt iets wijzigt. Los ze bij voo
 | Rubric als platte tekst in `questions.criteria` | `QuestionDesign::rubricToCriteriaText()` ↔ `parse_rubric_criteria()` | De worker leidt de structuur uit de tekst af (contract 7, §6.7). Een docent die de opbouw loslaat, valt zonder melding terug op de gewone beoordeling |
 | Rolwijziging pas na opnieuw inloggen actief | sessie bevat `role` | Admin moet de gebruiker laten herinloggen |
 | Publieke gastlink zonder vervaldatum of uitschakelknop | `exams.public_token` | Openstaand punt S-08 |
+| Webhooks alleen tijdens worker-polls | `IntegrationEvent::deliverDue()` in `ApiController` | Draait er geen worker, dan gaan er geen webhooks (en wordt er ook niets nagekeken). Geen knop "opnieuw versturen" |
+| Status van een koppelingspoging niet opgeslagen | `IntegrationAttempt::summary()` | Elke aanroep rekent alles opnieuw uit; geen index op status |
+| Lijst van koppelingspogingen gefilterd in PHP | `IntegrationAttempt::listForIntegration()` | Hooguit de 500 nieuwste kandidaten (`LIST_CANDIDATES`); oudere openstaande pogingen vallen buiten `integration_attempts` |
+| AI uitzetten na de start van een koppelingspoging | `exams.ai_grading_enabled` | De poging blijft `grading` tot de AI weer aan staat of een mens beoordeelt; het formulier en de detailpagina van de koppeling waarschuwen |
+| Webhookgeheim in platte tekst | `integrations.webhook_secret` | Nodig om te ondertekenen; wie de database leest, kan webhooks vervalsen |
 
 ---
 

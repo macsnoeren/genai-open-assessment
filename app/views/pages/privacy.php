@@ -73,7 +73,17 @@ ob_start();
                 verantwoordelijk voor de afspraken met die aanbieder en kan u vertellen welke verwerker wordt gebruikt.
             </p>
 
-            <h3>5. Uw Rechten</h3>
+            <h3>5. Externe koppelingen</h3>
+            <p>
+                Een toets kan ook worden gestart vanuit een andere website, bijvoorbeeld de leeromgeving van uw opleiding.
+                U maakt de toets dan hier zonder account. Die externe website geeft een naam (vaak een schuilnaam) en een eigen
+                referentie mee, en krijgt na afloop van deze applicatie <strong>uw antwoorden, de scores en de feedback</strong>
+                (van de AI en eventueel van een docent) van haar eigen deelnemers. Andere gegevens of de resultaten van andere
+                deelnemers krijgt zij niet. Voor wat die website met de gegevens doet, geldt haar eigen privacyverklaring.
+                Ook dan worden de cookies <code>PHPSESSID</code> en <code>guest_access_token</code> gebruikt.
+            </p>
+
+            <h3>6. Uw Rechten</h3>
             <p>
                 U heeft het recht om uw gegevens in te zien, te corrigeren of te laten verwijderen. 
                 Neem hiervoor contact op met de docent of beheerder die verantwoordelijk is voor deze toetsafname.

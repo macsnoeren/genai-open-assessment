@@ -24,7 +24,7 @@ Er zijn vier rollen in het systeem:
 *   **Student**: Kan toetsen maken en eigen resultaten inzien.
 *   **Docent**: Kan toetsen maken, vragen beheren, resultaten inzien en handmatig beoordelen.
 *   **Beoordelaar**: Kan alleen toegewezen toetsen beoordelen (beperkte rechten t.o.v. docent).
-*   **Admin**: Heeft volledige toegang, inclusief gebruikersbeheer, technische instellingen (API keys) en prompt-beheer.
+*   **Admin**: Heeft volledige toegang, inclusief gebruikersbeheer, technische instellingen (API keys, externe koppelingen) en prompt-beheer.
 
 ---
 
@@ -139,6 +139,14 @@ Zijn de Assessment en de Validation Agent het oneens over een essentieel criteri
 
 > **De AI beslist niets definitief.** De agentic beoordeling is een AI-beoordeling en geen cijfer; de docentscore geef je altijd zelf.
 
+### Pogingen via een externe koppeling
+Een beheerder kan een andere website (bijvoorbeeld een leeromgeving) koppelen, zodat deelnemers daar een toets van deze applicatie maken zonder account (zie "Externe koppelingen" bij de beheerders).
+*   **Herkennen:** bij "Resultaten" staat bij zo'n poging de badge **"Koppeling: <naam>"**; als je erover beweegt, zie je de referentie van de externe website. Op de antwoordenpagina staat bovenaan een melding met de naam van de koppeling en de referentie. Er is geen deelbare resultatenlink: de deelnemer ziet hier geen resultaat, dat bepaalt de externe website.
+*   **Nakijken:** de toets wordt automatisch door de AI nagekeken, net als andere pogingen. Is de AI niet zeker genoeg, dan kijkt een persoon bij de externe website de poging na. Die kan de scores terugmelden: ze verschijnen hier als **docentscore** (Docentbeoordeling, mens).
+*   **Jouw docentscore gaat ook naar de externe website.** Een score die je hier geeft, ziet de externe website de volgende keer dat zij het resultaat ophaalt. Geef je elk antwoord van de poging een score, dan krijgt de externe website een seintje dat de poging beoordeeld is.
+*   **Naam wijzigen:** je kunt de naam van de deelnemer aanpassen zoals bij elke gastpoging. De externe website krijgt daar geen seintje van; ze ziet de nieuwe naam pas als ze de poging opnieuw ophaalt.
+*   **Let op:** zet je de AI-beoordeling van een gekoppelde toets uit, dan kunnen er geen nieuwe pogingen meer starten en blijven ingeleverde pogingen op "wordt nagekeken" staan tot je de AI weer aanzet of zelf beoordeelt.
+
 ### Validatie & Rapportage
 Klik op **"Vergelijk AI"** op het dashboard.
 Hier zie je hoe goed de AI presteert ten opzichte van jouw beoordeling.
@@ -170,6 +178,23 @@ Hier beheer je de instructies die naar de AI worden gestuurd. Een goede prompt i
 ### API Keys
 Beheer de toegangssleutels voor de Python-service die op de achtergrond draait.
 *   Maak een sleutel aan en kopieer deze naar het `config.py` bestand van de Python service.
+*   De kolom **Type** toont *Worker* (voor de AI-workers) of *Koppeling*. Een key van een koppeling beheer je via **Koppelingen**; verwijder je hem hier, dan verdwijnt de koppeling ook. Een workerkey werkt niet voor een koppeling en andersom.
+
+### Externe koppelingen
+Met een koppeling laat een andere website (een leeromgeving of cursusplatform) haar eigen deelnemers een toets uit deze applicatie maken, zonder account. De server van die website start een poging, stuurt de deelnemer naar een eenmalige startlink, en na het inleveren keert de deelnemer terug naar de website. De AI kijkt de toets na; de website volgt de status via de API en via webhooks (seintjes). De technische beschrijving voor de ontwikkelaars van de externe website staat in `docs/integration-api.md`; een demo staat in `docs/integration-demo/`.
+
+*   **Aanmaken:** ga naar **Koppelingen** → **Nieuwe koppeling** en vul in:
+    *   **Naam** van de externe website (docenten zien die bij de pogingen).
+    *   **Origin van de terugkeer-URL**, bijvoorbeeld `https://leeromgeving.example` (zonder pad). De deelnemer keert alleen terug naar een adres op precies deze origin.
+    *   **Webhook-URL** (optioneel, alleen `https`): waar de seintjes heen gaan bij ingeleverd, nagekeken en handmatig beoordeeld.
+    *   **Drempel voor menselijke controle**: bij `hoog` (standaard) laat alles wat de AI niet met hoge zekerheid beoordeelt, een mens nakijken.
+    *   **Toetsen** die de koppeling mag gebruiken. Alleen toetsen met AI-beoordeling aan kunnen worden gekozen.
+*   **Key en geheim één keer:** na het opslaan zie je de **API-key** en het **webhookgeheim**. Ze worden maar één keer getoond. Geef ze veilig door aan de beheerder van de externe website; de key hoort alleen op hun server, nooit in een browser.
+*   **Toetsen koppelen of wijzigen:** via **Wijzigen**. Een gekoppelde toets waarvan de AI-beoordeling later is uitgezet, krijgt een waarschuwing.
+*   **Events bekijken:** de detailpagina (klik op de naam) toont de gekoppelde toetsen, de laatste 50 webhooks (afgeleverd, nog open of opgegeven, met de laatste status of fout) en de laatste 50 pogingen met hun status. Webhooks worden verstuurd terwijl de AI-workers draaien; staan die stil, dan gaan er ook geen webhooks. Een webhook die steeds mislukt, wordt na 8 pogingen opgegeven. De externe website kan de status altijd zelf via de API opvragen.
+*   **Geheim vernieuwen:** **Webhookgeheim vernieuwen** maakt een nieuw geheim (weer één keer getoond). Het oude werkt direct niet meer, dus spreek het moment af met de externe website.
+*   **Uitschakelen:** de externe website krijgt dan geen toegang meer tot de API en startlinks werken niet meer. Inschakelen herstelt dat.
+*   **Verwijderen:** verwijdert de koppeling en de key. De pogingen blijven als gewone gastpogingen bij de toets staan, maar de externe website kan ze niet meer opvragen.
 
 ### Audit Log
 Bekijk wie wat heeft gedaan in het systeem (bijv. inloggen, toets aanmaken, cijfer geven). Je kunt deze log ook wissen indien nodig.

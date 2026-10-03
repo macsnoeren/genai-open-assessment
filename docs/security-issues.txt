@@ -273,6 +273,87 @@ antwoord) die in de UI wordt getoond. Maatregelen:
     een -cloud-model dus naar Ollama Cloud, net als bij de gewone AI-beoordeling. De
     naam van de student gaat niet mee.
 
+
+-------------------------------------------------------------------------------
+NIEUWE FUNCTIE: EXTERNE KOPPELING (branch dev-external-integration, 2026-10-03)
+-------------------------------------------------------------------------------
+Nieuwe aanvalsoppervlakken: een tweede soort API-gebruiker (een externe website),
+5 integratie-endpoints, 2 publieke launch-actions, 9 admin-actions, en voor het
+eerst uitgaande HTTP-verzoeken van de webserver (webhooks). Maatregelen:
+
+  - Key-scope (het belangrijkste punt): api_keys.scope is 'worker' of
+    'integration' (bestaande keys: 'worker'). Zonder scope zou elke actieve key,
+    dus ook die van een externe partij, via open_student_answers ALLE
+    studentantwoorden kunnen lezen. verifyApiKey($scope) geeft 401 bij een
+    ongeldige/uitgeschakelde key en 403 (audit api_scope_denied) bij de verkeerde
+    scope. Getest: workerkey op de 5 integratie-endpoints en integratiekey op de
+    6 worker-endpoints geven 403.
+  - Isolatie per koppeling: elke query filtert op de koppeling van de key
+    (findForIntegration, findByRef, listForIntegration). Een poging van een
+    andere koppeling geeft 404 (geen 403, zodat ids niet te raden zijn). Een
+    question_id in een review moet een antwoord van DEZE poging zijn (uit de
+    database), anders 400. Toetsen alleen als de admin ze expliciet koppelde en
+    AI-beoordeling aan staat.
+  - Eenmalige startlinks: 256-bit token, alleen als SHA-256-hash opgeslagen,
+    INTEGRATION_LAUNCH_TTL (15 min) geldig. GET integration_launch toont alleen
+    een landingspagina; POST integration_launch_start (CSRF) verbruikt het token
+    atomair (één UPDATE die het token wist). Tweede gebruik, verlopen, ongeldig
+    formaat, een vervangen token of een uitgeschakelde koppeling: 410. Het token
+    staat even in de URL van de landingspagina (Referrer-Policy same-origin, dus
+    niet naar derden); daarna is het waardeloos.
+  - Afscherming van de deelnemer: de poging is een gastpoging met een HttpOnly,
+    SameSite=Strict-cookie, komt niet in guest_history, toont geen
+    resultatenpagina (redirect naar de terugkeer-URL), wordt niet hervat via de
+    publieke gastlink, en guest_logout stuurt niet naar die link. Met alleen de
+    koppelingscookie geven student_view_results, my_exams en de docentpagina's
+    niets prijs (getest).
+  - Open redirect: de terugkeer-URL moet exact de geregistreerde origin hebben
+    (schema, host, poort), zonder userinfo, fragment, witruimte of backslash,
+    maximaal 1000 tekens. Getest geweigerd: javascript:, https://evil@lms.nl,
+    https://lms.nl.evil.example, http zonder dev-vlag. De terugkeer-URL bevat geen
+    scores en is niet ondertekend (gedocumenteerd: alleen navigeren). Voor de
+    redirect na het inleveren staat die ene origin in de CSP form-action van
+    take_exam (browsers passen form-action toe op redirects na een POST).
+  - SSRF-beperking: alleen de admin stelt de webhook-URL in; alleen https (met
+    INTEGRATION_ALLOW_HTTP, uitsluitend uit een omgevingsvariabele in de
+    Docker-dev, ook http naar localhost/127.0.0.1/host.docker.internal). curl
+    volgt geen redirects (CURLOPT_FOLLOWLOCATION false, protocollen beperkt),
+    timeout 3 s, het antwoord van de ontvanger wordt niet opgeslagen of getoond
+    (alleen status en curl-fout, max. 300 tekens). Restrisico: de admin kan een
+    https-URL naar een interne host instellen; er is geen controle op
+    privé-IP-adressen. De admin is vertrouwd; overweeg die controle als
+    koppelingen later door docenten worden beheerd.
+  - Webhooks: HMAC-SHA256 over "timestamp.body" met een geheim per koppeling;
+    de ontvanger controleert constant-time en weigert tijdstempels ouder dan 5
+    minuten (replay). Payload zonder toetsinhoud (alleen ids en status). Het
+    geheim staat in platte tekst in de database: dat is nodig om te ondertekenen
+    (anders dan de API-key, die als hash staat). Wie de database kan lezen, kan
+    dus webhooks vervalsen; vernieuwen kan via de admin
+    (integration_rotate_secret). Een webhookfout breekt nooit een worker-poll
+    (versturen na het antwoord aan de worker, try/catch).
+  - Rate limit: INTEGRATION_START_MAX_PER_HOUR (300) starts per koppeling per uur
+    via de audit log (gebruikersnaam API:<naam>); nieuwe startlinks tellen mee.
+    Body maximaal MAX_INTEGRATION_BODY (413). Wie de audit log leegmaakt, zet ook
+    deze limiet terug.
+  - De API-key gaat alleen server-to-server (Bearer-header, nooit in de query
+    string of de browser). Key en webhookgeheim worden één keer getoond.
+  - Mens en AI gescheiden: teacher_score komt alleen van een mens (docent hier,
+    of de beoordelaar van de externe website via integration_attempt_review,
+    audit teacher_grade met source integration). De API noemt AI-resultaten
+    ai_score/ai en review_needed.
+  - Audit: integration_create/_update/_rotate_secret/_toggle/_delete,
+    integration_attempt_start, integration_launch(_failed), integration_attempt_read
+    (alleen bij graded/reviewed), integration_attempt_review, teacher_grade,
+    integration_rate_limited, integration_webhook_gave_up, api_scope_denied.
+  - Privacy: de externe website krijgt de antwoorden, scores en feedback van haar
+    EIGEN deelnemers (de partij die de deelnemer stuurde, via een geauthenticeerde
+    API). display_name is optioneel (pseudoniem mag). De privacypagina is
+    bijgewerkt.
+  - Bekend (niet gewijzigd, bestond al): guest_logout&student_exam_id=N stuurt
+    voor een gewone gastpoging door naar de publieke link van die toets, ook als
+    de bezoeker geen toegang tot die poging heeft. Wie ids raadt, vindt zo
+    publieke toetslinks. Voor koppelingspogingen is dat afgesloten; voor gewone
+    gastpogingen staat het nog open (zie S-08).
 -------------------------------------------------------------------------------
 S-01  HOOG  Autorisatie-bypass bij opslaan docentscore
 -------------------------------------------------------------------------------
