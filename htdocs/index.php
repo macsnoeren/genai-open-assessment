@@ -141,6 +141,10 @@ switch ($action) {
    $questionDesignController->view();
    break;
 
+ case 'question_design_answer':
+   $questionDesignController->answer();
+   break;
+
  case 'question_design_delete':
    $questionDesignController->delete();
    break;

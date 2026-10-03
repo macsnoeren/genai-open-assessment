@@ -85,6 +85,43 @@ class QuestionDesignController {
   }
 
   /**
+   * Saves the teacher's answers to the clarifying questions; the worker then makes the rubric.
+   */
+  public function answer() {
+    validateCsrfToken();
+    requireRole('docent');
+
+    $design = QuestionDesign::decode($this->loadDesignForWrite(requestInt($_POST, 'id')));
+    $viewUrl = '/?action=question_design_view&id=' . (int)$design['id'];
+    if ($design['status'] !== QuestionDesign::STATUS_AWAITING_ANSWERS) {
+        $this->redirectWithError($viewUrl, 'Dit ontwerp wacht niet (meer) op jouw antwoorden.');
+    }
+
+    // De vragen komen uit de database; van de client komen alleen de antwoorden.
+    $answers = [];
+    foreach ($design['analysis']['clarifying_questions'] ?? [] as $i => $question) {
+        $answer = $this->readText("answer_$i", MAX_DESIGN_INPUT_LENGTH);
+        if ($answer === null) {
+            $this->redirectWithError($viewUrl, 'Een antwoord mag maximaal ' . MAX_DESIGN_INPUT_LENGTH . ' tekens lang zijn.');
+        }
+        $answers[] = ['question' => $question['question'], 'why' => $question['why'], 'answer' => $answer];
+    }
+
+    $revision = requestInt($_POST, 'revision');
+    if ($revision === null || !QuestionDesign::saveTeacherAnswers($design['id'], $revision, $answers)) {
+        $this->redirectWithError($viewUrl, 'Dit formulier is verouderd. Bekijk de actuele stand en probeer het opnieuw.');
+    }
+    AuditLog::log('question_design_answer', [
+        'id' => (int)$design['id'],
+        'answered' => count(array_filter($answers, fn($a) => $a['answer'] !== '')),
+        'questions' => count($answers),
+    ]);
+
+    header('Location: ' . $viewUrl);
+    exit;
+  }
+
+  /**
    * Deletes a question design (not the question that was created from it).
    */
   public function delete() {

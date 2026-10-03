@@ -207,11 +207,11 @@ Deze vormen zijn de afspraak tussen PHP (`QuestionDesign::normalize*()`) en Pyth
 
 ## Fase 4: Verduidelijkende vragen beantwoorden
 
-- [ ] **4.1 Analyse tonen.** Voeg op de ontwerppagina de kaart "Analyse" toe (zodra `analysis` gevuld is): samenvatting, twee badges (vraag duidelijk ja/nee, gewenst antwoord past bij de vraag ja/nee), essentiële elementen met waarom, en beoordelingsproblemen met waarom.
-- [ ] **4.2 Antwoordformulier.** Toon bij status `awaiting_answers` per verduidelijkende vraag de vraag, een regel *Waarom: …* en een textarea `answer_0` … `answer_4` (losse velden, zodat `requestString` werkt en `$_POST` niet rechtstreeks wordt gebruikt). Verborgen velden: `id` en `revision`. Leg uit dat een antwoord leeg mag blijven.
-- [ ] **4.3 Action `question_design_answer`.** CSRF, rol, `loadDesignForWrite()`, status moet `awaiting_answers` zijn (anders een flash-fout). Bouw `teacher_answers` uit de vragen **uit de database** plus `requestString($_POST, "answer_$i", MAX_DESIGN_INPUT_LENGTH)`. Roep `saveTeacherAnswers()` aan met de meegestuurde revision (`false` betekent dat het formulier verouderd is: flash-fout). Daarna audit `question_design_answer` en een redirect. Voeg een `case` toe.
-- [ ] **4.4 Antwoorden alleen-lezen.** Na het beantwoorden toont de kaart "Verduidelijkende vragen" de vragen, het waarom en de antwoorden, zonder formulier.
-- [ ] **4.5 Rooktest fase 4.** Beantwoord de vragen in de UI. De status wordt `assessment_pending` en `open_design_jobs` geeft de job met `step: "assessment"` en de `teacher_answers`.
+- [x] **4.1 Analyse tonen.** Voeg op de ontwerppagina de kaart "Analyse" toe (zodra `analysis` gevuld is): samenvatting, twee badges (vraag duidelijk ja/nee, gewenst antwoord past bij de vraag ja/nee), essentiële elementen met waarom, en beoordelingsproblemen met waarom.
+- [x] **4.2 Antwoordformulier.** Toon bij status `awaiting_answers` per verduidelijkende vraag de vraag, een regel *Waarom: …* en een textarea `answer_0` … `answer_4` (losse velden, zodat `requestString` werkt en `$_POST` niet rechtstreeks wordt gebruikt). Verborgen velden: `id` en `revision`. Leg uit dat een antwoord leeg mag blijven.
+- [x] **4.3 Action `question_design_answer`.** CSRF, rol, `loadDesignForWrite()`, status moet `awaiting_answers` zijn (anders een flash-fout). Bouw `teacher_answers` uit de vragen **uit de database** plus `requestString($_POST, "answer_$i", MAX_DESIGN_INPUT_LENGTH)`. Roep `saveTeacherAnswers()` aan met de meegestuurde revision (`false` betekent dat het formulier verouderd is: flash-fout). Daarna audit `question_design_answer` en een redirect. Voeg een `case` toe.
+- [x] **4.4 Antwoorden alleen-lezen.** Na het beantwoorden toont de kaart "Verduidelijkende vragen" de vragen, het waarom en de antwoorden, zonder formulier.
+- [x] **4.5 Rooktest fase 4.** Beantwoord de vragen in de UI. De status wordt `assessment_pending` en `open_design_jobs` geeft de job met `step: "assessment"` en de `teacher_answers`.
   Commit: `Let teachers answer clarifying questions`.
 
 ## Fase 5: Review, bijsturen en goedkeuren
