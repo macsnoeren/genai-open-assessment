@@ -449,7 +449,8 @@ def looks_repetitive(text: str) -> bool:
     return len(set(sentences)) / len(sentences) < REPETITION_UNIQUE_RATIO
 
 
-def call_ollama(model_name: str, system_prompt: str, user_prompt: str, schema: Dict, num_predict: int) -> Tuple[Optional[Dict], float]:
+def call_ollama(model_name: str, system_prompt: str, user_prompt: str, schema: Dict, num_predict: int,
+                num_ctx: int = None) -> Tuple[Optional[Dict], float]:
     """
     Doet een aanroep naar Ollama met gescheiden systeem- en gebruikersbericht
     en een afgedwongen JSON-schema. Geeft (geparste JSON of None, totale duur) terug.
@@ -458,6 +459,8 @@ def call_ollama(model_name: str, system_prompt: str, user_prompt: str, schema: D
     JSON_RETRY_ATTEMPTS keer herhaald met een correctie-instructie, omdat het
     "format"-schema bij cloud-modellen alleen een hint blijkt en geen harde
     garantie geeft (in tegenstelling tot lokale modellen).
+
+    num_ctx: contextvenster voor deze aanroep; None betekent NUM_CTX.
     """
     prompt = user_prompt
     total_duration = 0.0
@@ -476,7 +479,7 @@ def call_ollama(model_name: str, system_prompt: str, user_prompt: str, schema: D
             "options": {
                 **SAMPLING_OPTIONS,
                 "num_predict": current_num_predict,
-                "num_ctx": NUM_CTX,
+                "num_ctx": NUM_CTX if num_ctx is None else num_ctx,
             }
         }
 
