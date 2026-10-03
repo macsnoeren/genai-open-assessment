@@ -214,8 +214,9 @@ class StudentController {
     }
     
     if ($passwordChanged) {
+        $newHash = password_hash($newPassword, PASSWORD_DEFAULT);
         $sql = "UPDATE users SET name = ?, email = ?, role = ?, force_password_change = ?, password = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?";
-        $params = [$name, $email, $newRole, $forcePasswordChange, password_hash($newPassword, PASSWORD_DEFAULT), $userIdToUpdate];
+        $params = [$name, $email, $newRole, $forcePasswordChange, $newHash, $userIdToUpdate];
     } else {
         $sql = "UPDATE users SET name = ?, email = ?, role = ?, force_password_change = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?";
         $params = [$name, $email, $newRole, $forcePasswordChange, $userIdToUpdate];
@@ -235,6 +236,7 @@ class StudentController {
         $_SESSION['name'] = $name;
         if ($passwordChanged) {
             session_regenerate_id(true);
+            $_SESSION['pw_marker'] = passwordMarker($newHash); // andere sessies van deze gebruiker eindigen
         }
     }
     $_SESSION['success_message'] = 'Gebruiker opgeslagen.';

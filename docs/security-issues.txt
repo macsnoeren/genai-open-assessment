@@ -117,7 +117,8 @@ S-22  OPGELOST  requestInt()/requestString()-helpers, gevalideerde cookie-JSON, 
                 met 400/403/404 in plaats van die().
 S-23  OPGELOST  Idle-timeout (SESSION_IDLE_TIMEOUT), destroySession() bij logout wist
                 cookie + $_SESSION, Secure-flag via X-Forwarded-Proto (isHttps()).
-                Rolwijziging door admin wordt nog steeds pas bij herlogin actief.
+                Rolwijziging door admin wordt nog steeds pas bij herlogin actief
+                (opgelost in de fixronde van 2026-10-03).
 S-24  OPGELOST  Gastcookies met SameSite=Strict/HttpOnly/Secure; history beperkt tot 20
                 gevalideerde tokens.
 S-25  INFO      Ongewijzigd (retentiebeleid is een organisatorische keuze).
@@ -130,8 +131,9 @@ scores, API Bearer/hash, CSV-escaping, cascade delete, setup-afscherming) slagen
 php:8.2.
 
 Nog te doen (buiten deze ronde):
-  - S-05: eenmalige opschoonquery voor bestaande wezen in oudere databases.
-  - S-08: vervaldatum en aan/uit-schakelaar voor de publieke gastlink.
+  - S-05: eenmalige opschoonquery voor bestaande wezen in oudere databases
+    (opgelost: setup/cleanup_orphans.php, fixronde 2026-10-03).
+  - S-08: vervaldatum voor de publieke gastlink (aan/uit en vernieuwen: zie fixronde 2026-10-03).
   - S-18: AI-feedback als gestructureerde data opslaan i.p.v. regex-parsing van tekst.
   - S-14: bestaande API-keys werken dankzij de automatische hash-upgrade; na de eerste
     succesvolle aanroep is de platte key uit de database verdwenen.
@@ -186,7 +188,7 @@ en docenttekst die naar een LLM gaat. Maatregelen:
     komen alleen de antwoorden.
   - Rate limit: DESIGN_START_MAX_PER_HOUR (10) nieuwe ontwerpen per docent per uur
     (AuditLog::countRecent). Maximaal DESIGN_MAX_REVISIONS (6) rondes per ontwerp.
-    Let op: wie de audit log leegmaakt, zet ook deze limiet terug.
+    Leegmaken van de audit log laat het laatste uur staan, dus zet deze limiet niet terug.
   - JSON-normalisatie aan beide kanten (contract 6): de worker valideert de
     modeluitvoer (validate_*), de API normaliseert opnieuw (QuestionDesign::
     normalize*): alleen bekende velden, alleen strings/booleans van het juiste type,
@@ -260,7 +262,8 @@ antwoord) die in de UI wordt getoond. Maatregelen:
     answer_assessment_auto_start.
   - Rate limit: ASSESSMENT_START_MAX_PER_HOUR (100) gestarte runs per docent per uur,
     één auditregel per gestart antwoord (ook bij een bulkstart). Alleen bij toetsen
-    met ai_grading_enabled = 1. Wie de audit log leegmaakt, zet ook deze limiet terug.
+    met ai_grading_enabled = 1. Leegmaken van de audit log laat het laatste uur staan,
+    dus zet deze limiet niet terug.
   - Prompt injection: het studentantwoord staat als laatste gelabeld blok in het
     user-bericht (blokmarkeringen in de inhoud verwijderd, lengte begrensd met
     MAX_ANSWER_CHARS), gevolgd door een herinnering dat het data is. De optionele
@@ -333,8 +336,8 @@ eerst uitgaande HTTP-verzoeken van de webserver (webhooks). Maatregelen:
     (versturen na het antwoord aan de worker, try/catch).
   - Rate limit: INTEGRATION_START_MAX_PER_HOUR (300) starts per koppeling per uur
     via de audit log (gebruikersnaam API:<naam>); nieuwe startlinks tellen mee.
-    Body maximaal MAX_INTEGRATION_BODY (413). Wie de audit log leegmaakt, zet ook
-    deze limiet terug.
+    Body maximaal MAX_INTEGRATION_BODY (413). Leegmaken van de audit log laat het laatste uur staan,
+    dus zet deze limiet niet terug.
   - De API-key gaat alleen server-to-server (Bearer-header, nooit in de query
     string of de browser). Key en webhookgeheim worden één keer getoond.
   - Mens en AI gescheiden: teacher_score komt alleen van een mens (docent hier,
@@ -349,11 +352,9 @@ eerst uitgaande HTTP-verzoeken van de webserver (webhooks). Maatregelen:
     EIGEN deelnemers (de partij die de deelnemer stuurde, via een geauthenticeerde
     API). display_name is optioneel (pseudoniem mag). De privacypagina is
     bijgewerkt.
-  - Bekend (niet gewijzigd, bestond al): guest_logout&student_exam_id=N stuurt
-    voor een gewone gastpoging door naar de publieke link van die toets, ook als
-    de bezoeker geen toegang tot die poging heeft. Wie ids raadt, vindt zo
-    publieke toetslinks. Voor koppelingspogingen is dat afgesloten; voor gewone
-    gastpogingen staat het nog open (zie S-08).
+  - guest_logout&student_exam_id=N stuurde voor elke gastpoging door naar de
+    publieke link van die toets, zonder toegangscontrole; wie ids raadde, vond zo
+    publieke toetslinks. Opgelost in de fixronde van 2026-10-03 (zie hieronder).
 -------------------------------------------------------------------------------
 S-01  HOOG  Autorisatie-bypass bij opslaan docentscore
 -------------------------------------------------------------------------------
@@ -855,6 +856,62 @@ S-26  INFO  Dode/verwarrende beveiligingslogica
   - htdocs/js/modal.js is gemarkeerd als "niet meer in gebruik"; verwijderen.
   - index.php serveert de API-acties ook via de sessie-router (open_student_answers,
     submit_ai_feedback); een enkel entrypoint voor de API is overzichtelijker.
+
+
+-------------------------------------------------------------------------------
+FIXRONDE 2026-10-03 (branch dev-security-fixes)
+-------------------------------------------------------------------------------
+Herbeoordeling van de openstaande punten plus een nieuwe review van de code.
+
+S-23  OPGELOST  (restpunt) requireLogin() leest bij elk verzoek naam, rol en
+                force_password_change uit de database. Een rolwijziging geldt direct;
+                een verwijderde gebruiker is direct uitgelogd. In de sessie staat een
+                vingerafdruk van de wachtwoordhash (passwordMarker): verandert het
+                wachtwoord (zelf of door een admin), dan eindigen de andere sessies van
+                die gebruiker. De eigen sessie blijft bij een eigen wijziging geldig.
+S-07  AANGESCHERPT  Inloggen doet altijd een password_verify (tegen een vaste
+                dummy-hash bij een onbekend e-mailadres), zodat de responstijd niet
+                verraadt of een account bestaat (gemeten: 0,054 s tegenover 0,055 s).
+S-08  GROTENDEELS  De eigenaar (of admin) kan de publieke gastlink op het dashboard
+                vernieuwen (oude link direct ongeldig) of uitzetten (public_token NULL)
+                via exam_public_link (POST + CSRF, audit exam_public_link). Lopende
+                gastpogingen blijven werken. Een vervaldatum is niet gebouwd.
+N-01  OPGELOST  (nieuw, MIDDEL) guest_logout&student_exam_id=N stuurde iedereen door
+                naar de publieke link van de toets van die poging. Nu alleen als de
+                bezoeker toegang had tot die poging (cookie of guest_history).
+N-02  OPGELOST  (nieuw, MIDDEL) SSRF via webhooks: de webhook-host wordt opgezocht en
+                alle adressen moeten publiek zijn (geen privé, loopback, link-local,
+                gereserveerd of 100.64.0.0/10), bij het opslaan van de koppeling én bij
+                elke aflevering. curl wordt vastgepind op het gecontroleerde adres
+                (CURLOPT_RESOLVE), zodat DNS-rebinding niet helpt. Uitzonderingen: de
+                dev-hosts met INTEGRATION_ALLOW_HTTP, en INTEGRATION_WEBHOOK_ALLOW_PRIVATE
+                (standaard false) voor een koppeling in het eigen netwerk.
+N-03  OPGELOST  (nieuw, LAAG) "Log leegmaken" zette de login-lockout en alle rate
+                limits terug. Nu blijven de regels van het laatste uur staan (alle
+                vensters zijn hooguit 60 minuten).
+N-04  OPGELOST  (nieuw, LAAG) De audit-logweergave gaf een PHP-warning ("Array to
+                string conversion") bij een wijziging van een lijst (exam_ids van een
+                koppeling); lijsten worden nu als JSON getoond.
+S-05  OPGELOST  setup/cleanup_orphans.php (alleen CLI, eerst dry-run, daarna --apply):
+                zoekt wezen met PRAGMA foreign_key_check en volgt per foreign key de
+                ON DELETE-regel (CASCADE verwijdert, SET NULL maakt leeg, RESTRICT
+                wordt alleen gemeld).
+
+Bewust niet gewijzigd:
+  - S-18 (ai_feedback als gestructureerde data): een contractwijziging met de worker
+    op een andere machine; vraagt een eigen branch met een gecoördineerde uitrol.
+  - S-15 en S-25: configuratie- en organisatiekeuzes (cloud-modellen, retentie).
+  - appBaseUrl() gebruikt de Host-header. Dat raakt alleen links die we zelf tonen
+    (de gastlink op het dashboard, de launch_url voor de koppeling die de Host zelf
+    meestuurt); geen e-mail of wachtwoordherstel. Laag risico; een vaste
+    APP_BASE_URL-instelling is een mogelijke aanscherping.
+
+Verificatie: php -l, de drie mocktestsuites en een rooktest in Docker (o.a.
+sessie na rolwijziging/verwijderen/wachtwoordreset, inlogtijd, guest_logout,
+gastlink vernieuwen/uitzetten/405/400, webhook naar 127.0.0.1/10.x/169.254.x/
+192.168.x geweigerd bij opslaan en bij aflevering, publieke host en dev-host
+toegestaan, audit log leegmaken, opruimscript dry-run/apply, webhooks naar de demo
+nog afgeleverd).
 
 
 -------------------------------------------------------------------------------

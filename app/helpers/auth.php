@@ -9,6 +9,26 @@
  */
 
 require_once __DIR__ . '/../../config/app.php';
+require_once __DIR__ . '/../../config/database.php';
+
+/**
+ * Vingerafdruk van de wachtwoordhash, bewaard in de sessie. Verandert het
+ * wachtwoord (door de gebruiker zelf of een admin), dan klopt hij niet meer
+ * en eindigen de andere sessies van die gebruiker.
+ */
+function passwordMarker(string $passwordHash): string {
+    return substr(hash('sha256', $passwordHash), 0, 32);
+}
+
+/** Zet de sessie na een geslaagde login of wachtwoordwijziging (na session_regenerate_id). */
+function setSessionUser(array $user): void {
+    $_SESSION['user_id'] = (int)$user['id'];
+    $_SESSION['name'] = $user['name'];
+    $_SESSION['role'] = $user['role'];
+    $_SESSION['force_password_change'] = (int)($user['force_password_change'] ?? 0);
+    $_SESSION['pw_marker'] = passwordMarker((string)$user['password']);
+    $_SESSION['last_activity'] = time();
+}
 
 /** Vernietigt de sessie volledig, inclusief de sessiecookie. */
 function destroySession(): void {
@@ -45,6 +65,27 @@ function requireLogin() {
         exit;
     }
     $_SESSION['last_activity'] = $now;
+
+    // Rol, naam en wachtwoordstatus komen bij elk verzoek uit de database: een
+    // verwijderde gebruiker is direct uitgelogd, een rolwijziging geldt direct en
+    // een nieuw wachtwoord beëindigt de andere sessies.
+    $stmt = Database::connect()->prepare("SELECT id, name, role, password, force_password_change FROM users WHERE id = ?");
+    $stmt->execute([(int)$_SESSION['user_id']]);
+    $user = $stmt->fetch(PDO::FETCH_ASSOC);
+    $marker = $user ? passwordMarker((string)$user['password']) : '';
+    if (!isset($_SESSION['pw_marker']) && $user) {
+        $_SESSION['pw_marker'] = $marker; // sessie van vóór deze controle
+    }
+    if (!$user || !hash_equals((string)$_SESSION['pw_marker'], $marker)) {
+        destroySession();
+        session_start();
+        $_SESSION['error'] = 'Je sessie is beëindigd. Log opnieuw in.';
+        header('Location: /?action=login');
+        exit;
+    }
+    $_SESSION['name'] = $user['name'];
+    $_SESSION['role'] = $user['role'];
+    $_SESSION['force_password_change'] = (int)$user['force_password_change'];
 
     // Dwing wachtwoordwijziging af indien nodig
     if (!empty($_SESSION['force_password_change'])) {

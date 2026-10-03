@@ -57,8 +57,11 @@ class AuthController {
     }
     
     $user = $email !== '' ? User::findByEmail($email) : null;
-    
-    if (!$user || !password_verify($password, $user['password'])) {
+
+    // Altijd een password_verify, ook bij een onbekend e-mailadres, zodat de
+    // responstijd niet verraadt of een account bestaat.
+    $hash = $user['password'] ?? '$2y$10$6xLeRukWbIu6I14dwt8X5eMPOgW/EWqtRTxi4t8tsCgSqaNjA9qIe';
+    if (!password_verify($password, $hash) || !$user) {
       AuditLog::log('login_failed', ['email' => $email], $email !== '' ? $email : 'Unknown');
       $_SESSION['error'] = 'Ongeldige inloggegevens';
       header('Location: index.php?action=login');
@@ -67,11 +70,7 @@ class AuthController {
     
     // login succesvol
     session_regenerate_id(true);
-    $_SESSION['user_id'] = $user['id'];
-    $_SESSION['name']    = $user['name'];
-    $_SESSION['role']    = $user['role'];
-    $_SESSION['force_password_change'] = $user['force_password_change'] ?? 0;
-    $_SESSION['last_activity'] = time();
+    setSessionUser($user);
     unset($_SESSION['csrf_token']);
     
     AuditLog::log('login_success');
@@ -168,11 +167,13 @@ class AuthController {
     }
 
     $pdo = Database::connect();
+    $hash = password_hash($password, PASSWORD_DEFAULT);
     $stmt = $pdo->prepare("UPDATE users SET password = ?, force_password_change = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?");
-    $stmt->execute([password_hash($password, PASSWORD_DEFAULT), $_SESSION['user_id']]);
+    $stmt->execute([$hash, $_SESSION['user_id']]);
 
     session_regenerate_id(true);
     $_SESSION['force_password_change'] = 0;
+    $_SESSION['pw_marker'] = passwordMarker($hash); // deze sessie blijft geldig, andere niet
     $_SESSION['success_message'] = "Wachtwoord succesvol gewijzigd.";
 
     AuditLog::log('password_change_forced');

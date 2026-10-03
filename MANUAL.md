@@ -79,6 +79,7 @@ Bij het maken of bewerken van een toets zijn de volgende instellingen belangrijk
 *   **AI Prompt**: Selecteer welke systeem-instructie de AI moet gebruiken. (Standaard of een specifieke prompt).
 *   **AI Beoordeling inschakelen**: Vink dit aan als je wilt dat het systeem automatisch feedback genereert zodra een student inlevert.
 *   **Delen met andere docenten**: Andere docenten kunnen de toets dan inzien en beoordelen. Wijzigen, verwijderen en vragenbeheer blijven voorbehouden aan de eigenaar (en Admins).
+*   **Gastlink vernieuwen of uitzetten**: op het dashboard staan naast de gastlink van je eigen toetsen 🔄 (nieuwe link; de oude werkt direct niet meer, bijvoorbeeld als hij te ver is gedeeld) en ⛔ (geen gastlink meer). Met "Gastlink aanzetten" maak je weer een nieuwe. Gasten die al bezig zijn, kunnen gewoon verder.
 *   **Publiceren voor ingelogde studenten**: Alleen gepubliceerde toetsen verschijnen in het studentdashboard en kunnen daar gestart worden. De gastlink werkt onafhankelijk van dit vinkje.
 
 > **Let op:** Als je de prompt van een bestaande toets wijzigt, wordt alle reeds gegenereerde AI-feedback verwijderd om consistentie te garanderen. Je moet dit bevestigen.
@@ -197,7 +198,10 @@ Met een koppeling laat een andere website (een leeromgeving of cursusplatform) h
 *   **Verwijderen:** verwijdert de koppeling en de key. De pogingen blijven als gewone gastpogingen bij de toets staan, maar de externe website kan ze niet meer opvragen.
 
 ### Audit Log
-Bekijk wie wat heeft gedaan in het systeem (bijv. inloggen, toets aanmaken, cijfer geven). Je kunt deze log ook wissen indien nodig.
+Bekijk wie wat heeft gedaan in het systeem (bijv. inloggen, toets aanmaken, cijfer geven). Je kunt deze log ook wissen indien nodig; de regels van het laatste uur blijven dan staan, omdat de inlogbeveiliging en de limieten ze gebruiken.
+
+### Rollen en sessies
+Een gewijzigde rol geldt direct, ook als de gebruiker al is ingelogd. Een verwijderde gebruiker is direct uitgelogd. Stel je een nieuw wachtwoord in voor een gebruiker, dan worden alle sessies van die gebruiker beëindigd.
 
 ---
 

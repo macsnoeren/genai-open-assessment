@@ -176,6 +176,30 @@ class DocentController {
   }
   
   /**
+   * Publieke gastlink vernieuwen (mode=renew, ook om hem weer aan te zetten) of
+   * uitzetten (mode=disable). Alleen eigenaar of admin.
+   */
+  public function setPublicLink() {
+    validateCsrfToken();
+    requireRole('docent');
+
+    $id = requestInt($_GET, 'id') ?? requestInt($_POST, 'id');
+    $this->checkExamOwnership($id, true);
+    $mode = requestString($_GET, 'mode', 10);
+    if (!in_array($mode, ['renew', 'disable'], true)) {
+        abort(400, 'Ongeldig verzoek.');
+    }
+
+    Exam::setPublicLink($id, $mode === 'renew');
+    AuditLog::log('exam_public_link', ['exam_id' => $id, 'mode' => $mode]);
+    $_SESSION['success_message'] = $mode === 'renew'
+        ? 'Er is een nieuwe gastlink gemaakt. De oude link werkt niet meer.'
+        : 'De gastlink staat uit. Lopende gastpogingen werken nog wel.';
+    header('Location: /?action=docent_dashboard');
+    exit;
+  }
+
+  /**
    * Deletes an exam.
    */
   public function deleteExam() {
@@ -656,8 +680,10 @@ public function viewStudentAnswers($studentExamId) {
     validateCsrfToken();
     requireRole('admin');
 
+    // Het laatste uur blijft staan: de audit log is ook de bron voor de login-lockout en
+    // alle rate limits (vensters van hooguit 60 minuten). Leegmaken zet die dus niet terug.
     $pdo = Database::connect();
-    $pdo->exec("DELETE FROM audit_log");
+    $pdo->exec("DELETE FROM audit_log WHERE created_at < datetime('now', '-60 minutes')");
 
     // Log the clearing action itself, so there's a trace of who did it.
     AuditLog::log('audit_log_cleared');

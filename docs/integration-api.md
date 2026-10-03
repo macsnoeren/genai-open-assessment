@@ -66,7 +66,7 @@ De beheerder van de toetsapplicatie maakt een **koppeling** voor jouw website aa
 | De **toetsen** die je mag gebruiken | Zie `integration_exams` |
 | De **drempel** voor menselijke controle (standaard `hoog`) | Bepaalt wanneer `review_needed` waar is |
 
-De webhook-URL geef je door aan de beheerder; alleen `https` is toegestaan.
+De webhook-URL geef je door aan de beheerder; alleen `https` is toegestaan, en de host moet naar een publiek IP-adres wijzen.
 
 ## 3. Authenticatie
 

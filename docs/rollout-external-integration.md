@@ -19,8 +19,9 @@ Er is **geen overgangsvlag** nodig en de volgorde maakt niet uit: de workers mer
 
 1. **`php-curl`**: de webapp verstuurt de webhooks met curl. Controleer met `php -m | grep curl` (PHP-FPM en CLI kunnen verschillen; kijk bij twijfel in `phpinfo()` van de webserver). Installeer anders bijvoorbeeld `php8.2-curl` en herstart PHP-FPM.
 2. **Uitgaand HTTPS** van de webserver naar de webhookhosts van de externe websites (poort 443). Pas zo nodig de firewall aan. Zonder uitgaand verkeer werkt alles behalve de webhooks; die worden na 8 pogingen opgegeven en zijn te zien op de detailpagina van de koppeling.
-3. **Zet `INTEGRATION_ALLOW_HTTP` niet** in productie. Die omgevingsvariabele is alleen voor de Docker-dev (http naar localhost). In productie zijn terugkeer- en webhook-URL's alleen `https`.
-4. Met PHP-FPM stuurt `fastcgi_finish_request()` het antwoord aan de worker af voordat de webhooks gaan. Onder Apache met mod_php gebeurt dat met `Content-Length` en `Connection: close`; ook daar wacht de worker niet op trage ontvangers.
+3. **Webhooks gaan alleen naar publieke adressen.** Wijst een webhook-host naar het interne netwerk (privé-, loopback- of link-local-adres), dan weigert de applicatie hem (SSRF-beperking). Staat een gekoppelde website bewust in het eigen netwerk, zet dan `INTEGRATION_WEBHOOK_ALLOW_PRIVATE = true` in `config/app.php`.
+4. **Zet `INTEGRATION_ALLOW_HTTP` niet** in productie. Die omgevingsvariabele is alleen voor de Docker-dev (http naar localhost). In productie zijn terugkeer- en webhook-URL's alleen `https`.
+5. Met PHP-FPM stuurt `fastcgi_finish_request()` het antwoord aan de worker af voordat de webhooks gaan. Onder Apache met mod_php gebeurt dat met `Content-Length` en `Connection: close`; ook daar wacht de worker niet op trage ontvangers.
 
 ## Voordat je begint
 

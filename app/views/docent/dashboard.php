@@ -60,9 +60,22 @@ ob_start();
                         <div class="input-group input-group-sm mb-2" style="max-width: 300px; margin-left: auto;">
                             <input type="text" class="form-control" value="<?= htmlspecialchars($link) ?>" readonly id="link-<?= $exam['id'] ?>">
                             <button class="btn btn-outline-secondary" type="button" data-copy-target="link-<?= (int)$exam['id'] ?>" title="Kopieer link">📋</button>
+                            <?php if ($isOwner): ?>
+                            <a href="/?action=exam_public_link&mode=renew&id=<?= (int)$exam['id'] ?>" class="btn btn-outline-secondary" title="Nieuwe gastlink"
+                               data-confirm="Nieuwe gastlink maken? De huidige link werkt dan direct niet meer; lopende gastpogingen blijven werken.">🔄</a>
+                            <a href="/?action=exam_public_link&mode=disable&id=<?= (int)$exam['id'] ?>" class="btn btn-outline-secondary" title="Gastlink uitzetten"
+                               data-confirm="Gastlink uitzetten? Niemand kan dan nog als gast starten; lopende gastpogingen blijven werken.">⛔</a>
+                            <?php endif; ?>
                         </div>
                     <?php else: ?>
                         <?php $isOwner = ($_SESSION['role'] === 'admin' || (int)$exam['docent_id'] === (int)$_SESSION['user_id']); ?>
+                        <?php if ($isOwner): ?>
+                        <div class="mb-2">
+                            <span class="small text-muted me-1">Gastlink uit</span>
+                            <a href="/?action=exam_public_link&mode=renew&id=<?= (int)$exam['id'] ?>" class="btn btn-sm btn-outline-secondary"
+                               data-confirm="Een nieuwe gastlink maken?">Gastlink aanzetten</a>
+                        </div>
+                        <?php endif; ?>
                     <?php endif; ?>
                     <div class="btn-group btn-group-sm">
                         <a href="/?action=questions&exam_id=<?= $exam['id'] ?>" class="btn btn-outline-secondary" title="Vragen beheren">📝</a>

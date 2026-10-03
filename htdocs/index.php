@@ -105,6 +105,10 @@ switch ($action) {
    $docent->deleteExam();
    break;
 
+ case 'exam_public_link':
+   $docent->setPublicLink();
+   break;
+
  case 'exam_duplicate':
    $docent->duplicateExam();
    break;

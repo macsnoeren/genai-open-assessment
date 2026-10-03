@@ -132,14 +132,20 @@ class IntegrationEvent {
     $url = (string)($integration['webhook_url'] ?? '');
     $status = 0;
     $error = null;
-    if ($url === '' || !Integration::validWebhookUrl($url)) {
+    $target = $url !== '' && Integration::validWebhookUrl($url) ? Integration::webhookTarget($url) : null;
+    if ($target === null) {
       $error = 'Geen geldige webhook-URL ingesteld';
+    } elseif ($target['error'] !== null) {
+      $error = $target['error'];
     } else {
       $body = self::body($event);
       $ts = time();
       $protocols = CURLPROTO_HTTPS | (INTEGRATION_ALLOW_HTTP ? CURLPROTO_HTTP : 0);
+      $ip = str_contains($target['ip'], ':') ? '[' . $target['ip'] . ']' : $target['ip'];
       $ch = curl_init($url);
       curl_setopt_array($ch, [
+        // Verbinding vastpinnen op het gecontroleerde adres (geen DNS-rebinding)
+        CURLOPT_RESOLVE => [$target['host'] . ':' . $target['port'] . ':' . $ip],
         CURLOPT_POST => true,
         CURLOPT_POSTFIELDS => $body,
         CURLOPT_HTTPHEADER => [

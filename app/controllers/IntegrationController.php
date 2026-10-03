@@ -219,6 +219,12 @@ class IntegrationController {
         $webhookUrl = null;
     } elseif (!Integration::validWebhookUrl($webhookUrl)) {
         $this->failForm('Ongeldige webhook-URL. Alleen https, zonder gebruikersnaam of wachtwoord in de URL en zonder #.', $back);
+    } else {
+        // Een host die (nu) niet te vinden is, mag; bij het versturen wordt opnieuw gecontroleerd.
+        $target = Integration::webhookTarget($webhookUrl);
+        if ($target['ip'] === null && $target['error'] !== 'Host van de webhook-URL niet gevonden') {
+            $this->failForm($target['error'] . '. Webhooks naar het interne netwerk zijn niet toegestaan.', $back);
+        }
     }
 
     $minConfidence = requestString($_POST, 'min_confidence', 10, 'hoog');

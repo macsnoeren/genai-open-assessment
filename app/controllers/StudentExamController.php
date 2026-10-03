@@ -234,12 +234,15 @@ class StudentExamController {
    */
   public function guestLogout() {
       $studentExamId = requestInt($_GET, 'student_exam_id');
-      
+      $studentExam = $studentExamId !== null ? StudentExam::find($studentExamId) : null;
+      // Alleen terug naar de publieke link als deze gast toegang had tot de poging;
+      // anders zou elk id de publieke link van zijn toets prijsgeven.
+      $hadAccess = $studentExam && $studentExam['student_id'] === null && $this->guestHasAccess($studentExam, true);
+
       $this->setGuestCookie('guest_access_token', '', 0);
 
-      if ($studentExamId !== null) {
-          $studentExam = StudentExam::find($studentExamId);
-          if ($studentExam && !IntegrationAttempt::findByStudentExam($studentExamId)) {
+      if ($hadAccess) {
+          if (!IntegrationAttempt::findByStudentExam($studentExamId)) {
               $exam = Exam::find($studentExam['exam_id']);
               if ($exam && $exam['public_token']) {
                   header("Location: /?action=guest&token={$exam['public_token']}");

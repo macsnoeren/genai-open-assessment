@@ -65,6 +65,9 @@ const MAX_INTEGRATION_BODY = 100000;           // bytes: JSON-body van de integr
 const INTEGRATION_WEBHOOK_TIMEOUT = 3;         // seconden per webhookverzoek
 const INTEGRATION_WEBHOOK_BATCH = 3;           // webhooks per worker-poll
 const INTEGRATION_WEBHOOK_MAX_ATTEMPTS = 8;    // daarna geeft de aflevering van een event het op
+// Webhooks naar interne adressen (privé, loopback, link-local, ...) toestaan. Standaard uit
+// (SSRF-beperking); alleen aanzetten als een gekoppelde website bewust in het eigen netwerk staat.
+const INTEGRATION_WEBHOOK_ALLOW_PRIVATE = false;
 
 // ALLEEN VOOR DE DOCKER-DEV: staat http toe naar localhost, 127.0.0.1 en
 // host.docker.internal (terugkeer-URL en webhooks). Komt bewust uit een

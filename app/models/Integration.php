@@ -261,6 +261,62 @@ class Integration {
     return self::parseUrl($url) !== null;
   }
 
+  /** True als het IP-adres publiek routeerbaar is (geen privé-, loopback-, link-local- of gereserveerd adres). */
+  public static function isPublicIp(string $ip): bool {
+    if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) === false) {
+      return false;
+    }
+    // Ook carrier-grade NAT (100.64.0.0/10) en IPv4-mapped IPv6 tegenhouden
+    if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+      $long = ip2long($ip);
+      return !($long >= ip2long('100.64.0.0') && $long <= ip2long('100.127.255.255'));
+    }
+    return stripos($ip, '::ffff:') !== 0;
+  }
+
+  /**
+   * Bepaalt het IP-adres waarnaar een webhook mag (SSRF-beperking): de host
+   * wordt opgezocht en alle adressen moeten publiek zijn, behalve met
+   * INTEGRATION_WEBHOOK_ALLOW_PRIVATE of voor een dev-host met
+   * INTEGRATION_ALLOW_HTTP. De aanroeper pint de verbinding op dit adres
+   * (CURLOPT_RESOLVE), zodat DNS-rebinding tussen controle en verzoek niet helpt.
+   * @return array ['ip' => string|null, 'error' => string|null, 'host' => string, 'port' => int]
+   */
+  public static function webhookTarget(string $url): array {
+    $parts = parse_url($url);
+    $host = strtolower((string)($parts['host'] ?? ''));
+    $port = (int)($parts['port'] ?? (strtolower((string)($parts['scheme'] ?? '')) === 'http' ? 80 : 443));
+    $result = ['ip' => null, 'error' => null, 'host' => $host, 'port' => $port];
+    if ($host === '') {
+      $result['error'] = 'Geen host in de webhook-URL';
+      return $result;
+    }
+    if (filter_var($host, FILTER_VALIDATE_IP)) {
+      $ips = [$host];
+    } else {
+      $ips = gethostbynamel($host) ?: [];
+      $v6 = @dns_get_record($host, DNS_AAAA);
+      foreach (is_array($v6) ? $v6 : [] as $record) {
+        if (!empty($record['ipv6'])) {
+          $ips[] = $record['ipv6'];
+        }
+      }
+    }
+    if (!$ips) {
+      $result['error'] = 'Host van de webhook-URL niet gevonden';
+      return $result;
+    }
+    $privateAllowed = INTEGRATION_WEBHOOK_ALLOW_PRIVATE || self::allowsHttpHost($host);
+    foreach ($ips as $ip) {
+      if (!$privateAllowed && !self::isPublicIp($ip)) {
+        $result['error'] = 'Webhook-host wijst naar een intern adres (' . $ip . ')';
+        return $result;
+      }
+    }
+    $result['ip'] = $ips[0];
+    return $result;
+  }
+
   /** Terugkeer-URL: precies de geregistreerde origin, geen userinfo of fragment, maximaal 1000 tekens. */
   public static function allowsReturnUrl(array $integration, string $url): bool {
     $parsed = self::parseUrl($url);

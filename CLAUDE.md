@@ -106,7 +106,8 @@ En verder:
 - `models/Questions.php` bevat `class Question` (enkelvoud).
 - `StudentController` beheert **alle** gebruikers, niet alleen studenten.
 - Wijzig je de prompt van een toets, dan wist `updateExam()` alle AI-feedback van die toets. Dat is bewust zo.
-- Wie de audit log leegmaakt, zet daarmee ook de login-lockout en de gast-rate-limit terug.
+- De audit log is ook de bron voor de login-lockout en alle rate limits. "Log leegmaken" laat daarom het laatste uur staan; verwijder nooit recentere regels.
+- `requireLogin()` doet bij elk verzoek een query op `users` (rol, verwijderd, wachtwoord gewijzigd). Zet de sessie na een login of een eigen wachtwoordwijziging altijd via `setSessionUser()` of werk `pw_marker` bij, anders logt de gebruiker zichzelf uit.
 - De score-aggregatie (gemiddelden per model) staat op meerdere plekken gedupliceerd. Wijzig je die, wijzig dan alle plekken.
 - **Webhooks gaan alleen tijdens worker-polls** (`open_student_answers`, `open_assessment_jobs`, ná het antwoord aan de worker). Zonder draaiende worker gaan er geen webhooks. Test ze lokaal met de demo-site; de Docker-dev zet `INTEGRATION_ALLOW_HTTP=1` (nooit in productie).
 - **CSP `form-action`:** browsers passen die ook toe op de redirect na een POST. Een redirect naar een externe origin na een formulier (zoals de terugkeer-URL na inleveren) werkt alleen als die origin in de `form-action` van de pagina met het formulier staat (`sendSecurityHeaders(true, [$origin])`).

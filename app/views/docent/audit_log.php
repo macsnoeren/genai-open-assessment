@@ -68,7 +68,7 @@ if (!function_exists('formatLogDetails')) {
 
 <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin'): ?>
 <div class="mb-3">
-    <a href="/?action=clear_audit_log" class="btn btn-danger" data-confirm="Weet u zeker dat u de volledige audit log wilt wissen? Deze actie kan niet ongedaan worden gemaakt.">Log leegmaken</a>
+    <a href="/?action=clear_audit_log" class="btn btn-danger" data-confirm="Weet u zeker dat u de audit log wilt wissen? Alleen de regels van het laatste uur blijven staan (nodig voor de inlogbeveiliging en de rate limits). Deze actie kan niet ongedaan worden gemaakt.">Log leegmaken</a>
 </div>
 <?php endif; ?>
 
@@ -99,7 +99,7 @@ if (!function_exists('formatLogDetails')) {
                                 <li>
                                     <strong><?= htmlspecialchars(ucfirst($key)) ?>:</strong> 
                                     <?php 
-                                    if (is_array($val) && isset($val['old'], $val['new'])) {
+                                    if (is_array($val) && isset($val['old'], $val['new']) && is_scalar($val['old']) && is_scalar($val['new'])) {
                                         echo highlightDiff($val['old'], $val['new']);
                                     } else {
                                         echo htmlspecialchars(is_array($val) ? json_encode($val) : $val);

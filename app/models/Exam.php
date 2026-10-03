@@ -44,6 +44,17 @@ class Exam {
       return $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
+    /**
+     * Nieuwe publieke gastlink (de oude werkt direct niet meer), of geen link
+     * ($enabled = false: public_token NULL). Lopende gastpogingen blijven werken;
+     * die gebruiken hun eigen access_token.
+     */
+    public static function setPublicLink($id, bool $enabled): void {
+      $pdo = Database::connect();
+      $stmt = $pdo->prepare("UPDATE exams SET public_token = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?");
+      $stmt->execute([$enabled ? bin2hex(random_bytes(16)) : null, $id]);
+    }
+
     public static function findByPublicToken($token) {
       $pdo = Database::connect();
       $stmt = $pdo->prepare("SELECT * FROM exams WHERE public_token = ?");

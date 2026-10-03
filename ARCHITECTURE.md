@@ -91,7 +91,8 @@ Belangrijke ontwerpkeuzes:
 │   └── database.php         # Database-klasse: PDO-singleton, lichte migraties, default admin
 ├── setup/
 │   ├── schema.sql           # Volledig schema voor een NIEUWE database
-│   └── init_db.php          # CLI-only: maakt database/database.sqlite aan vanuit schema.sql
+│   ├── init_db.php          # CLI-only: maakt database/database.sqlite aan vanuit schema.sql
+│   └── cleanup_orphans.php  # CLI-only: ruimt wezen op (foreign_key_check), eerst dry-run, dan --apply
 ├── database/                # (gitignored) SQLite-bestand + heartbeat; buiten de webroot
 ├── bin/
 │   ├── process_ai_feedback.py  # De AI-worker (beoordeling van studentantwoorden)
@@ -223,7 +224,7 @@ Alle routes staan in de `switch` van [htdocs/index.php](htdocs/index.php). Per c
 | Controller | Actions | Minimale rol |
 |---|---|---|
 | `AuthController` | `login`, `do_login`, `logout`, `register`, `do_register`, `change_password`, `do_change_password` | publiek / ingelogd |
-| `DocentController` | `docent_dashboard`, `exam_*` (create/store/edit/update/delete/duplicate), `questions`, `question_*`, `exam_results`, `exam_comparison`, `exam_comparison_export`, `view_student_answers`, `delete_student_exam`, `update_guest_name`, `audit_log` | docent |
+| `DocentController` | `docent_dashboard`, `exam_*` (create/store/edit/update/delete/duplicate/public_link), `questions`, `question_*`, `exam_results`, `exam_comparison`, `exam_comparison_export`, `view_student_answers`, `delete_student_exam`, `update_guest_name`, `audit_log` | docent |
 | | `grade_student_exam`, `save_teacher_feedback`, `pending_assessments` | beoordelaar |
 | | `clear_audit_log` | admin |
 | `StudentController` | `students`, `student_create`, `student_store`, `student_delete` (gebruikersbeheer, alle rollen) | admin |
@@ -274,7 +275,7 @@ Autoriseer altijd op basis van data uit de database (bijvoorbeeld `StudentAnswer
 
 Gasten hebben geen account. Hun toegang loopt via twee tokens:
 
-1. **`exams.public_token`** (32 hex): zit in de deelbare link `/?action=guest&token=…`. Werkt los van `published`.
+1. **`exams.public_token`** (32 hex): zit in de deelbare link `/?action=guest&token=…`. Werkt los van `published`. De eigenaar kan hem vernieuwen of uitzetten (`exam_public_link`, `public_token = NULL`); lopende gastpogingen werken dan door.
 2. **`student_exams.access_token`** (64 hex): wordt bij `guest_start` aangemaakt en opgeslagen in de cookie `guest_access_token` (HttpOnly, SameSite=Strict, `GUEST_COOKIE_LIFETIME`). Daarnaast houdt de cookie `guest_history` (JSON, maximaal 20 tokens) eerdere pogingen bij, zodat de gast resultaten kan terugzien.
 
 Komt een token in de URL binnen (bijvoorbeeld via de deellink die de docent kopieert), dan zet `absorbUrlToken()` het in de cookie en redirect naar dezelfde URL zónder token. Zo blijft het niet in logs of browsergeschiedenis staan.
@@ -290,10 +291,10 @@ Een gastpoging herken je aan `student_exams.student_id IS NULL`.
 
 ### 4.4 Overige beveiligingsmaatregelen
 
-- **Sessie:** cookie met HttpOnly, SameSite=Strict en Secure (ook achter een proxy via `X-Forwarded-Proto`). `session_regenerate_id()` bij login en bij een wachtwoordwijziging. Na `SESSION_IDLE_TIMEOUT` volgt automatisch uitloggen.
+- **Sessie:** cookie met HttpOnly, SameSite=Strict en Secure (ook achter een proxy via `X-Forwarded-Proto`). `session_regenerate_id()` bij login en bij een wachtwoordwijziging. Na `SESSION_IDLE_TIMEOUT` volgt automatisch uitloggen. `requireLogin()` leest naam, rol en `force_password_change` bij elk verzoek uit de database (een rolwijziging geldt direct, een verwijderde gebruiker is direct uitgelogd) en vergelijkt een vingerafdruk van de wachtwoordhash (`passwordMarker()`): een nieuw wachtwoord beëindigt de andere sessies van die gebruiker.
 - **Wachtwoorden:** `password_hash()`, minimaal `PASSWORD_MIN_LENGTH` tekens met een letter en een cijfer. Wie het eigen wachtwoord wijzigt, moet het huidige opgeven.
 - **API-keys hebben een scope** (`api_keys.scope`): `worker` (de AI-workers; ook alle bestaande keys) of `integration` (één externe koppeling). `ApiController::verifyApiKey($scope)` geeft `401` bij een ongeldige of uitgeschakelde key en `403` (audit `api_scope_denied`) bij een geldige key met de verkeerde scope. Zo kan een externe partij nooit bij `open_student_answers` (alle studentantwoorden). Integratie-endpoints filteren alles op de koppeling van de key; een poging van een andere koppeling geeft `404`, geen `403`.
-- **Rate limiting gebeurt via de audit log:** `AuditLog::countRecent()` telt recente `login_failed`- en `guest_start`-regels per IP of e-mailadres. Wie de audit log leegmaakt, zet dus ook de lockouts terug.
+- **Rate limiting gebeurt via de audit log:** `AuditLog::countRecent()` telt recente `login_failed`- en `guest_start`-regels per IP of e-mailadres. "Log leegmaken" laat daarom de regels van het laatste uur staan (alle vensters zijn hooguit 60 minuten), zodat lockouts en rate limits niet terugspringen.
 - **Headers:** centraal in `sendSecurityHeaders()` (een tweede aanroep vóór de output vervangt de CSP; alleen gebruikt om de `form-action` van een koppelingspoging uit te breiden): CSP met nonce, `nosniff`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`, HSTS (alleen over HTTPS).
 - **Foutafhandeling:** `registerErrorHandling()` logt exceptions server-side en toont de gebruiker alleen een generieke 500-melding.
 - De volledige security-review en de status per bevinding staan in [docs/security-issues.txt](docs/security-issues.txt).
@@ -794,7 +795,7 @@ Per poging: de laagste confidence, `review_needed` als één antwoord het nodig 
 
 **Terugmelden (B10):** `integration_attempt_review` schrijft de meegestuurde scores in één transactie als `teacher_score`/`teacher_feedback` (een mens bij de externe website; audit `teacher_grade` met `source: integration` en de beoordelaar) en zet `reviewed_at`. Zonder `grades` alleen `reviewed_at`. Alleen bij `graded` of `reviewed`.
 
-**Instellingen** (`config/app.php`): `INTEGRATION_LAUNCH_TTL`, `INTEGRATION_START_MAX_PER_HOUR` (rate limit per koppeling via de audit log, gebruikersnaam `API:<naam>`), `MAX_INTEGRATION_BODY`, `INTEGRATION_WEBHOOK_TIMEOUT`, `INTEGRATION_WEBHOOK_BATCH`, `INTEGRATION_WEBHOOK_MAX_ATTEMPTS`, en `INTEGRATION_ALLOW_HTTP` (alleen uit de omgevingsvariabele, alleen voor de Docker-dev: `http` naar `localhost`, `127.0.0.1` en `host.docker.internal`).
+**Instellingen** (`config/app.php`): `INTEGRATION_LAUNCH_TTL`, `INTEGRATION_START_MAX_PER_HOUR` (rate limit per koppeling via de audit log, gebruikersnaam `API:<naam>`), `MAX_INTEGRATION_BODY`, `INTEGRATION_WEBHOOK_TIMEOUT`, `INTEGRATION_WEBHOOK_BATCH`, `INTEGRATION_WEBHOOK_MAX_ATTEMPTS`, `INTEGRATION_WEBHOOK_ALLOW_PRIVATE` (standaard `false`: de webhook-host moet naar publieke adressen wijzen; gecontroleerd bij het opslaan en bij elke aflevering, en curl wordt met `CURLOPT_RESOLVE` op dat adres vastgepind tegen DNS-rebinding) en `INTEGRATION_ALLOW_HTTP` (alleen uit de omgevingsvariabele, alleen voor de Docker-dev: `http` naar `localhost`, `127.0.0.1` en `host.docker.internal`, en daar ook interne adressen).
 
 ---
 
@@ -869,8 +870,7 @@ Weet dat deze punten bestaan voordat je in de buurt iets wijzigt. Los ze bij voo
 | Rubric-antwoorden alleen agentic | `excludeFromAiGradingSql()` | Automatisch agentic beoordeelde antwoorden krijgen geen `ai_feedback` (dus geen scores per model, alleen `Agentic AI`); zonder draaiende assessment-worker blijven ze wachten (geen terugval op de AI-feedbackworker) |
 | Geen geschiedenis per ontwerpronde | `question_designs` overschrijft `analysis`, `assessment` en `validation` | Eerdere rondes zijn alleen via de audit log (`question_design_feedback`) na te gaan |
 | Rubric als platte tekst in `questions.criteria` | `QuestionDesign::rubricToCriteriaText()` ↔ `parse_rubric_criteria()` | De worker leidt de structuur uit de tekst af (contract 7, §6.7). Een docent die de opbouw loslaat, valt zonder melding terug op de gewone beoordeling |
-| Rolwijziging pas na opnieuw inloggen actief | sessie bevat `role` | Admin moet de gebruiker laten herinloggen |
-| Publieke gastlink zonder vervaldatum of uitschakelknop | `exams.public_token` | Openstaand punt S-08 |
+| Publieke gastlink zonder vervaldatum | `exams.public_token` | De eigenaar kan de link wel vernieuwen of uitzetten (`exam_public_link`); een vervaldatum staat nog open (S-08) |
 | Webhooks alleen tijdens worker-polls | `IntegrationEvent::deliverDue()` in `ApiController` | Draait er geen worker, dan gaan er geen webhooks (en wordt er ook niets nagekeken). Geen knop "opnieuw versturen" |
 | Status van een koppelingspoging niet opgeslagen | `IntegrationAttempt::summary()` | Elke aanroep rekent alles opnieuw uit; geen index op status |
 | Lijst van koppelingspogingen gefilterd in PHP | `IntegrationAttempt::listForIntegration()` | Hooguit de 500 nieuwste kandidaten (`LIST_CANDIDATES`); oudere openstaande pogingen vallen buiten `integration_attempts` |
