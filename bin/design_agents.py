@@ -358,6 +358,10 @@ Je krijgt de vraag (<vraag>) en het gewenste antwoord van de docent (<gewenst_an
 TAKEN:
 1. Bepaal welke elementen in het gewenste antwoord essentieel zijn voor een goed antwoord
    (essential_elements: 1 tot {MAX_ESSENTIAL_ELEMENTS}, elk met waarom het essentieel is).
+   Essentieel betekent: zonder dit element is het antwoord op de GESTELDE vraag onvolledig.
+   Voeg details die bij hetzelfde punt horen samen tot één element; meestal zijn er 2 tot 4.
+   Wat het gewenste antwoord noemt maar de vraag niet vraagt (bijvoorbeeld maatregelen bij een
+   waarom-vraag), is niet essentieel: meld het als issue.
 2. Controleer of de vraag duidelijk en eenduidig is voor een student (question_clear).
 3. Controleer of het gewenste antwoord de vraag echt beantwoordt (answer_matches_question).
    Is dat niet zo, dan is dat ook een issue.
@@ -367,11 +371,21 @@ TAKEN:
 5. Stel zo nodig verduidelijkende vragen aan de docent (clarifying_questions).
 
 REGELS VOOR VERDUIDELIJKENDE VRAGEN:
-- Stel alleen vragen die nodig zijn voor een objectieve beoordeling. Nul vragen is prima,
-  maximaal {MAX_CLARIFYING_QUESTIONS}.
+- Stel alleen vragen waarvan het antwoord de beoordeling echt verandert: de grens tussen
+  volledig en gedeeltelijk correct, of wat wel of niet goed gerekend wordt. Nul vragen is prima
+  (bijvoorbeeld bij een feitelijke vraag met één eenduidig antwoord), maximaal {MAX_CLARIFYING_QUESTIONS}.
+- Typische redenen voor een vraag: de vraag zegt niet hoeveel redenen, voorbeelden of stappen
+  nodig zijn terwijl het gewenste antwoord er meerdere geeft; het gewenste antwoord bevat
+  onderdelen die de vraag niet vraagt (horen die bij de volle score?); of het gewenste antwoord
+  beantwoordt de vraag niet.
 - Elke vraag heeft een korte uitleg (why) waarom die informatie nodig is om goed te kunnen beoordelen.
 - Vraag niet naar wat al duidelijk uit de vraag of het gewenste antwoord blijkt.
-- Beantwoordt het gewenste antwoord de vraag niet, stel dan een gerichte vraag daarover.
+- Is answer_matches_question false, dan stel je ALTIJD minstens één gerichte vraag, en de eerste
+  vraag gaat over die mismatch: benoem concreet wat de vraag vraagt maar het gewenste antwoord
+  niet behandelt (of omgekeerd) en vraag wat de docent op dat punt als goed antwoord verwacht.
+  Voorbeeld: "Het gewenste antwoord beschrijft alleen A en niet B, terwijl de vraag naar het
+  verschil tussen A en B vraagt. Wat moet een student over B en het verschil zeggen?"
+  Zonder dat antwoord kan er geen eerlijke rubric worden gemaakt.
 
 OVERIG:
 - Maak GEEN rubric en geen puntentoekenning; dat doet een volgende stap.
@@ -399,11 +413,17 @@ TAKEN:
 - Maak 1 tot {MAX_CRITERIA} criteria. Per criterium: name (kort), description (waaraan een antwoord
   moet voldoen, zonder een letterlijke formulering te eisen), weight ("essentieel" of "aanvullend")
   en why (waarom dit criterium nodig is).
+- Criteria toetsen wat de vraag vraagt. Een onderdeel van het gewenste antwoord dat de vraag niet
+  vraagt, is hooguit "aanvullend", tenzij de docent zegt dat het bij de volle score hoort.
+- Een criterium beschrijft een inzicht, geen opsomming van details die allemaal genoemd moeten
+  worden. Details uit het gewenste antwoord zijn voorbeelden ("bijvoorbeeld ...").
 - Beschrijf de niveaus in termen van de criteria. De schaal ligt vast: alleen 10, 5, 1 of 0 punten.
   level_10 = volledig correct, level_5 = gedeeltelijk correct, level_1 = minimaal (een spoor van
   begrip), level_0 = onvoldoende. Gebruik geen punten per criterium en geen andere scores.
-- alternative_answers: 0 tot {MAX_ALTERNATIVE_ANSWERS} andere correcte antwoorden of invalshoeken
-  die ook goed gerekend moeten worden.
+  Voor level_10 zijn alle essentiële criteria nodig, de aanvullende niet.
+- alternative_answers: 0 tot {MAX_ALTERNATIVE_ANSWERS} andere correcte antwoorden op de vraag zelf
+  (andere redenen, voorbeelden of invalshoeken) die ook goed gerekend moeten worden. Geen varianten
+  van een aanvullend onderdeel.
 - explanation: licht kort je belangrijkste keuzes toe.
 
 ALS ER <feedback_docent> EN <vorige_rubric> ZIJN:
@@ -426,9 +446,16 @@ commentaar (comment):
 - coverage: dekken de criteria alle essentiële elementen van het gewenste antwoord?
 - clarity_independence: zijn de criteria duidelijk en onafhankelijk van elkaar (geen overlap of dubbeltelling)?
 - alternatives: is er ruimte voor alternatieve correcte antwoorden?
-- not_too_literal: is de rubric niet te letterlijk gekoppeld aan de formulering van het modelantwoord?
+- not_too_literal: is de rubric niet te letterlijk gekoppeld aan het modelantwoord? Een criterium dat
+  een opsomming van specifieke details eist, of een level_10 dat alle voorbeelden uit het
+  modelantwoord eist, is te letterlijk.
 - levels: sluiten de niveaus 10/5/1/0 logisch aan op de criteria (essentieel tegenover aanvullend)?
 - consistency: zijn criteria, niveaus en alternatieve antwoorden vrij van tegenstrijdigheden?
+
+Let daarbij vooral op: eist de rubric iets wat de vraag niet vraagt? Zo'n onderdeel mag niet
+essentieel zijn en niet nodig voor 10 punten (tenzij de docent dat zegt). Een controle is alleen
+ok als je op dat punt niets hoeft te veranderen: elke wijziging in changes hoort bij een controle
+die niet ok is.
 
 LEVER:
 - rubric: ALTIJD een volledige verbeterde rubric, ook als er weinig te verbeteren valt. Dezelfde

@@ -78,3 +78,30 @@ NUM_CTX = 8192
 
 # Maximale lengte (tekens) van het studentantwoord dat naar het model gaat
 MAX_ANSWER_CHARS = 4000
+
+# =========================
+# AI-vraagontwerper (process_design_jobs.py)
+# Alle instellingen hieronder zijn optioneel; zonder deze regels gelden de defaults.
+# =========================
+
+# Model voor de Analysis-, Assessment- en Validation-agent.
+# Default: het laatste model uit LLM_MODELS. Test NIET met lokale modellen.
+# DESIGN_MODEL = "gpt-oss:120b-cloud"
+
+# Optioneel een ander model voor de Validation Agent, zodat de controle
+# onafhankelijker is van het voorstel. Default: DESIGN_MODEL.
+# DESIGN_VALIDATION_MODEL = "gpt-oss:120b-cloud"
+
+# Seconden tussen twee keer ophalen van open ontwerpen (de docent wacht). Default 10.
+# DESIGN_POLL_INTERVAL = 10
+
+# Pogingen per stap voordat een ontwerp op "mislukt" komt. Default 3.
+# DESIGN_MAX_ATTEMPTS = 3
+
+# Tokenbudget per agent-aanroep (inclusief denktokens). Default 6000. Wordt
+# begrensd op NUM_PREDICT_MAX: bij afkapping verdubbelt het budget tot die grens.
+# NUM_PREDICT_DESIGN = 6000
+
+# Contextvenster voor de agents. Ruimer dan NUM_CTX, want de Validation Agent
+# krijgt vraag, antwoord, analyse en rubricvoorstel mee. Default 16384.
+# DESIGN_NUM_CTX = 16384

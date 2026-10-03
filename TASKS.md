@@ -258,15 +258,15 @@ Deze vormen zijn de afspraak tussen PHP (`QuestionDesign::normalize*()`) en Pyth
 
 ## Fase 7: Worker: hoofdloop en live test
 
-- [ ] **7.1 Jobs ophalen.** `bin/process_design_jobs.py`: `fetch_open_design_jobs()` (GET met `API_HEADERS` en `api_params`). Bij 401 dezelfde melding als de bestaande worker. Bij 404 de melding "Server kent open_design_jobs nog niet; rol eerst de nieuwe webapp uit." en een lege lijst.
-- [ ] **7.2 Resultaat insturen.** `submit_design_result(job, step, result=None, error=None) -> Optional[dict]`. Bij 409 een logregel "verouderd, overgeslagen". Bij andere fouten `None`.
-- [ ] **7.3 Hoofdloop.** `run()`: `check_base_url()`, en daarna elke `DESIGN_POLL_INTERVAL` seconden (default 10) jobs ophalen en `Orchestrator.handle()` aanroepen. Pogingen tel je per `(design_id, revision, step)`. Na `DESIGN_MAX_ATTEMPTS` (default 3) stuur je een `error` in, zodat het ontwerp op `failed` komt en de docent het opnieuw kan proberen.
-- [ ] **7.4 Configuratie documenteren.** Zet de nieuwe instellingen met uitleg in `bin/config.py.sample`: `DESIGN_MODEL`, `DESIGN_VALIDATION_MODEL`, `DESIGN_POLL_INTERVAL`, `DESIGN_MAX_ATTEMPTS`, `NUM_PREDICT_DESIGN` en `DESIGN_NUM_CTX`.
+- [x] **7.1 Jobs ophalen.** `bin/process_design_jobs.py`: `fetch_open_design_jobs()` (GET met `API_HEADERS` en `api_params`). Bij 401 dezelfde melding als de bestaande worker. Bij 404 de melding "Server kent open_design_jobs nog niet; rol eerst de nieuwe webapp uit." en een lege lijst.
+- [x] **7.2 Resultaat insturen.** `submit_design_result(job, step, result=None, error=None) -> Optional[dict]`. Bij 409 een logregel "verouderd, overgeslagen". Bij andere fouten `None`.
+- [x] **7.3 Hoofdloop.** `run()`: `check_base_url()`, en daarna elke `DESIGN_POLL_INTERVAL` seconden (default 10) jobs ophalen en `Orchestrator.handle()` aanroepen. Pogingen tel je per `(design_id, revision, step)`. Na `DESIGN_MAX_ATTEMPTS` (default 3) stuur je een `error` in, zodat het ontwerp op `failed` komt en de docent het opnieuw kan proberen.
+- [x] **7.4 Configuratie documenteren.** Zet de nieuwe instellingen met uitleg in `bin/config.py.sample`: `DESIGN_MODEL`, `DESIGN_VALIDATION_MODEL`, `DESIGN_POLL_INTERVAL`, `DESIGN_MAX_ATTEMPTS`, `NUM_PREDICT_DESIGN` en `DESIGN_NUM_CTX`.
   *Klaar als:* `python3 -m py_compile bin/*.py` slaagt.
-- [ ] **7.5 Live end-to-end-test.** Docker draait, de lokale `bin/config.py` heeft de `BASE_URL` van Docker en `DESIGN_MODEL = "gpt-oss:120b-cloud"` (**geen lokaal model**). Start `cd bin && python3 process_design_jobs.py` en doorloop de hele flow met het PLC-voorbeeld in de browser.
+- [x] **7.5 Live end-to-end-test.** Docker draait, de lokale `bin/config.py` heeft de `BASE_URL` van Docker en `DESIGN_MODEL = "gpt-oss:120b-cloud"` (**geen lokaal model**). Start `cd bin && python3 process_design_jobs.py` en doorloop de hele flow met het PLC-voorbeeld in de browser.
   *Klaar als:* het ontwerp via de vragen en het voorstel tot een goedgekeurde vraag komt.
-- [ ] **7.6 Prompts bijstellen.** Draai drie voorbeelden: (a) het PLC-voorbeeld, (b) een feitelijke vraag met een eenduidig antwoord (verwacht: geen of weinig vragen), (c) een vraag waarvan het gewenste antwoord de vraag niet beantwoordt (verwacht: `answer_matches_question = false` en een gerichte vraag). Stel de prompts bij tot de uitkomsten kloppen en noteer de bevindingen in de PR.
-- [ ] **7.7 Beoordelingsworker ongewijzigd.** Start een toetspoging op de nieuwe vraag en laat `process_ai_feedback.py` (ook met het cloud-model) die beoordelen.
+- [x] **7.6 Prompts bijstellen.** Draai drie voorbeelden: (a) het PLC-voorbeeld, (b) een feitelijke vraag met een eenduidig antwoord (verwacht: geen of weinig vragen), (c) een vraag waarvan het gewenste antwoord de vraag niet beantwoordt (verwacht: `answer_matches_question = false` en een gerichte vraag). Stel de prompts bij tot de uitkomsten kloppen en noteer de bevindingen in de PR.
+- [x] **7.7 Beoordelingsworker ongewijzigd.** Start een toetspoging op de nieuwe vraag en laat `process_ai_feedback.py` (ook met het cloud-model) die beoordelen.
   *Klaar als:* de criteriatekst bruikbaar is en de scores normaal worden uitgelezen.
   Commit: `Add design worker loop`.
 
