@@ -294,10 +294,10 @@ Deze vormen zijn de afspraak tussen PHP (`QuestionDesign::normalize*()`) en Pyth
 
 ## Fase 10: Afronding
 
-- [ ] **10.1** PHP- en Python-syntaxcheck en de mocktests slagen.
-- [ ] **10.2** Volledige rooktest met een **nieuwe** database (`docker compose down -v`) en met een **bestaande** database.
-- [ ] **10.3** Loop de [merge-checklist in CLAUDE.md](CLAUDE.md#checklist-voor-een-merge-naar-main) na.
-- [ ] **10.4** De PR-beschrijving vermeldt de uitrolvolgorde (eerst de webapp, dan de worker), dat er geen overgangsvlag nodig is, welke `config.py`-instellingen op de workermachine optioneel zijn, en de bevindingen uit 7.6.
+- [x] **10.1** PHP- en Python-syntaxcheck en de mocktests slagen.
+- [x] **10.2** Volledige rooktest met een **nieuwe** database (`docker compose down -v`) en met een **bestaande** database.
+- [x] **10.3** Loop de [merge-checklist in CLAUDE.md](CLAUDE.md#checklist-voor-een-merge-naar-main) na.
+- [x] **10.4** De PR-beschrijving vermeldt de uitrolvolgorde (eerst de webapp, dan de worker), dat er geen overgangsvlag nodig is, welke `config.py`-instellingen op de workermachine optioneel zijn, en de bevindingen uit 7.6.
 
 ---
 
