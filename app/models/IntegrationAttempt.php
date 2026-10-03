@@ -28,7 +28,8 @@ class IntegrationAttempt {
 
   private const SELECT = "
       SELECT ia.*, se.exam_id, se.guest_name, se.access_token, se.started_at, se.completed_at,
-             e.title AS exam_title, i.name AS integration_name, i.min_confidence, i.webhook_url
+             e.title AS exam_title, i.name AS integration_name, i.min_confidence, i.webhook_url,
+             i.return_origin
       FROM integration_attempts ia
       JOIN student_exams se ON ia.student_exam_id = se.id
       JOIN exams e ON se.exam_id = e.id

@@ -209,6 +209,14 @@ switch ($action) {
    $studentExamController->guestLogout();
    break;
 
+ case 'integration_launch':
+   $studentExamController->integrationLaunch();
+   break;
+
+ case 'integration_launch_start':
+   $studentExamController->integrationLaunchStart();
+   break;
+
  case 'start_exam':
    $studentExamController->startExam();
    break;

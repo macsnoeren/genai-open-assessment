@@ -16,6 +16,7 @@ require_once __DIR__ . '/../models/StudentExam.php';
 require_once __DIR__ . '/../models/AuditLog.php';
 require_once __DIR__ . '/../models/StudentAnswer.php';
 require_once __DIR__ . '/../models/AnswerAssessment.php';
+require_once __DIR__ . '/../models/IntegrationAttempt.php';
 
 /**
  * Class StudentExamController
@@ -185,7 +186,9 @@ class StudentExamController {
       $current = $this->currentGuestToken();
       if ($current !== null) {
           $studentExam = StudentExam::findByAccessToken($current);
-          if ($studentExam && (int)$studentExam['exam_id'] === (int)$exam['id']) {
+          // Een koppelingspoging wordt nooit via de publieke link hervat (alleen via een startlink).
+          if ($studentExam && (int)$studentExam['exam_id'] === (int)$exam['id']
+              && !IntegrationAttempt::findByStudentExam($studentExam['id'])) {
               header("Location: /?action=take_exam&student_exam_id={$studentExam['id']}");
               exit;
           }
@@ -236,7 +239,7 @@ class StudentExamController {
 
       if ($studentExamId !== null) {
           $studentExam = StudentExam::find($studentExamId);
-          if ($studentExam) {
+          if ($studentExam && !IntegrationAttempt::findByStudentExam($studentExamId)) {
               $exam = Exam::find($studentExam['exam_id']);
               if ($exam && $exam['public_token']) {
                   header("Location: /?action=guest&token={$exam['public_token']}");
@@ -246,6 +249,52 @@ class StudentExamController {
       }
       
       header("Location: /");
+      exit;
+  }
+
+  // ---------------------------------------------------------------------
+  // Externe koppeling: eenmalige startlink (zie ARCHITECTURE.md §4.3 en §6.9)
+  // ---------------------------------------------------------------------
+
+  private const LAUNCH_GONE_MESSAGE = 'Deze startlink is verlopen of al gebruikt. Ga terug naar de website waar je vandaan kwam en start de toets opnieuw.';
+
+  /**
+   * Landingspagina van een startlink (GET). Verbruikt niets: alleen tonen,
+   * met een knop die een POST doet naar integration_launch_start.
+   */
+  public function integrationLaunch() {
+      $token = $_GET['token'] ?? '';
+      $attempt = self::isValidToken($token) ? IntegrationAttempt::findByLaunchToken($token) : null;
+      if (!$attempt) {
+          abort(410, self::LAUNCH_GONE_MESSAGE);
+      }
+      $questionCount = count(Question::idsByExam($attempt['exam_id']));
+      $launchToken = $token;
+      $isGuest = true;
+      require __DIR__ . '/../views/student/integration_launch.php';
+  }
+
+  /**
+   * Verbruikt de startlink atomair (POST + CSRF), zet de gastcookie en stuurt
+   * de deelnemer naar de toets. De poging komt bewust niet in guest_history.
+   */
+  public function integrationLaunchStart() {
+      validateCsrfToken();
+      $token = requestString($_POST, 'token', 64);
+      $attempt = self::isValidToken($token) ? IntegrationAttempt::consumeLaunchToken($token) : null;
+      if (!$attempt) {
+          AuditLog::log('integration_launch_failed', null, 'Gast');
+          abort(410, self::LAUNCH_GONE_MESSAGE);
+      }
+
+      $this->setGuestCookie('guest_access_token', $attempt['access_token'], GUEST_COOKIE_LIFETIME);
+      AuditLog::log('integration_launch', [
+          'integration_id' => (int)$attempt['integration_id'],
+          'student_exam_id' => (int)$attempt['student_exam_id'],
+          'external_ref' => $attempt['external_ref'],
+      ], 'Gast');
+
+      header('Location: /?action=take_exam&student_exam_id=' . (int)$attempt['student_exam_id']);
       exit;
   }
 
@@ -278,9 +327,22 @@ class StudentExamController {
         }
     }
 
+    // Koppelingspoging: terug naar de externe website in plaats van naar de app
+    $integrationAttempt = $isGuest ? IntegrationAttempt::findByStudentExam($studentExamId) : null;
+
     if (!empty($studentExam['completed_at'])) {
+        if ($integrationAttempt) {
+            header('Location: ' . IntegrationAttempt::returnUrlFor($integrationAttempt, 'submitted'));
+            exit;
+        }
         header("Location: /?action=student_view_results&student_exam_id={$studentExamId}");
         exit;
+    }
+
+    if ($integrationAttempt) {
+        // Na "Definitief inleveren" volgt een redirect naar de externe website;
+        // de CSP van dit formulier moet die origin dan toestaan.
+        sendSecurityHeaders(true, [$integrationAttempt['return_origin']]);
     }
 
     $questions = Question::allByExam($studentExam['exam_id']);
@@ -360,6 +422,7 @@ class StudentExamController {
         AuditLog::log('exam_submit_final', ['student_exam_id' => $studentExamId], $isGuest ? 'Gast' : null);
         $stmt = $pdo->prepare("UPDATE student_exams SET completed_at = CURRENT_TIMESTAMP WHERE id = ? AND completed_at IS NULL");
         $stmt->execute([$studentExamId]);
+        $integrationAttempt = $isGuest ? IntegrationAttempt::findByStudentExam($studentExamId) : null;
         if ($stmt->rowCount() > 0) {
             // Antwoorden op rubric-vragen meteen agentic laten beoordelen (AGENTIC_AUTO_ASSESSMENT);
             // de overige gaan zoals altijd naar process_ai_feedback.
@@ -370,7 +433,10 @@ class StudentExamController {
             }
         }
         
-        if ($isGuest) {
+        if ($integrationAttempt) {
+            // Geen resultatenpagina: de externe website bepaalt wat de deelnemer ziet.
+            header('Location: ' . IntegrationAttempt::returnUrlFor($integrationAttempt, 'submitted'));
+        } elseif ($isGuest) {
              header("Location: /?action=student_view_results&student_exam_id={$studentExamId}");
         } else {
             header("Location: /?action=my_exams");
@@ -433,6 +499,13 @@ class StudentExamController {
             if (!$this->guestHasAccess($studentExam, true)) {
                 abort(403, 'Geen toegang (ongeldig token).');
             }
+            // Een koppelingspoging toont hier geen resultaat: terug naar de externe website.
+            $integrationAttempt = IntegrationAttempt::findByStudentExam($studentExamId);
+            if ($integrationAttempt) {
+                header('Location: ' . IntegrationAttempt::returnUrlFor($integrationAttempt,
+                    empty($studentExam['completed_at']) ? 'in_progress' : 'submitted'));
+                exit;
+            }
         } else {
             requireLogin();
             if ((int)$studentExam['student_id'] !== (int)$_SESSION['user_id']) {
@@ -467,7 +540,7 @@ class StudentExamController {
         }
         foreach ($history as $token) {
             $se = StudentExam::findByAccessToken($token);
-            if ($se && !empty($se['completed_at'])) {
+            if ($se && !empty($se['completed_at']) && !IntegrationAttempt::findByStudentExam($se['id'])) {
                 $exData = Exam::find($se['exam_id']);
                 $se['exam_title'] = $exData['title'] ?? 'Toets';
                 $allStudentExams[] = $se;

@@ -11,6 +11,12 @@ ob_start();
 
 $studentDisplayName = $isGuest ? ($studentExam['guest_name'] ?? 'Gast') : ($_SESSION['name'] ?? 'Student');
 $backToAppUrl = $isGuest ? '/' : '/?action=student_dashboard';
+$backToAppLabel = 'Terug naar hoofdapplicatie';
+if (!empty($integrationAttempt)) {
+    // Koppelingspoging: geen links naar de app, alleen terug naar de externe website.
+    $backToAppUrl = IntegrationAttempt::returnUrlFor($integrationAttempt, 'in_progress');
+    $backToAppLabel = 'Terug naar ' . $integrationAttempt['integration_name'];
+}
 ?>
 
 <div class="exam-topbar">
@@ -41,7 +47,7 @@ $backToAppUrl = $isGuest ? '/' : '/?action=student_dashboard';
         <h4>Toets ingeleverd</h4>
         <p>Je hebt deze toets ingeleverd op <?= e($studentExam['completed_at']) ?>. Je kunt je antwoorden niet meer wijzigen.</p>
     </div>
-    <a href="<?= e($backToAppUrl) ?>" class="btn btn-primary">Terug naar hoofdapplicatie</a>
+    <a href="<?= e($backToAppUrl) ?>" class="btn btn-primary"><?= e($backToAppLabel) ?></a>
 <?php else: ?>
 
 <h2 class="mb-4">Toets maken</h2>
@@ -60,6 +66,13 @@ $backToAppUrl = $isGuest ? '/' : '/?action=student_dashboard';
   </div>
   <?php endforeach; ?>
 </form>
+
+<?php if (!empty($integrationAttempt)): ?>
+<p class="small text-muted">
+    Wil je later verder? Klik eerst op <em>Tussentijds opslaan</em>.
+    <a href="<?= e($backToAppUrl) ?>"><?= e($backToAppLabel) ?></a>
+</p>
+<?php endif; ?>
 
 <?php endif; ?>
 

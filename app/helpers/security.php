@@ -43,9 +43,13 @@ function cspNonce(): string {
 
 /**
  * Stuurt de security headers. Aanroepen voordat er output is.
+ * Een tweede aanroep (vóór de output) vervangt de CSP.
  * @param bool $html true voor HTML-pagina's (met CSP), false voor JSON-API.
+ * @param array $formActionOrigins extra origins voor form-action. Browsers passen
+ *        form-action ook toe op de redirect na een POST; alleen nodig voor de
+ *        afname van een koppelingspoging (redirect naar de geregistreerde origin).
  */
-function sendSecurityHeaders(bool $html = true): void {
+function sendSecurityHeaders(bool $html = true, array $formActionOrigins = []): void {
     if (headers_sent()) {
         return;
     }
@@ -68,7 +72,7 @@ function sendSecurityHeaders(bool $html = true): void {
             . "font-src 'self' https://cdn.jsdelivr.net; "
             . "connect-src 'self'; "
             . "frame-ancestors 'self'; "
-            . "form-action 'self'; "
+            . "form-action " . implode(' ', array_merge(["'self'"], $formActionOrigins)) . "; "
             . "base-uri 'self'; "
             . "object-src 'none'");
     } else {
