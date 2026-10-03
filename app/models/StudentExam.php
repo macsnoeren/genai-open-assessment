@@ -64,12 +64,16 @@ class StudentExam {
   public static function findWithStudentDetailsByExam($examId) {
       $pdo = Database::connect();
       // Gebruik COALESCE om guest_name te tonen als student_id NULL is (geen join match)
+      // integration_name en external_ref zijn gevuld bij een poging via een externe koppeling
       $stmt = $pdo->prepare("
           SELECT se.*, 
                  COALESCE(u.name, se.guest_name, 'Onbekend') as name, 
-                 se.id as student_exam_id
+                 se.id as student_exam_id,
+                 i.name AS integration_name, ia.external_ref
           FROM student_exams se
           LEFT JOIN users u ON se.student_id = u.id
+          LEFT JOIN integration_attempts ia ON ia.student_exam_id = se.id
+          LEFT JOIN integrations i ON ia.integration_id = i.id
           WHERE se.exam_id = ?
           ORDER BY se.started_at DESC
       ");

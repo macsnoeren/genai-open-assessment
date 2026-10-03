@@ -388,9 +388,12 @@ public function viewStudentAnswers($studentExamId) {
     // Agentic beoordelingen per antwoord (alleen in deze docentweergave, niet in de blinde beoordeling)
     $assessmentRuns = AnswerAssessment::latestByStudentExam($studentExamId);
 
+    // Poging via een externe koppeling: die website haalt het resultaat op (geen deelbare link)
+    $integrationAttempt = IntegrationAttempt::findByStudentExam($studentExamId);
+
     // Genereer een deelbare link voor gaststudenten zodat zij hun resultaat kunnen inzien
     $shareableLink = null;
-    if ($studentExam['student_id'] === null && !empty($studentExam['access_token'])) {
+    if ($studentExam['student_id'] === null && !empty($studentExam['access_token']) && !$integrationAttempt) {
         $shareableLink = appBaseUrl() . "/?action=student_view_results&student_exam_id={$studentExamId}&token={$studentExam['access_token']}";
     }
 

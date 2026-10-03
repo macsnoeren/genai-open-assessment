@@ -37,6 +37,14 @@ ob_start();
     <?php unset($_SESSION['success_message']); ?>
 <?php endif; ?>
 
+<?php if (!empty($integrationAttempt)): ?>
+    <div class="alert alert-info mb-4">
+        Deze poging is gestart via de koppeling <strong><?= e($integrationAttempt['integration_name']) ?></strong>
+        (ref <code><?= e($integrationAttempt['external_ref']) ?></code>). De externe website haalt het resultaat op;
+        een docentscore die je hier geeft, ziet die website ook.
+    </div>
+<?php endif; ?>
+
 <?php if (isset($shareableLink) && $shareableLink): ?>
     <div class="alert alert-info mb-4">
         <label class="form-label"><strong>Deelbare link voor de student:</strong></label>

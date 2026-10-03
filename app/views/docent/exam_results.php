@@ -27,7 +27,12 @@
   <tbody>
     <?php foreach ($studentExams as $se): ?>
     <tr>
-      <td><?= htmlspecialchars($se['name']) ?></td>
+      <td>
+        <?= htmlspecialchars($se['name']) ?>
+        <?php if (!empty($se['integration_name'])): ?>
+        <span class="badge bg-info text-dark ms-1" title="Ref: <?= e($se['external_ref']) ?>">Koppeling: <?= e($se['integration_name']) ?></span>
+        <?php endif; ?>
+      </td>
       <td class="font-monospace"><?= htmlspecialchars($se['unique_id']) ?></td>
       <td><?= e($se['started_at']) ?></td>
       <td><?= e($se['completed_at'] ?? 'Nog niet ingeleverd') ?></td>
