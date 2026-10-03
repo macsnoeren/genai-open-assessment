@@ -16,6 +16,7 @@ require_once __DIR__ . '/../models/Questions.php';
 require_once __DIR__ . '/../models/Prompt.php';
 require_once __DIR__ . '/../models/StudentAnswer.php';
 require_once __DIR__ . '/../models/StudentExam.php';
+require_once __DIR__ . '/../models/QuestionDesign.php';
 
 /**
  * Class DocentController
@@ -222,6 +223,8 @@ class DocentController {
     $exam = Exam::find($examId);
     $canEdit = $this->canEditExam($exam);
     $questions = Question::allByExam($examId);
+    // AI-vraagontwerpen zijn alleen voor wie de toets mag wijzigen
+    $designs = $canEdit ? QuestionDesign::allByExam($examId) : [];
     
     // Nummer de vragen voor weergave
     foreach ($questions as $index => &$question) {

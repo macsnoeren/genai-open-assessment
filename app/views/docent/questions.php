@@ -17,6 +17,7 @@ ob_start();
         <button type="button" id="exportPdfBtn" class="btn btn-secondary me-2">Export PDF</button>
         <?php if (!empty($canEdit)): ?>
         <a href="index.php?action=question_create&exam_id=<?= (int)$exam['id'] ?>" class="btn btn-primary">Nieuwe vraag</a>
+        <a href="/?action=question_design_create&exam_id=<?= (int)$exam['id'] ?>" class="btn btn-outline-primary ms-2">Vraag ontwerpen met AI</a>
         <?php endif; ?>
     </div>
 </div>
@@ -52,6 +53,41 @@ ob_start();
         </table>
     </div>
 </div>
+
+<?php if (!empty($designs)): ?>
+<div class="card mt-4" data-html2canvas-ignore="true">
+    <div class="card-header fw-bold">AI-vraagontwerpen</div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>Vraag</th>
+              <th>Status</th>
+              <th>Gestart</th>
+              <th class="text-end">Acties</th>
+            </tr>
+          </thead>
+          <tbody>
+            <?php foreach ($designs as $d): ?>
+            <?php $preview = mb_strlen($d['question_text']) > 100 ? mb_substr($d['question_text'], 0, 100) . '…' : $d['question_text']; ?>
+            <tr>
+              <td><?= e($preview) ?></td>
+              <td><?= e(QuestionDesign::statusLabel($d['status'])) ?></td>
+              <td class="text-nowrap"><?= e($d['created_at']) ?></td>
+              <td class="text-end">
+                <div class="btn-group btn-group-sm">
+                    <a href="/?action=question_design_view&id=<?= (int)$d['id'] ?>" class="btn btn-outline-primary">Openen</a>
+                    <a href="/?action=question_design_delete&id=<?= (int)$d['id'] ?>" class="btn btn-outline-danger"
+                       data-confirm="Dit vraagontwerp verwijderen? Een al toegevoegde vraag blijft bestaan.">Verwijderen</a>
+                </div>
+              </td>
+            </tr>
+            <?php endforeach; ?>
+          </tbody>
+        </table>
+    </div>
+</div>
+<?php endif; ?>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"
