@@ -153,6 +153,10 @@ switch ($action) {
    $questionDesignController->approve();
    break;
 
+ case 'question_design_retry':
+   $questionDesignController->retry();
+   break;
+
  case 'question_design_delete':
    $questionDesignController->delete();
    break;

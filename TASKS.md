@@ -272,14 +272,14 @@ Deze vormen zijn de afspraak tussen PHP (`QuestionDesign::normalize*()`) en Pyth
 
 ## Fase 8: Foutpaden en robuustheid
 
-- [ ] **8.1 Mislukt en opnieuw.** Toon bij status `failed` de `error_message` en de knop "Opnieuw proberen". Action `question_design_retry` (POST, CSRF, rol, `loadDesignForWrite()`, `retry()`, audit, `case`).
+- [x] **8.1 Mislukt en opnieuw.** Toon bij status `failed` de `error_message` en de knop "Opnieuw proberen". Action `question_design_retry` (POST, CSRF, rol, `loadDesignForWrite()`, `retry()`, audit, `case`).
   *Klaar als:* een met curl ingestuurde `error` `failed` geeft en "Opnieuw" weer werk voor de worker oplevert.
-- [ ] **8.2 Worker niet actief.** Is `last_design_ping.txt` ouder dan 120 seconden terwijl de status `*_pending` is, dan toont de ontwerppagina: "De AI-ontwerpassistent is op dit moment niet actief; je aanvraag wordt verwerkt zodra die weer draait."
-- [ ] **8.3 Verouderd resultaat.** Stuur bij terwijl de worker nog rekent (of simuleer het met curl en een oude revision).
+- [x] **8.2 Worker niet actief.** Is `last_design_ping.txt` ouder dan 120 seconden terwijl de status `*_pending` is, dan toont de ontwerppagina: "De AI-ontwerpassistent is op dit moment niet actief; je aanvraag wordt verwerkt zodra die weer draait."
+- [x] **8.3 Verouderd resultaat.** Stuur bij terwijl de worker nog rekent (of simuleer het met curl en een oude revision).
   *Klaar als:* de worker 409 krijgt, het nieuwe werk oppakt en er niets wordt overschreven.
-- [ ] **8.4 Autorisatie.** Een andere docent (ook bij een gedeelde toets), een beoordelaar en een student krijgen 403 (of de redirect van `requireRole`) op elke `question_design_*`-action. Een admin mag alles.
-- [ ] **8.5 Limieten.** Na `DESIGN_START_MAX_PER_HOUR` starts volgt een nette melding. Na `DESIGN_MAX_REVISIONS` wordt bijsturen geweigerd. Te lange invoer wordt afgekapt of geweigerd, niet opgeslagen.
-- [ ] **8.6 Cascades.** Een verwijderde toets verwijdert zijn ontwerpen. Een verwijderde goedgekeurde vraag laat het ontwerp staan, met `question_id` NULL. `Exam::duplicate()` kopieert geen ontwerpen (bewust, controleer het alleen).
+- [x] **8.4 Autorisatie.** Een andere docent (ook bij een gedeelde toets), een beoordelaar en een student krijgen 403 (of de redirect van `requireRole`) op elke `question_design_*`-action. Een admin mag alles.
+- [x] **8.5 Limieten.** Na `DESIGN_START_MAX_PER_HOUR` starts volgt een nette melding. Na `DESIGN_MAX_REVISIONS` wordt bijsturen geweigerd. Te lange invoer wordt afgekapt of geweigerd, niet opgeslagen.
+- [x] **8.6 Cascades.** Een verwijderde toets verwijdert zijn ontwerpen. Een verwijderde goedgekeurde vraag laat het ontwerp staan, met `question_id` NULL. `Exam::duplicate()` kopieert geen ontwerpen (bewust, controleer het alleen).
   Commit: `Harden question design flow`.
 
 ## Fase 9: Documentatie

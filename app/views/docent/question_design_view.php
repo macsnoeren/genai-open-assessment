@@ -54,6 +54,24 @@ $statusClass = [
     <div class="card-footer bg-light">
         <span class="spinner-border spinner-border-sm text-secondary me-2" role="status" aria-hidden="true"></span>
         De AI is bezig&hellip; Deze pagina ververst zichzelf.
+        <?php if (!$designWorkerActive): ?>
+        <div class="text-danger small mt-1">
+            De AI-ontwerpassistent is op dit moment niet actief; je aanvraag wordt verwerkt zodra die weer draait.
+        </div>
+        <?php endif; ?>
+    </div>
+    <?php endif; ?>
+    <?php if ($status === QuestionDesign::STATUS_FAILED): ?>
+    <div class="card-footer bg-light">
+        <p class="text-danger mb-2">
+            De AI kon deze stap niet afronden<?= $design['error_message'] ? ': ' . e($design['error_message']) : '.' ?>
+        </p>
+        <form action="/?action=question_design_retry" method="post" class="d-inline">
+            <?= csrfInput() ?>
+            <input type="hidden" name="id" value="<?= (int)$design['id'] ?>">
+            <input type="hidden" name="revision" value="<?= (int)$design['revision'] ?>">
+            <button type="submit" class="btn btn-sm btn-primary">Opnieuw proberen</button>
+        </form>
     </div>
     <?php endif; ?>
 </div>

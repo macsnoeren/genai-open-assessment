@@ -84,6 +84,7 @@ class QuestionDesignController {
 
     $design = QuestionDesign::decode($this->loadDesignForWrite(requestInt($_GET, 'id')));
     $exam = Exam::find($design['exam_id']);
+    $designWorkerActive = $this->isDesignWorkerActive();
     require __DIR__ . '/../views/docent/question_design_view.php';
   }
 
@@ -199,6 +200,26 @@ class QuestionDesignController {
   }
 
   /**
+   * Puts a failed design back in the worker queue.
+   */
+  public function retry() {
+    validateCsrfToken();
+    requireRole('docent');
+
+    $design = $this->loadDesignForWrite(requestInt($_POST, 'id'));
+    $viewUrl = '/?action=question_design_view&id=' . (int)$design['id'];
+    $revision = requestInt($_POST, 'revision');
+    if ($design['status'] !== QuestionDesign::STATUS_FAILED || $revision === null
+        || !QuestionDesign::retry($design['id'], $revision)) {
+        $this->redirectWithError($viewUrl, 'Dit ontwerp kan nu niet opnieuw worden geprobeerd. Bekijk de actuele stand.');
+    }
+    AuditLog::log('question_design_retry', ['id' => (int)$design['id'], 'revision' => $revision + 1]);
+
+    header('Location: ' . $viewUrl);
+    exit;
+  }
+
+  /**
    * Deletes a question design (not the question that was created from it).
    */
   public function delete() {
@@ -252,6 +273,13 @@ class QuestionDesignController {
         return null;
     }
     return $value;
+  }
+
+  /** True als de ontwerp-worker de afgelopen 120 seconden jobs heeft opgehaald. */
+  private function isDesignWorkerActive(): bool {
+    $pingFile = __DIR__ . '/../../database/last_design_ping.txt';
+    $lastPing = is_readable($pingFile) ? file_get_contents($pingFile) : false;
+    return $lastPing !== false && is_numeric($lastPing) && (time() - (int)$lastPing) < 120;
   }
 
   private function redirectWithError(string $url, string $message): void {
