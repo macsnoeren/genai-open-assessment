@@ -99,6 +99,31 @@ ob_start();
     </div>
 </div>
 
+<?php if (!empty($canEdit)): ?>
+<div class="card mb-4">
+    <div class="card-body d-flex flex-wrap align-items-center gap-3">
+        <div class="flex-grow-1">
+            <strong>AI-resultaten</strong>
+            <div class="small text-muted">
+            <?php if (!empty($canResetAi)): ?>
+                Verwijdert de AI-feedback en de agentic beoordelingen van deze poging en laat de AI opnieuw beoordelen. Je eigen docentbeoordeling blijft staan.
+            <?php else: ?>
+                <?= e($aiResetReason ?? '') ?>
+            <?php endif; ?>
+            </div>
+        </div>
+        <?php if (!empty($canResetAi)): ?>
+        <form action="/?action=ai_results_reset_attempt" method="post" class="mb-0">
+            <?= csrfInput() ?>
+            <input type="hidden" name="student_exam_id" value="<?= (int)$studentExam['id'] ?>">
+            <button type="submit" class="btn btn-outline-danger btn-sm"
+                    data-confirm="Alle AI-resultaten van deze poging verwijderen en opnieuw laten uitvoeren? Je docentbeoordeling blijft staan.">Alle AI-resultaten opnieuw laten uitvoeren</button>
+        </form>
+        <?php endif; ?>
+    </div>
+</div>
+<?php endif; ?>
+
 <?php foreach ($answers as $a): ?>
 <div class="card mb-4" id="answer-<?= (int)$a['id'] ?>">
   <div class="card-header bg-light">
@@ -150,6 +175,15 @@ ob_start();
             <div class="mt-1"><?= nl2br(e($agentic['feedback'])) ?></div>
         <?php endif; ?>
       </div>
+      <?php endif; ?>
+
+      <?php if (!empty($canResetAi) && (!empty($a['ai_feedback']) || $run !== null)): ?>
+      <form action="/?action=ai_results_reset_answer" method="post" class="mb-0">
+          <?= csrfInput() ?>
+          <input type="hidden" name="student_answer_id" value="<?= (int)$a['id'] ?>">
+          <button type="submit" class="btn btn-sm btn-outline-danger"
+                  data-confirm="De AI-feedback en de agentic beoordeling van dit antwoord verwijderen en opnieuw laten uitvoeren?">AI opnieuw laten beoordelen</button>
+      </form>
       <?php endif; ?>
 
       <div class="mt-3 pt-3 border-top">
