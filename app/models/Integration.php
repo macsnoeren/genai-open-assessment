@@ -157,7 +157,7 @@ class Integration {
   public static function exams($id): array {
     $pdo = Database::connect();
     $stmt = $pdo->prepare("
-      SELECT e.id, e.title, e.ai_grading_enabled,
+      SELECT e.id, e.title, e.ai_grading_enabled, e.grading_scale,
              (SELECT COUNT(*) FROM questions q WHERE q.exam_id = e.id) AS question_count
       FROM integration_exams ie
       JOIN exams e ON ie.exam_id = e.id

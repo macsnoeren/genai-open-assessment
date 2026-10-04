@@ -18,6 +18,8 @@ require_once __DIR__ . '/../models/Questions.php';
 require_once __DIR__ . '/../models/Integration.php';
 require_once __DIR__ . '/../models/IntegrationAttempt.php';
 require_once __DIR__ . '/../models/IntegrationEvent.php';
+require_once __DIR__ . '/../models/Exam.php';
+require_once __DIR__ . '/../models/Grading.php';
 require_once __DIR__ . '/../../config/database.php';
 
 /**
@@ -549,6 +551,7 @@ class ApiController {
                 'exam_id' => (int)$exam['id'],
                 'title' => (string)$exam['title'],
                 'question_count' => (int)$exam['question_count'],
+                'grading_scale' => ($exam['grading_scale'] ?? 'points') === 'levels' ? 'levels' : 'points',
             ];
         }
         $this->jsonOut(200, ['exams' => $exams]);
@@ -703,7 +706,8 @@ class ApiController {
     /**
      * POST integration_attempt_review: de externe website meldt een menselijke
      * beoordeling terug. Met grades worden dat de docentscores (teacher_score
-     * komt altijd van een mens); zonder grades wordt de poging alleen als
+     * komt altijd van een mens; bij een toets met niveaus teacher_level, met
+     * level in plaats van score); zonder grades wordt de poging alleen als
      * afgehandeld gemarkeerd. Alleen bij status graded of reviewed.
      */
     public function integrationAttemptReview() {
@@ -741,6 +745,7 @@ class ApiController {
             $this->jsonError(400, 'Invalid grades (expected a list)');
             return;
         }
+        $isLevels = Grading::examScale(Exam::find($attempt['exam_id'])) === Grading::SCALE_LEVELS;
         // Alleen antwoorden van DEZE poging, uit de database
         $answersByQuestion = [];
         foreach (StudentAnswer::allByStudentExam($attemptId) as $answer) {
@@ -758,10 +763,21 @@ class ApiController {
                 $this->jsonError(400, 'Duplicate question_id in grades[' . $i . ']');
                 return;
             }
-            $score = $grade['score'] ?? null;
-            if (!is_int($score) || $score < 0 || $score > 10) {
-                $this->jsonError(400, 'Invalid score in grades[' . $i . '] (integer 0-10)');
-                return;
+            // Toets met niveaus: level in plaats van score (de schaal komt uit de database)
+            $score = null;
+            $level = null;
+            if ($isLevels) {
+                $level = $grade['level'] ?? null;
+                if (!Grading::isLevel($level)) {
+                    $this->jsonError(400, 'Invalid level in grades[' . $i . '] (onvoldoende, voldoende, goed or uitstekend)');
+                    return;
+                }
+            } else {
+                $score = $grade['score'] ?? null;
+                if (!is_int($score) || $score < 0 || $score > 10) {
+                    $this->jsonError(400, 'Invalid score in grades[' . $i . '] (integer 0-10)');
+                    return;
+                }
             }
             $feedback = $grade['feedback'] ?? null;
             if ($feedback !== null && (!is_string($feedback) || mb_strlen($feedback) > 5000)) {
@@ -770,6 +786,7 @@ class ApiController {
             }
             $grades[(int)$answer['id']] = [
                 'score' => $score,
+                'level' => $level,
                 // Zonder feedback blijft de bestaande docentfeedback staan.
                 'feedback' => $feedback ?? (string)($answer['teacher_feedback'] ?? ''),
                 'old' => $answer,
@@ -782,13 +799,15 @@ class ApiController {
             return;
         }
 
-        IntegrationAttempt::saveReview($attemptId, $grades);
+        IntegrationAttempt::saveReview($attemptId, $grades, $isLevels);
         foreach ($grades as $answerId => $grade) {
             $old = $grade['old'];
             $this->integrationLog('teacher_grade', [
                 'student_answer_id' => $answerId,
                 'student_exam_id' => $attemptId,
-                'teacher_score' => ['old' => $old['teacher_score'], 'new' => $grade['score']],
+                $isLevels ? 'teacher_level' : 'teacher_score' => $isLevels
+                    ? ['old' => $old['teacher_level'] ?? null, 'new' => $grade['level']]
+                    : ['old' => $old['teacher_score'], 'new' => $grade['score']],
                 'teacher_feedback' => ['old' => (string)($old['teacher_feedback'] ?? ''), 'new' => $grade['feedback']],
                 'source' => 'integration',
                 'reviewer' => $reviewer,

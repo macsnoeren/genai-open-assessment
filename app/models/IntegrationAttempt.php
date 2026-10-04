@@ -16,6 +16,7 @@ require_once __DIR__ . '/Questions.php';
 require_once __DIR__ . '/AnswerAssessment.php';
 require_once __DIR__ . '/Integration.php';
 require_once __DIR__ . '/IntegrationEvent.php';
+require_once __DIR__ . '/Grading.php';
 
 /**
  * Een poging via een externe koppeling: een gewone gastpoging (student_exams,
@@ -244,10 +245,13 @@ class IntegrationAttempt {
    * Het AI-resultaat van één antwoord in de vorm van contract 9 (veld "ai"),
    * of null als er nog geen AI-resultaat is. Een afgeronde agentic run gaat
    * voor; anders telt ai_feedback (ook zonder score: de worker gaf op).
+   * Bij een toets met niveaus ($scale levels) staat level (en model_levels) in
+   * plaats van score (en model_scores); zie ook de confidence-regels voor niveaus.
    * @param array $answer rij uit student_answers
    * @param array|null $run nieuwste niet-superseded agentic run van het antwoord
    */
-  public static function answerResult(array $answer, ?array $run, string $minConfidence): ?array {
+  public static function answerResult(array $answer, ?array $run, string $minConfidence, string $scale = 'points'): ?array {
+    $isLevels = $scale === Grading::SCALE_LEVELS;
     if ($run && $run['status'] === AnswerAssessment::STATUS_DONE) {
       $decoded = AnswerAssessment::decode($run);
       $decision = $decoded['decision'] ?? [];
@@ -280,7 +284,7 @@ class IntegrationAttempt {
       $student = AnswerAssessment::studentSummary($run);
       return [
         'source' => 'agentic',
-        'score' => (int)$run['final_score'],
+        $isLevels ? 'level' : 'score' => $isLevels ? ($run['final_level'] ?? null) : (int)$run['final_score'],
         'feedback' => $student['feedback'] ?? '',
         'confidence' => $confidence,
         'review_needed' => $humanReview || $belowThreshold,
@@ -292,6 +296,10 @@ class IntegrationAttempt {
     $aiFeedback = $answer['ai_feedback'] ?? null;
     if ($aiFeedback === null || trim($aiFeedback) === '') {
       return null;
+    }
+
+    if ($isLevels) {
+      return self::levelsModelsResult($aiFeedback, $minConfidence);
     }
 
     $modelScores = StudentAnswer::aiScores($aiFeedback);
@@ -339,8 +347,66 @@ class IntegrationAttempt {
   }
 
   /**
+   * Het AI-resultaat van de modellen (ai_feedback) bij een toets met niveaus.
+   * level is het laagste niveau van de modellen (voorzichtig: bij verschil
+   * volgt toch al review), model_levels het niveau per model. Confidence:
+   * - hoog: alle modellen geven hetzelfde niveau;
+   * - laag en altijd review: het ene model geeft onvoldoende en een ander
+   *   voldoende of hoger (oneens over geslaagd of niet);
+   * - middel: andere verschillen, of maar één model.
+   * Geen niveau of een vermoeden van prompt injection: laag en altijd review.
+   */
+  private static function levelsModelsResult(string $aiFeedback, string $minConfidence): array {
+    $modelLevels = StudentAnswer::aiLevels($aiFeedback);
+    $confidences = [];
+    $reasons = [];
+    $alwaysReview = false;
+    if (!$modelLevels) {
+      $confidences[] = 'laag';
+      $reasons[] = 'Geen AI-niveau';
+      $alwaysReview = true;
+    }
+    if (StudentAnswer::hasInjectionWarning($aiFeedback)) {
+      $confidences[] = 'laag';
+      $reasons[] = 'Mogelijke instructies aan de AI';
+      $alwaysReview = true;
+    }
+    $indexes = array_map(fn($level) => Grading::levelIndex($level), array_values($modelLevels));
+    if (count($modelLevels) === 1) {
+      $confidences[] = 'middel';
+      $reasons[] = 'Slechts één model';
+    } elseif (count($modelLevels) >= 2) {
+      $min = min($indexes);
+      $max = max($indexes);
+      if ($min === $max) {
+        $confidences[] = 'hoog';
+      } elseif ($min === 0 && $max >= 1) {
+        $confidences[] = 'laag';
+        $reasons[] = 'Modellen zijn het oneens over voldoende of onvoldoende';
+        $alwaysReview = true;
+      } else {
+        $confidences[] = 'middel';
+        $reasons[] = 'Kleine verschillen tussen modellen';
+      }
+    }
+    $confidence = self::lowest($confidences);
+
+    return [
+      'source' => 'models',
+      'level' => $indexes ? Grading::LEVELS[min($indexes)] : null,
+      'model_levels' => (object)$modelLevels,
+      'feedback' => $aiFeedback,
+      'confidence' => $confidence,
+      'review_needed' => $alwaysReview || self::below($confidence, $minConfidence),
+      'reasons' => $reasons,
+    ];
+  }
+
+  /**
    * De volledige samenvatting van een poging (contract 9). De status wordt
-   * afgeleid uit completed_at, de AI-resultaten, teacher_score en reviewed_at.
+   * afgeleid uit completed_at, de AI-resultaten, teacher_score (bij niveaus
+   * teacher_level) en reviewed_at. grade, grade_label en grade_overridden komen
+   * uit Grading::attemptResult().
    */
   public static function summary(array $attempt): array {
     $studentExamId = (int)$attempt['student_exam_id'];
@@ -350,6 +416,10 @@ class IntegrationAttempt {
     }
     $runs = AnswerAssessment::latestByStudentExam($studentExamId);
     $minConfidence = (string)$attempt['min_confidence'];
+    // Schaal van de toets en het eindcijfer (Grading::attemptResult(), ook een handmatige aanpassing)
+    $result = Grading::attemptResult($studentExamId);
+    $scale = $result['scale'];
+    $isLevels = $scale === Grading::SCALE_LEVELS;
 
     $answers = [];
     $aiScores = [];
@@ -368,9 +438,11 @@ class IntegrationAttempt {
       }
       $nr = $index + 1;
       $run = $runs[(int)$answer['id']] ?? null;
-      $ai = self::answerResult($answer, $run, $minConfidence);
+      $ai = self::answerResult($answer, $run, $minConfidence, $scale);
       $teacher = null;
-      if ($answer['teacher_score'] !== null && $answer['teacher_score'] !== '') {
+      if ($isLevels && Grading::isLevel($answer['teacher_level'] ?? null)) {
+        $teacher = ['level' => $answer['teacher_level'], 'feedback' => (string)($answer['teacher_feedback'] ?? '')];
+      } elseif (!$isLevels && $answer['teacher_score'] !== null && $answer['teacher_score'] !== '') {
         $teacher = ['score' => (int)$answer['teacher_score'], 'feedback' => (string)($answer['teacher_feedback'] ?? '')];
         $teacherScores[] = (int)$answer['teacher_score'];
       } else {
@@ -379,7 +451,7 @@ class IntegrationAttempt {
       if ($ai === null) {
         $allAi = false;
       } else {
-        if ($ai['score'] !== null) {
+        if (!$isLevels && $ai['score'] !== null) {
           $aiScores[] = $ai['score'];
         }
         $confidences[] = $ai['confidence'];
@@ -429,8 +501,14 @@ class IntegrationAttempt {
       'submitted_at' => self::isoTime($attempt['completed_at'] ?? null),
       'reviewed_at' => self::isoTime($attempt['reviewed_at'] ?? null),
       'updated_at' => self::isoTime($times ? max($times) : null),
+      // Bij niveaus null: het eindcijfer staat in grade
       'ai_score' => $isGraded && $aiScores ? round(array_sum($aiScores) / count($aiScores), 1) : null,
       'teacher_score' => $teacherScores ? round(array_sum($teacherScores) / count($teacherScores), 1) : null,
+      // Toegevoegd met beoordelen met niveaus (contract 9, alleen nieuwe velden)
+      'grading_scale' => $scale,
+      'grade' => is_float($result['final']) ? $result['final'] : null,
+      'grade_label' => $result['label'],
+      'grade_overridden' => $result['override'] !== null,
       'answers' => $answers,
     ];
   }
@@ -482,16 +560,20 @@ class IntegrationAttempt {
 
   /**
    * Slaat een menselijke beoordeling van de externe website op, in één
-   * transactie: per antwoord teacher_score en teacher_feedback (een mens, dus
-   * de docentscore), daarna reviewed_at.
-   * @param array $grades student_answer_id => ['score' => int, 'feedback' => string]
+   * transactie: per antwoord teacher_score (bij niveaus teacher_level) en
+   * teacher_feedback (een mens, dus de docentbeoordeling), daarna reviewed_at.
+   * @param array $grades student_answer_id => ['score' => int|null, 'level' => string|null, 'feedback' => string]
    */
-  public static function saveReview(int $studentExamId, array $grades): void {
+  public static function saveReview(int $studentExamId, array $grades, bool $isLevels = false): void {
     $pdo = Database::connect();
     $pdo->beginTransaction();
     try {
       foreach ($grades as $answerId => $grade) {
-        StudentAnswer::updateTeacherGrade($answerId, $grade['score'], $grade['feedback']);
+        if ($isLevels) {
+          StudentAnswer::updateTeacherLevel($answerId, $grade['level'], $grade['feedback']);
+        } else {
+          StudentAnswer::updateTeacherGrade($answerId, $grade['score'], $grade['feedback']);
+        }
       }
       $pdo->prepare("UPDATE integration_attempts SET reviewed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
                      WHERE student_exam_id = ?")->execute([$studentExamId]);

@@ -112,7 +112,9 @@ class Handler(BaseHTTPRequestHandler):
             if status != 200:
                 return self.send_html(502, page("Fout", f"<pre>{html.escape(json.dumps(data))}</pre>"))
             options = "".join(f"<option value='{e['exam_id']}'>{html.escape(e['title'])} "
-                              f"({e['question_count']} vragen)</option>" for e in data["exams"])
+                              f"({e['question_count']} vragen"
+                              f"{', niveaus' if e.get('grading_scale') == 'levels' else ''})</option>"
+                              for e in data["exams"])
             ref = f"demo-{int(time.time())}"
             form = ("<form method='post' action='/start'>"
                     f"<label>Toets <select name='exam_id'>{options}</select></label>"
@@ -127,12 +129,31 @@ class Handler(BaseHTTPRequestHandler):
             body = (f"<p>Terug van de toets (status in de URL: {html.escape((query.get('status') or [''])[0])}; "
                     "die URL is niet ondertekend, dus de echte status komt van de API).</p>"
                     f"<pre>{html.escape(json.dumps(data, indent=2, ensure_ascii=False))}</pre>")
+            # Eindcijfer (nieuwere webapp): grade en, bij een woordbeoordeling, grade_label
+            if status == 200 and (data.get("grade") is not None or data.get("grade_label")):
+                grade = f"{data['grade']:.1f}".replace(".", ",") if data.get("grade") is not None else ""
+                label = data.get("grade_label") or ""
+                body = (f"<p><strong>Eindcijfer:</strong> {html.escape(' · '.join(x for x in (grade, label) if x))}"
+                        f"{' (handmatig aangepast)' if data.get('grade_overridden') else ''}</p>") + body
+            levels = data.get("grading_scale") == "levels" if status == 200 else False
             if status == 200 and data.get("status") in ("graded", "reviewed"):
-                rows = "".join(
-                    f"<label>Vraag {a['nr']}: score <input name='score_{a['question_id']}' size='3' "
-                    f"value='{'' if a['ai'] is None or a['ai']['score'] is None else round(a['ai']['score'])}'> "
-                    f"feedback <input name='feedback_{a['question_id']}' size='40'></label>"
-                    for a in data["answers"])
+                if levels:
+                    # Toets met niveaus: per vraag een niveau (level) in plaats van een score
+                    def level_select(a):
+                        current = (a["ai"] or {}).get("level") or ""
+                        opts = "".join(f"<option{' selected' if lv == current else ''}>{lv}</option>"
+                                       for lv in ("", "onvoldoende", "voldoende", "goed", "uitstekend"))
+                        return f"<select name='level_{a['question_id']}'>{opts}</select>"
+                    rows = "".join(
+                        f"<label>Vraag {a['nr']}: niveau {level_select(a)} "
+                        f"feedback <input name='feedback_{a['question_id']}' size='40'></label>"
+                        for a in data["answers"])
+                else:
+                    rows = "".join(
+                        f"<label>Vraag {a['nr']}: score <input name='score_{a['question_id']}' size='3' "
+                        f"value='{'' if a['ai'] is None or a['ai']['score'] is None else round(a['ai']['score'])}'> "
+                        f"feedback <input name='feedback_{a['question_id']}' size='40'></label>"
+                        for a in data["answers"])
                 body += ("<h2>Menselijke beoordeling terugmelden</h2>"
                          f"<form method='post' action='/review'><input type='hidden' name='attempt_id' value='{data['attempt_id']}'>"
                          "<label>Beoordelaar <input name='reviewer' value='Demo-docent'></label>"
@@ -186,6 +207,10 @@ class Handler(BaseHTTPRequestHandler):
                 if key.startswith("score_") and values[0].strip() != "":
                     qid = int(key[len("score_"):])
                     grades.append({"question_id": qid, "score": int(values[0]),
+                                   "feedback": field(f"feedback_{qid}")})
+                elif key.startswith("level_") and values[0].strip() != "":
+                    qid = int(key[len("level_"):])
+                    grades.append({"question_id": qid, "level": values[0].strip(),
                                    "feedback": field(f"feedback_{qid}")})
             status, data = api("POST", "integration_attempt_review", {
                 "attempt_id": int(field("attempt_id")), "reviewer": field("reviewer"), "grades": grades})

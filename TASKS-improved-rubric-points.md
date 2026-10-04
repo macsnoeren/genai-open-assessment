@@ -254,13 +254,13 @@ Alle rekenregels staan op één plek, zodat de aggregatie niet opnieuw op meerde
 
 ## Fase 13: Integratie-API (contract 9, alleen toevoegingen)
 
-- [ ] **13.1 `integration_exams`:** per toets het veld `grading_scale`.
-- [ ] **13.2 `IntegrationAttempt::answerResult()`:** bij `levels` `level` (per model in `model_levels`, of agentic) in plaats van `score`/`model_scores`. Confidence volgens de regels hieronder (13.3).
-- [ ] **13.3 Confidence bij niveaus:** hoog als alle modellen hetzelfde niveau geven; **laag en altijd review** als het ene model onvoldoende geeft en een ander voldoende of hoger; middel bij andere verschillen of bij één model.
-- [ ] **13.4 `IntegrationAttempt::summary()`:** voeg `grade` (`final` uit `attemptResult()`), `grade_label` (of null) en `grade_overridden` (true/false) toe. `ai_score` en `teacher_score` blijven bij `points` gelijk en zijn bij `levels` null.
-- [ ] **13.5 `integration_attempt_review`:** bij `levels` verwacht `grades[]` `level` in plaats van `score` (anders 400 met `Invalid level in grades[i]`). Bij `points` blijft alles gelijk. Gebruik `StudentAnswer::updateTeacherLevel()` in `saveReview()`.
-- [ ] **13.6 Webhooks:** controleer dat de body niet verandert (geen scores of cijfers).
-- [ ] **13.7 Demo** (`docs/integration-demo/demo_site.py`): toon `grade`/`grade_label` als die er zijn.
+- [x] **13.1 `integration_exams`:** per toets het veld `grading_scale`.
+- [x] **13.2 `IntegrationAttempt::answerResult()`:** bij `levels` `level` (per model in `model_levels`, of agentic) in plaats van `score`/`model_scores`. Confidence volgens de regels hieronder (13.3).
+- [x] **13.3 Confidence bij niveaus:** hoog als alle modellen hetzelfde niveau geven; **laag en altijd review** als het ene model onvoldoende geeft en een ander voldoende of hoger; middel bij andere verschillen of bij één model.
+- [x] **13.4 `IntegrationAttempt::summary()`:** voeg `grade` (`final` uit `attemptResult()`), `grade_label` (of null) en `grade_overridden` (true/false) toe. `ai_score` en `teacher_score` blijven bij `points` gelijk en zijn bij `levels` null.
+- [x] **13.5 `integration_attempt_review`:** bij `levels` verwacht `grades[]` `level` in plaats van `score` (anders 400 met `Invalid level in grades[i]`). Bij `points` blijft alles gelijk. Gebruik `StudentAnswer::updateTeacherLevel()` in `saveReview()`.
+- [x] **13.6 Webhooks:** controleer dat de body niet verandert (geen scores of cijfers).
+- [x] **13.7 Demo** (`docs/integration-demo/demo_site.py`): toon `grade`/`grade_label` als die er zijn.
   *Klaar als:* met de demo-site een `points`-toets precies dezelfde JSON geeft als vroeger (alleen nieuwe velden erbij), en een `levels`-toets het cijfer en de niveaus toont en een review met `level` accepteert. Commit: `Expose levels and final grade in integration API`.
 
 ## Fase 14: Documentatie
