@@ -25,6 +25,7 @@ ob_start();
     <tr>
       <th>Titel</th>
       <th>Beschrijving</th>
+      <th>Schaal</th>
       <th>Laatst gewijzigd</th>
       <th class="text-end">Acties</th>
     </tr>
@@ -34,6 +35,7 @@ ob_start();
     <tr>
       <td><?= htmlspecialchars($p['title']) ?></td>
       <td><?= htmlspecialchars($p['description']) ?></td>
+      <td><?= ($p['grading_scale'] ?? 'points') === 'levels' ? 'Niveaus' : 'Punten' ?></td>
       <td><?= e($p['updated_at']) ?></td>
       <td class="text-end">
         <div class="btn-group btn-group-sm">

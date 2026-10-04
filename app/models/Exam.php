@@ -21,15 +21,19 @@ class Exam {
     return $exams;
   }
   
-  public static function create($title, $description, $docentId, $promptId = null, $aiGradingEnabled = 0, $shared = 0, $published = 0) {
+  public static function create($title, $description, $docentId, $promptId = null, $aiGradingEnabled = 0, $shared = 0, $published = 0,
+                                $gradingScale = 'points', $gradingSchemeId = null, $showGradeLabel = 0) {
     $pdo = Database::connect();
     // Genereer een unieke publieke token
     $publicToken = bin2hex(random_bytes(16));
     $stmt = $pdo->prepare("
-			  INSERT INTO exams (title, description, docent_id, public_token, prompt_id, ai_grading_enabled, shared, published)
-			  VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+			  INSERT INTO exams (title, description, docent_id, public_token, prompt_id, ai_grading_enabled, shared, published,
+			                     grading_scale, grading_scheme_id, show_grade_label)
+			  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 			  ");
-    $stmt->execute([$title, $description, $docentId, $publicToken, $promptId, $aiGradingEnabled, $shared, $published]);
+    $stmt->execute([$title, $description, $docentId, $publicToken, $promptId, $aiGradingEnabled, $shared, $published,
+                    $gradingScale, $gradingSchemeId, $showGradeLabel]);
+    return (int)$pdo->lastInsertId();
   }
 
     /** Toetsen die zichtbaar zijn voor ingelogde studenten. */
@@ -73,14 +77,28 @@ class Exam {
       return $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
-    public static function update($id, $title, $description, $promptId = null, $aiGradingEnabled = 0, $shared = 0, $published = 0) {
+    public static function update($id, $title, $description, $promptId = null, $aiGradingEnabled = 0, $shared = 0, $published = 0,
+                                  $gradingScale = 'points', $gradingSchemeId = null, $showGradeLabel = 0) {
       $pdo = Database::connect();
       $stmt = $pdo->prepare("
 			                UPDATE exams
-			    SET title = ?, description = ?, prompt_id = ?, ai_grading_enabled = ?, shared = ?, published = ?, updated_at = CURRENT_TIMESTAMP
+			    SET title = ?, description = ?, prompt_id = ?, ai_grading_enabled = ?, shared = ?, published = ?,
+			        grading_scale = ?, grading_scheme_id = ?, show_grade_label = ?, updated_at = CURRENT_TIMESTAMP
 			                WHERE id = ?
 			            ");
-      $stmt->execute([$title, $description, $promptId, $aiGradingEnabled, $shared, $published, $id]);
+      $stmt->execute([$title, $description, $promptId, $aiGradingEnabled, $shared, $published,
+                      $gradingScale, $gradingSchemeId, $showGradeLabel, $id]);
+    }
+
+    /**
+     * True als de toets minstens één ingeleverde poging heeft. De schaal ligt dan
+     * vast: de bestaande beoordelingen horen bij de schaal waarmee ze zijn gegeven.
+     */
+    public static function hasSubmittedAttempts($id): bool {
+      $pdo = Database::connect();
+      $stmt = $pdo->prepare("SELECT 1 FROM student_exams WHERE exam_id = ? AND completed_at IS NOT NULL LIMIT 1");
+      $stmt->execute([$id]);
+      return (bool)$stmt->fetchColumn();
     }
 
     public static function duplicate($id) {
@@ -103,10 +121,12 @@ class Exam {
         $publicToken = bin2hex(random_bytes(16));
         
         $stmt = $pdo->prepare("
-            INSERT INTO exams (title, description, docent_id, public_token, prompt_id, ai_grading_enabled, shared)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO exams (title, description, docent_id, public_token, prompt_id, ai_grading_enabled, shared,
+                               grading_scale, grading_scheme_id, show_grade_label)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ");
-        $stmt->execute([$newTitle, $exam['description'], $exam['docent_id'], $publicToken, $exam['prompt_id'], $exam['ai_grading_enabled'], 0]); // Kopie is standaard niet gedeeld
+        $stmt->execute([$newTitle, $exam['description'], $exam['docent_id'], $publicToken, $exam['prompt_id'], $exam['ai_grading_enabled'], 0, // Kopie is standaard niet gedeeld
+                        $exam['grading_scale'] ?? 'points', $exam['grading_scheme_id'] ?? null, $exam['show_grade_label'] ?? 0]);
         $newExamId = $pdo->lastInsertId();
 
         // 3. Kopieer vragen
@@ -129,14 +149,16 @@ class Exam {
         $studentExams = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         $insertSE = $pdo->prepare("
-            INSERT INTO student_exams (student_id, guest_name, exam_id, unique_id, access_token, started_at, completed_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO student_exams (student_id, guest_name, exam_id, unique_id, access_token, started_at, completed_at,
+                                       grade_override, grade_override_label, grade_override_reason, grade_override_by,
+                                       grade_override_at, grade_override_basis)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ");
         
-        // 5. Kopieer antwoorden (student_answers) - ZONDER AI feedback, MET docent feedback
+        // 5. Kopieer antwoorden (student_answers) - ZONDER AI feedback, MET docentbeoordeling (score of niveau)
         $insertSA = $pdo->prepare("
-            INSERT INTO student_answers (student_exam_id, question_id, answer, teacher_score, teacher_feedback)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO student_answers (student_exam_id, question_id, answer, teacher_score, teacher_level, teacher_feedback)
+            VALUES (?, ?, ?, ?, ?, ?)
         ");
 
         foreach ($studentExams as $se) {
@@ -151,7 +173,13 @@ class Exam {
                 $newUniqueId,
                 $newAccessToken,
                 $se['started_at'],
-                $se['completed_at']
+                $se['completed_at'],
+                $se['grade_override'] ?? null,
+                $se['grade_override_label'] ?? null,
+                $se['grade_override_reason'] ?? null,
+                $se['grade_override_by'] ?? null,
+                $se['grade_override_at'] ?? null,
+                $se['grade_override_basis'] ?? null
             ]);
             $newStudentExamId = $pdo->lastInsertId();
 
@@ -167,6 +195,7 @@ class Exam {
                         $questionMap[$ans['question_id']],
                         $ans['answer'],
                         $ans['teacher_score'],
+                        $ans['teacher_level'] ?? null,
                         $ans['teacher_feedback']
                     ]);
                 }

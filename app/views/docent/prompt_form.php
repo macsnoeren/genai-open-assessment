@@ -32,6 +32,20 @@ ob_start(); ?>
         <input type="text" name="description" class="form-control" value="<?= htmlspecialchars($prompt['description'] ?? '') ?>">
     </div>
 
+    <div class="mb-3">
+        <label class="form-label d-block">Schaal</label>
+        <?php $promptScale = $prompt['grading_scale'] ?? Grading::SCALE_POINTS; ?>
+        <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio" name="grading_scale" id="promptScalePoints" value="points" <?= $promptScale === 'points' ? 'checked' : '' ?>>
+            <label class="form-check-label" for="promptScalePoints">Punten (score 0, 1, 5 of 10)</label>
+        </div>
+        <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio" name="grading_scale" id="promptScaleLevels" value="levels" <?= $promptScale === 'levels' ? 'checked' : '' ?>>
+            <label class="form-check-label" for="promptScaleLevels">Niveaus (onvoldoende, voldoende, goed, uitstekend)</label>
+        </div>
+        <div class="form-text">Een toets kan alleen een prompt met dezelfde schaal kiezen. Bij niveaus vraagt de prompt om een <code>level</code> in plaats van een <code>score</code>.</div>
+    </div>
+
     <div class="mb-4">
         <label class="form-label">Prompt Tekst</label>
         <div class="form-text mb-2">

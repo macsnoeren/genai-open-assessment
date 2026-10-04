@@ -17,24 +17,32 @@ class Prompt {
     return $stmt->fetch(PDO::FETCH_ASSOC);
   }
   
-  public static function create($title, $description, $promptText) {
+  public static function create($title, $description, $promptText, $gradingScale = 'points') {
     $pdo = Database::connect();
     $stmt = $pdo->prepare("
-        INSERT INTO prompts (title, description, prompt_text)
-        VALUES (?, ?, ?)
+        INSERT INTO prompts (title, description, prompt_text, grading_scale)
+        VALUES (?, ?, ?, ?)
     ");
-    $stmt->execute([$title, $description, $promptText]);
+    $stmt->execute([$title, $description, $promptText, $gradingScale]);
     return $pdo->lastInsertId();
   }
   
-  public static function update($id, $title, $description, $promptText) {
+  public static function update($id, $title, $description, $promptText, $gradingScale = 'points') {
     $pdo = Database::connect();
     $stmt = $pdo->prepare("
         UPDATE prompts 
-        SET title = ?, description = ?, prompt_text = ?, updated_at = CURRENT_TIMESTAMP
+        SET title = ?, description = ?, prompt_text = ?, grading_scale = ?, updated_at = CURRENT_TIMESTAMP
         WHERE id = ?
     ");
-    $stmt->execute([$title, $description, $promptText, $id]);
+    $stmt->execute([$title, $description, $promptText, $gradingScale, $id]);
+  }
+
+  /** Aantal toetsen dat deze prompt gebruikt met een andere schaal dan $gradingScale. */
+  public static function countExamsWithOtherScale($id, string $gradingScale): int {
+    $pdo = Database::connect();
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM exams WHERE prompt_id = ? AND grading_scale != ?");
+    $stmt->execute([$id, $gradingScale]);
+    return (int)$stmt->fetchColumn();
   }
   
   public static function delete($id) {

@@ -19,6 +19,8 @@ require_once __DIR__ . '/../models/StudentExam.php';
 require_once __DIR__ . '/../models/QuestionDesign.php';
 require_once __DIR__ . '/../models/AnswerAssessment.php';
 require_once __DIR__ . '/../models/IntegrationAttempt.php';
+require_once __DIR__ . '/../models/Grading.php';
+require_once __DIR__ . '/../models/GradingScheme.php';
 
 /**
  * Class DocentController
@@ -102,6 +104,9 @@ class DocentController {
     $action = 'exam_store';
     $title = 'Nieuwe toets';
     $prompts = Prompt::all();
+    $gradingSchemes = GradingScheme::all();
+    $defaultScheme = GradingScheme::defaultScheme();
+    $scaleLocked = false;
     require __DIR__ . '/../views/docent/exam_form.php';
   }
   
@@ -117,30 +122,35 @@ class DocentController {
     if ($title === '') {
         abort(400, 'Titel is verplicht.');
     }
-    $promptId = requestInt($_POST, 'prompt_id');
-    if ($promptId !== null && !Prompt::find($promptId)) {
-        abort(400, 'Ongeldige prompt.');
-    }
+    [$gradingScale, $gradingSchemeId, $showGradeLabel] = $this->readGradingSettings();
+    $promptId = $this->readPromptId($gradingScale);
     $aiGradingEnabled = isset($_POST['ai_grading_enabled']) ? 1 : 0;
     $shared = isset($_POST['shared']) ? 1 : 0;
     $published = isset($_POST['published']) ? 1 : 0;
 
-    Exam::create(
+    $examId = Exam::create(
 		 $title,
 		 $description,
 		 $_SESSION['user_id'],
          $promptId,
          $aiGradingEnabled,
          $shared,
-         $published
+         $published,
+         $gradingScale,
+         $gradingSchemeId,
+         $showGradeLabel
 		 );
     AuditLog::log('exam_create', [
+        'id' => $examId,
         'title' => $title,
         'description' => $description,
         'prompt_id' => $promptId,
         'ai_grading_enabled' => $aiGradingEnabled,
         'shared' => $shared,
-        'published' => $published
+        'published' => $published,
+        'grading_scale' => $gradingScale,
+        'grading_scheme_id' => $gradingSchemeId,
+        'show_grade_label' => $showGradeLabel
     ]);
     
     header('Location: /?action=docent_dashboard');
@@ -160,6 +170,9 @@ class DocentController {
     $action = 'exam_update';
     $title = 'Toets bewerken';
     $prompts = Prompt::all();
+    $gradingSchemes = GradingScheme::all();
+    $defaultScheme = GradingScheme::defaultScheme();
+    $scaleLocked = Exam::hasSubmittedAttempts($id);
     require __DIR__ . '/../views/docent/exam_form.php';
   }
   
@@ -179,10 +192,12 @@ class DocentController {
     if ($title === '') {
         abort(400, 'Titel is verplicht.');
     }
-    $promptId = requestInt($_POST, 'prompt_id');
-    if ($promptId !== null && !Prompt::find($promptId)) {
-        abort(400, 'Ongeldige prompt.');
+    [$gradingScale, $gradingSchemeId, $showGradeLabel] = $this->readGradingSettings();
+    $currentScale = Grading::examScale($currentExam);
+    if ($gradingScale !== $currentScale && Exam::hasSubmittedAttempts($id)) {
+        abort(400, 'De schaal van deze toets kan niet meer wijzigen: er zijn al resultaten.');
     }
+    $promptId = $this->readPromptId($gradingScale);
     $aiGradingEnabled = isset($_POST['ai_grading_enabled']) ? 1 : 0;
     $shared = isset($_POST['shared']) ? 1 : 0;
     $published = isset($_POST['published']) ? 1 : 0;
@@ -194,7 +209,10 @@ class DocentController {
          $promptId,
          $aiGradingEnabled,
          $shared,
-         $published
+         $published,
+         $gradingScale,
+         $gradingSchemeId,
+         $showGradeLabel
 		 );
 
     $changes = ['id' => $id];
@@ -219,6 +237,16 @@ class DocentController {
     }
     if (($currentExam['published'] ?? 0) != $published) {
         $changes['published'] = ['old' => $currentExam['published'] ?? 0, 'new' => $published];
+    }
+    if ($currentScale !== $gradingScale) {
+        $changes['grading_scale'] = ['old' => $currentScale, 'new' => $gradingScale];
+    }
+    // Een ander schema of vinkje herberekent de cijfers bij het tonen (B5); niets wordt opnieuw beoordeeld
+    if ($currentExam['grading_scheme_id'] != $gradingSchemeId) {
+        $changes['grading_scheme_id'] = ['old' => $currentExam['grading_scheme_id'], 'new' => $gradingSchemeId];
+    }
+    if ((int)($currentExam['show_grade_label'] ?? 0) !== $showGradeLabel) {
+        $changes['show_grade_label'] = ['old' => (int)($currentExam['show_grade_label'] ?? 0), 'new' => $showGradeLabel];
     }
 
     AuditLog::log('exam_update', $changes);
@@ -1240,6 +1268,42 @@ public function viewStudentAnswers($studentExamId) {
       ], $auditExtra));
 
       return $counts + ['new_runs' => count($newRuns)];
+  }
+
+  /**
+   * Schaal, puntenschema en woordbeoordeling uit het toetsformulier.
+   * Bij levels moet het schema bestaan; bij points zijn schema en vinkje leeg.
+   * @return array [grading_scale, grading_scheme_id|null, show_grade_label 0|1]
+   */
+  private function readGradingSettings(): array {
+      $scale = requestString($_POST, 'grading_scale', 20, Grading::SCALE_POINTS);
+      if (!Grading::isScale($scale)) {
+          abort(400, 'Ongeldige schaal.');
+      }
+      if ($scale === Grading::SCALE_POINTS) {
+          return [$scale, null, 0];
+      }
+      $schemeId = requestInt($_POST, 'grading_scheme_id');
+      if ($schemeId === null || !GradingScheme::find($schemeId)) {
+          abort(400, 'Ongeldig puntenschema.');
+      }
+      return [$scale, $schemeId, isset($_POST['show_grade_label']) ? 1 : 0];
+  }
+
+  /** Prompt uit het toetsformulier: moet bestaan en dezelfde schaal hebben als de toets (B9). */
+  private function readPromptId(string $gradingScale): ?int {
+      $promptId = requestInt($_POST, 'prompt_id');
+      if ($promptId === null) {
+          return null;
+      }
+      $prompt = Prompt::find($promptId);
+      if (!$prompt) {
+          abort(400, 'Ongeldige prompt.');
+      }
+      if (($prompt['grading_scale'] ?? Grading::SCALE_POINTS) !== $gradingScale) {
+          abort(400, 'Deze prompt hoort bij een andere schaal dan de toets.');
+      }
+      return $promptId;
   }
 
   /**

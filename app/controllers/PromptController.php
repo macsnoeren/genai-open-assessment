@@ -10,6 +10,7 @@
 
 require_once __DIR__ . '/../../config/app.php';
 require_once __DIR__ . '/../models/Prompt.php';
+require_once __DIR__ . '/../models/Grading.php';
 require_once __DIR__ . '/../models/AuditLog.php';
 require_once __DIR__ . '/../helpers/auth.php';
 
@@ -38,14 +39,16 @@ class PromptController {
         if ($titleText === '' || trim($promptText) === '') {
             abort(400, 'Titel en prompttekst zijn verplicht.');
         }
+        $gradingScale = $this->readScale();
         
         Prompt::create(
             $titleText,
             requestString($_POST, 'description'),
-            $promptText
+            $promptText,
+            $gradingScale
         );
 
-        AuditLog::log('prompt_create', ['title' => $titleText]);
+        AuditLog::log('prompt_create', ['title' => $titleText, 'grading_scale' => $gradingScale]);
         header('Location: /?action=prompts');
         exit;
     }
@@ -69,7 +72,8 @@ class PromptController {
         requireRole('admin');
 
         $id = requestInt($_POST, 'id');
-        if ($id === null || !Prompt::find($id)) {
+        $current = $id !== null ? Prompt::find($id) : null;
+        if (!$current) {
             abort(404, 'Prompt niet gevonden.');
         }
         $titleText = trim(requestString($_POST, 'title', 255));
@@ -77,15 +81,26 @@ class PromptController {
         if ($titleText === '' || trim($promptText) === '') {
             abort(400, 'Titel en prompttekst zijn verplicht.');
         }
+        $gradingScale = $this->readScale();
+        // Een toets gebruikt alleen een prompt met dezelfde schaal (B9)
+        if ($gradingScale !== ($current['grading_scale'] ?? Grading::SCALE_POINTS)
+            && Prompt::countExamsWithOtherScale($id, $gradingScale) > 0) {
+            abort(400, 'Deze prompt wordt gebruikt door toetsen met de andere schaal. Maak een nieuwe prompt.');
+        }
         
         Prompt::update(
             $id,
             $titleText,
             requestString($_POST, 'description'),
-            $promptText
+            $promptText,
+            $gradingScale
         );
 
-        AuditLog::log('prompt_update', ['id' => $id, 'title' => $titleText]);
+        $audit = ['id' => $id, 'title' => $titleText];
+        if ($gradingScale !== ($current['grading_scale'] ?? Grading::SCALE_POINTS)) {
+            $audit['grading_scale'] = ['old' => $current['grading_scale'] ?? Grading::SCALE_POINTS, 'new' => $gradingScale];
+        }
+        AuditLog::log('prompt_update', $audit);
         header('Location: /?action=prompts');
         exit;
     }
@@ -103,6 +118,15 @@ class PromptController {
         
         header('Location: /?action=prompts');
         exit;
+    }
+
+    /** Schaal van de prompt uit het formulier (points of levels, anders 400). */
+    private function readScale(): string {
+        $scale = requestString($_POST, 'grading_scale', 20, Grading::SCALE_POINTS);
+        if (!Grading::isScale($scale)) {
+            abort(400, 'Ongeldige schaal.');
+        }
+        return $scale;
     }
 
     public function help() {

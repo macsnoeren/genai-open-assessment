@@ -150,15 +150,15 @@ Alle rekenregels staan op één plek, zodat de aggregatie niet opnieuw op meerde
 
 ## Fase 4: Toetsinstellingen
 
-- [ ] **4.1 `Exam::create()` en `Exam::update()`** krijgen `$gradingScale`, `$gradingSchemeId` en `$showGradeLabel`.
-- [ ] **4.2 `Exam::hasSubmittedAttempts($id): bool`** (een poging met `completed_at` gevuld).
-- [ ] **4.3 Toetsformulier (`exam_form.php`):** keuzerondjes "Scoren met punten (0–10, huidige manier)" en "Beoordelen met niveaus"; een selectbox met alle puntenschema's (standaard het systeemschema); een vinkje "Toon het eindcijfer als woord". Het schema en het vinkje zijn alleen zichtbaar bij niveaus (met een event listener en een nonce-script, geen inline handlers). Zet een link naar "Puntenschema's" bij de selectbox.
-- [ ] **4.4 Schaal vastzetten.** Bij `hasSubmittedAttempts()` toont het formulier de schaal alleen ter informatie, met de uitleg "Kan niet meer wijzigen: er zijn al resultaten".
-- [ ] **4.5 `storeExam()`:** valideer de schaal (`points`|`levels`, anders 400). Bij `levels` moet het schema bestaan (anders 400); bij `points` wordt `grading_scheme_id` NULL en `show_grade_label` 0.
-- [ ] **4.6 `updateExam()`:** dezelfde validatie. Is de schaal gewijzigd terwijl `hasSubmittedAttempts()` waar is, geef dan `abort(400, …)`. Neem een gewijzigd schema of vinkje op in de bestaande `AuditLog::log()` van de update (oud/nieuw).
-- [ ] **4.7 Promptkeuze filteren:** het formulier toont alleen prompts met dezelfde `grading_scale` als de toets. De controller controleert dat ook (een prompt met een andere schaal geeft 400). Bij een wisseling van schaal in het formulier wordt de promptlijst gefilterd (script).
-- [ ] **4.8 `Exam::duplicate()`:** kopieert `grading_scale`, `grading_scheme_id` en `show_grade_label`, plus bij de pogingen `teacher_level` en de zes `grade_override*`-kolommen.
-- [ ] **4.9 Prompts:** `prompt_form.php` krijgt de keuze voor de schaal; `PromptController` (of de huidige plek) valideert en bewaart die. `prompt_help.php` krijgt een voorbeeld voor niveaus naast het puntenvoorbeeld.
+- [x] **4.1 `Exam::create()` en `Exam::update()`** krijgen `$gradingScale`, `$gradingSchemeId` en `$showGradeLabel`.
+- [x] **4.2 `Exam::hasSubmittedAttempts($id): bool`** (een poging met `completed_at` gevuld).
+- [x] **4.3 Toetsformulier (`exam_form.php`):** keuzerondjes "Scoren met punten (0–10, huidige manier)" en "Beoordelen met niveaus"; een selectbox met alle puntenschema's (standaard het systeemschema); een vinkje "Toon het eindcijfer als woord". Het schema en het vinkje zijn alleen zichtbaar bij niveaus (met een event listener en een nonce-script, geen inline handlers). Zet een link naar "Puntenschema's" bij de selectbox.
+- [x] **4.4 Schaal vastzetten.** Bij `hasSubmittedAttempts()` toont het formulier de schaal alleen ter informatie, met de uitleg "Kan niet meer wijzigen: er zijn al resultaten".
+- [x] **4.5 `storeExam()`:** valideer de schaal (`points`|`levels`, anders 400). Bij `levels` moet het schema bestaan (anders 400); bij `points` wordt `grading_scheme_id` NULL en `show_grade_label` 0.
+- [x] **4.6 `updateExam()`:** dezelfde validatie. Is de schaal gewijzigd terwijl `hasSubmittedAttempts()` waar is, geef dan `abort(400, …)`. Neem een gewijzigd schema of vinkje op in de bestaande `AuditLog::log()` van de update (oud/nieuw).
+- [x] **4.7 Promptkeuze filteren:** het formulier toont alleen prompts met dezelfde `grading_scale` als de toets. De controller controleert dat ook (een prompt met een andere schaal geeft 400). Bij een wisseling van schaal in het formulier wordt de promptlijst gefilterd (script).
+- [x] **4.8 `Exam::duplicate()`:** kopieert `grading_scale`, `grading_scheme_id` en `show_grade_label`, plus bij de pogingen `teacher_level` en de zes `grade_override*`-kolommen.
+- [x] **4.9 Prompts:** `prompt_form.php` krijgt de keuze voor de schaal; `PromptController` (of de huidige plek) valideert en bewaart die. `prompt_help.php` krijgt een voorbeeld voor niveaus naast het puntenvoorbeeld.
   *Klaar als:* een nieuwe toets met niveaus en schema 3/4/5 wordt bewaard; een bestaande toets blijft `points`; de schaal is niet te wijzigen na een ingeleverde poging (ook niet via een handmatige POST); en een gedupliceerde toets neemt alles over. Commit: `Choose grading scale and scheme per exam`.
 
 ## Fase 5: De docent beoordeelt per niveau
