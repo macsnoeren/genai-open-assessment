@@ -41,6 +41,19 @@ class StudentExam {
     return $stmt->fetch(PDO::FETCH_ASSOC);
   }
 
+  /** Toetspoging met de naam van de student (account, gastnaam of "Gast"). */
+  public static function findWithStudentName($id) {
+    $pdo = Database::connect();
+    $stmt = $pdo->prepare("
+        SELECT se.*, COALESCE(u.name, se.guest_name, 'Gast') AS name
+        FROM student_exams se
+        LEFT JOIN users u ON se.student_id = u.id
+        WHERE se.id = ?
+    ");
+    $stmt->execute([$id]);
+    return $stmt->fetch(PDO::FETCH_ASSOC);
+  }
+
   public static function findByAccessToken($token) {
     $pdo = Database::connect();
     $stmt = $pdo->prepare("SELECT * FROM student_exams WHERE access_token = ?");

@@ -22,7 +22,8 @@ require_once __DIR__ . '/StudentAnswer.php';
  * beoordeelt altijd zelf en apart.
  *
  * Elke start is een nieuwe rij; een eerdere open of afgeronde run van hetzelfde
- * antwoord wordt superseded. De tabel is ook de wachtrij voor de
+ * antwoord wordt superseded (net als bij een reset van de AI-resultaten, zie
+ * StudentAnswer::resetAiResults()). De tabel is ook de wachtrij voor de
  * assessment-worker. Statusovergangen zijn atomair (WHERE id = ? AND status = ?),
  * zodat een verouderd resultaat van de worker nooit een nieuwere run raakt.
  */
@@ -169,13 +170,7 @@ class AnswerAssessment {
     $pdo = Database::connect();
     $pdo->beginTransaction();
     try {
-      $stmt = $pdo->prepare("
-        UPDATE answer_assessments
-        SET status = ?, updated_at = CURRENT_TIMESTAMP
-        WHERE student_answer_id = ? AND status IN (?, ?, ?)
-      ");
-      $stmt->execute([self::STATUS_SUPERSEDED, $studentAnswerId,
-                      self::STATUS_PENDING, self::STATUS_DONE, self::STATUS_FAILED]);
+      self::supersedeActiveRuns($pdo, [$studentAnswerId]);
 
       $stmt = $pdo->prepare("
         INSERT INTO answer_assessments
@@ -192,6 +187,28 @@ class AnswerAssessment {
       }
       throw $e;
     }
+  }
+
+  /**
+   * Zet de open en afgeronde runs (pending, done, failed) van deze antwoorden op
+   * superseded. Draait op de meegegeven verbinding, zodat de aanroeper het in
+   * een eigen transactie kan doen (create(), StudentAnswer::resetAiResults()).
+   * Geeft het aantal vervangen runs terug.
+   */
+  public static function supersedeActiveRuns(PDO $pdo, array $studentAnswerIds): int {
+    $ids = array_values(array_map('intval', $studentAnswerIds));
+    if (!$ids) {
+      return 0;
+    }
+    $placeholders = implode(', ', array_fill(0, count($ids), '?'));
+    $stmt = $pdo->prepare("
+      UPDATE answer_assessments
+      SET status = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE student_answer_id IN ($placeholders) AND status IN (?, ?, ?)
+    ");
+    $stmt->execute(array_merge([self::STATUS_SUPERSEDED], $ids,
+                               [self::STATUS_PENDING, self::STATUS_DONE, self::STATUS_FAILED]));
+    return $stmt->rowCount();
   }
 
   /** Eén run, met de naam van de aanvrager. */
@@ -779,7 +796,8 @@ class AnswerAssessment {
    * gaan (te combineren met de wachtrij-voorwaarden van getPendingAiGrading()):
    * - een antwoord met een actieve agentic run (pending of done);
    * - met AGENTIC_AUTO_ASSESSMENT: een niet-leeg antwoord op een vraag met
-   *   rubric-kopjes zonder enige run; dat wordt automatisch agentic gestart.
+   *   rubric-kopjes zonder run die niet vervangen is (dus ook na een reset van
+   *   de AI-resultaten); dat wordt automatisch agentic gestart.
    * Een antwoord waarvan de laatste run mislukte, gaat dus wel naar de gewone
    * AI-beoordeling (vangnet).
    *
@@ -801,13 +819,19 @@ class AnswerAssessment {
   /**
    * Voorwaarde "wordt automatisch agentic beoordeeld" voor een antwoord dat
    * al in de AI-wachtrij zou staan (ingeleverd, AI-beoordeling aan, geen
-   * ai_feedback): niet leeg, rubric-kopjes in de criteria en nog geen run.
+   * ai_feedback): niet leeg, rubric-kopjes in de criteria en nog geen run die
+   * niet vervangen is. Superseded runs tellen niet mee: na een reset van de
+   * AI-resultaten (StudentAnswer::resetAiResults()) zijn alle runs vervangen en
+   * moet het antwoord weer automatisch agentic starten. Buiten een reset wordt
+   * een run alleen superseded samen met een nieuwere run (create()).
    */
   private static function autoEligibleSql(string $sa, string $q): array {
     [$rubricSql, $params] = self::rubricSql("$q.criteria");
     $sql = "TRIM(COALESCE($sa.answer, ''), ' ' || char(9) || char(10) || char(13)) != ''
             AND $rubricSql
-            AND NOT EXISTS (SELECT 1 FROM answer_assessments aa2 WHERE aa2.student_answer_id = $sa.id)";
+            AND NOT EXISTS (SELECT 1 FROM answer_assessments aa2
+                            WHERE aa2.student_answer_id = $sa.id AND aa2.status != ?)";
+    $params[] = self::STATUS_SUPERSEDED;
     return [$sql, $params];
   }
 

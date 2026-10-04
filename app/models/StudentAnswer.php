@@ -149,6 +149,75 @@ class StudentAnswer {
     return $stmt->rowCount() > 0;
   }
 
+  /** Id's (ints) van de antwoorden van een toetspoging. */
+  public static function answerIdsByStudentExam($studentExamId): array {
+    $pdo = Database::connect();
+    $stmt = $pdo->prepare("SELECT id FROM student_answers WHERE student_exam_id = ? ORDER BY id ASC");
+    $stmt->execute([$studentExamId]);
+    return array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN));
+  }
+
+  /**
+   * AI-scores per antwoord (id => aiScores()), voor de auditregel van een
+   * reset van de AI-resultaten: alleen de scores, niet de hele tekst.
+   */
+  public static function aiScoresByIds(array $ids): array {
+    $ids = array_values(array_map('intval', $ids));
+    if (!$ids) {
+      return [];
+    }
+    $placeholders = implode(', ', array_fill(0, count($ids), '?'));
+    $pdo = Database::connect();
+    $stmt = $pdo->prepare("
+        SELECT sa.id, sa.ai_feedback, " . AnswerAssessment::agenticScoreSql('sa') . " AS agentic_score
+        FROM student_answers sa
+        WHERE sa.id IN ($placeholders)
+        ORDER BY sa.id ASC
+    ");
+    $stmt->execute($ids);
+    $scores = [];
+    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+      $scores[(int)$row['id']] = self::aiScores($row['ai_feedback'], $row['agentic_score']);
+    }
+    return $scores;
+  }
+
+  /**
+   * Reset van de AI-resultaten: zet de antwoorden terug in de toestand van "net
+   * ingeleverd". ai_feedback en ai_updated_at worden leeg en de open en afgeronde
+   * agentic runs superseded, in één transactie. Daarna pakken de bestaande
+   * mechanismen ze weer op (AI-wachtrij, AnswerAssessment::createAutomaticRuns()).
+   * De docentbeoordeling (teacher_score, teacher_feedback) blijft onaangeroerd.
+   *
+   * @return array ['ai_feedback' => gewiste AI-feedbacks, 'agentic_runs' => vervangen runs]
+   */
+  public static function resetAiResults(array $studentAnswerIds): array {
+    $ids = array_values(array_map('intval', $studentAnswerIds));
+    if (!$ids) {
+      return ['ai_feedback' => 0, 'agentic_runs' => 0];
+    }
+    $placeholders = implode(', ', array_fill(0, count($ids), '?'));
+    $pdo = Database::connect();
+    $pdo->beginTransaction();
+    try {
+      $stmt = $pdo->prepare("
+          UPDATE student_answers
+          SET ai_feedback = NULL, ai_updated_at = NULL
+          WHERE id IN ($placeholders) AND ai_feedback IS NOT NULL AND ai_feedback != ''
+      ");
+      $stmt->execute($ids);
+      $feedback = $stmt->rowCount();
+      $runs = AnswerAssessment::supersedeActiveRuns($pdo, $ids);
+      $pdo->commit();
+      return ['ai_feedback' => $feedback, 'agentic_runs' => $runs];
+    } catch (Throwable $e) {
+      if ($pdo->inTransaction()) {
+        $pdo->rollBack();
+      }
+      throw $e;
+    }
+  }
+
   public static function clearAiFeedbackByExam($examId) {
     $pdo = Database::connect();
     $stmt = $pdo->prepare("

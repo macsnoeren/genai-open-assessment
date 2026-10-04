@@ -285,6 +285,18 @@ switch ($action) {
    $docent->updateGuestName();
    break;
 
+ case 'ai_results_reset_answer':
+   $docent->resetAiResultsAnswer();
+   break;
+
+ case 'ai_results_reset_attempt':
+   $docent->resetAiResultsAttempt();
+   break;
+
+ case 'ai_results_reset_exam':
+   $docent->resetAiResultsExam();
+   break;
+
  case 'api_keys':
    $apiKeyController->index();
    break;

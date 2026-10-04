@@ -355,6 +355,43 @@ eerst uitgaande HTTP-verzoeken van de webserver (webhooks). Maatregelen:
   - guest_logout&student_exam_id=N stuurde voor elke gastpoging door naar de
     publieke link van die toets, zonder toegangscontrole; wie ids raadde, vond zo
     publieke toetslinks. Opgelost in de fixronde van 2026-10-03 (zie hieronder).
+
+
+-------------------------------------------------------------------------------
+NIEUWE FUNCTIE: AI-RESULTATEN OPNIEUW LATEN UITVOEREN (branch dev-reset-ai-results, 2026-10-03)
+-------------------------------------------------------------------------------
+Drie nieuwe muterende docent-actions: ai_results_reset_answer, _attempt en _exam.
+Ze wissen ai_feedback en zetten agentic runs op superseded, zodat de AI opnieuw
+beoordeelt. Geen schemawijziging, geen wijziging aan de workers. Maatregelen:
+  - CSRF en methode: validateCsrfToken() als eerste (GET geeft 405, getest);
+    knoppen zijn POST-formulieren met csrfInput() en data-confirm.
+  - Autorisatie: requireRole('docent') plus checkExamOwnership($examId, true):
+    alleen de eigenaar van de toets of een admin, net als een promptwijziging.
+    Een docent van een gedeelde toets ziet geen knoppen en krijgt 403 (getest),
+    beoordelaar en student ook.
+  - Toets-id uit de database: via StudentAnswer::findWithExam() of
+    StudentExam::find(), nooit uit het formulier. Een id van een toets van een
+    andere docent geeft 403, een onbekend id 404 (getest).
+  - Geen open redirect: na een reset per poging gaat de redirect standaard naar
+    de antwoordenpagina; alleen de vaste waarde return=exam_results gaat naar de
+    resultatenpagina, met de exam_id uit de database. Andere waarden
+    (https://example.com, //evil) worden genegeerd (getest).
+  - Rate limit: AI_RESULTS_RESET_MAX_PER_HOUR (30) resets per docent per uur via
+    de audit log (één regel per reset, dus een hele poging of toets telt als
+    één). Beperkt de kosten van LLM-aanroepen.
+  - Docentbeoordeling onaangeroerd: teacher_score/teacher_feedback staan in geen
+    enkele query van de reset (getest: scores blijven gelijk).
+  - Geen reset bij koppelingspogingen (contract 9): de status zou van graded
+    terug naar grading gaan terwijl attempt.graded maar één keer gaat. Knop
+    ontbreekt, de server weigert, de reset per toets slaat ze over (getest).
+  - Geen reset als AI-beoordeling uit staat of de poging niet is ingeleverd
+    (anders verdwijnt er alleen iets); de server weigert zonder iets te wissen.
+  - Audit: één regel ai_results_reset per reset met scope, pogingen, antwoorden,
+    tellingen, de oude AI-scores (alleen scores, geen tekst) en de nieuwe runs;
+    bij een reset per toets ook de overgeslagen pogingen. Oude agentic runs
+    blijven als superseded bewaard.
+  - Verouderde resultaten: een agentic run die de worker nog uitvoerde, krijgt bij
+    het insturen 409 (WHERE status = 'pending') en wordt overgeslagen (getest).
 -------------------------------------------------------------------------------
 S-01  HOOG  Autorisatie-bypass bij opslaan docentscore
 -------------------------------------------------------------------------------

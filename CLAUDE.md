@@ -110,6 +110,7 @@ En verder:
 - `requireLogin()` doet bij elk verzoek een query op `users` (rol, verwijderd, wachtwoord gewijzigd). Zet de sessie na een login of een eigen wachtwoordwijziging altijd via `setSessionUser()` of werk `pw_marker` bij, anders logt de gebruiker zichzelf uit.
 - De score-aggregatie (gemiddelden per model) staat op meerdere plekken gedupliceerd. Wijzig je die, wijzig dan alle plekken.
 - **Webhooks gaan alleen tijdens worker-polls** (`open_student_answers`, `open_assessment_jobs`, ná het antwoord aan de worker). Zonder draaiende worker gaan er geen webhooks. Test ze lokaal met de demo-site; de Docker-dev zet `INTEGRATION_ALLOW_HTTP=1` (nooit in productie).
+- **Reset van AI-resultaten:** een reset (`StudentAnswer::resetAiResults()`) zet runs op `superseded`; `autoEligibleSql()` telt die niet mee. Laat `superseded` dus nooit een eindtoestand zonder nieuwere run zijn, **tenzij** dat een bewuste reset is.
 - **CSP `form-action`:** browsers passen die ook toe op de redirect na een POST. Een redirect naar een externe origin na een formulier (zoals de terugkeer-URL na inleveren) werkt alleen als die origin in de `form-action` van de pagina met het formulier staat (`sendSecurityHeaders(true, [$origin])`).
 
 ## Branches en commits

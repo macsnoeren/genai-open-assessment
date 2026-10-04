@@ -225,6 +225,7 @@ Alle routes staan in de `switch` van [htdocs/index.php](htdocs/index.php). Per c
 |---|---|---|
 | `AuthController` | `login`, `do_login`, `logout`, `register`, `do_register`, `change_password`, `do_change_password` | publiek / ingelogd |
 | `DocentController` | `docent_dashboard`, `exam_*` (create/store/edit/update/delete/duplicate/public_link), `questions`, `question_*`, `exam_results`, `exam_comparison`, `exam_comparison_export`, `view_student_answers`, `delete_student_exam`, `update_guest_name`, `audit_log` | docent |
+| | `ai_results_reset_answer`, `ai_results_reset_attempt`, `ai_results_reset_exam` (POST; schrijfrecht op de toets: eigenaar of admin, §6.1) | docent |
 | | `grade_student_exam`, `save_teacher_feedback`, `pending_assessments` | beoordelaar |
 | | `clear_audit_log` | admin |
 | `StudentController` | `students`, `student_create`, `student_store`, `student_delete` (gebruikersbeheer, alle rollen) | admin |
@@ -531,6 +532,8 @@ sequenceDiagram
     end
 ```
 
+**AI-resultaten opnieuw laten uitvoeren (reset).** Omdat de database de wachtrij is, zet een reset antwoorden terug in de toestand van *net ingeleverd*: `StudentAnswer::resetAiResults()` zet in één transactie `ai_feedback` en `ai_updated_at` op `NULL` en de agentic runs (`pending`, `done`, `failed`) op `superseded` (`AnswerAssessment::supersedeActiveRuns()`). Daarna roept de controller per poging `AnswerAssessment::createAutomaticRuns()` aan, net als bij inleveren: rubric-antwoorden krijgen meteen een nieuwe agentic run, de rest komt weer in `open_student_answers`. De workers merken er niets van. Een agentic run die de worker nog aan het rekenen was, krijgt bij het insturen 409. De actions (`DocentController::resetAiResultsAnswer()`, `resetAiResultsAttempt()` en `resetAiResultsExam()`) vragen schrijfrecht op de toets (eigenaar of admin) en een ingeleverde poging bij een toets met `ai_grading_enabled = 1`, en weigeren koppelingspogingen (§6.9). `teacher_score`/`teacher_feedback` staan in geen enkele query van de reset. Elke reset schrijft één auditregel `ai_results_reset` (scope, betrokken pogingen en antwoorden, tellingen, de oude AI-scores en de nieuwe runs; bij de toets ook de overgeslagen pogingen). Die regel is ook de bron van de rate limit `AI_RESULTS_RESET_MAX_PER_HOUR` per docent. Na een reset per poging kan de redirect alleen naar een vaste keuze (`return=exam_results`) met de `exam_id` uit de database.
+
 ### 6.2 API-contract (webapp ↔ worker)
 
 | | |
@@ -741,11 +744,11 @@ sequenceDiagram
 | Antwoord | Gaat naar |
 |---|---|
 | Heeft een agentic run met status `pending` of `done` | agentic beoordelen; **niet** in `open_student_answers` |
-| Ingeleverd, AI-beoordeling aan, geen `ai_feedback`, niet leeg, criteria met de rubric-kopjes, en nog geen enkele run | wordt **automatisch** agentic gestart (run zonder `requested_by`); niet in `open_student_answers` |
+| Ingeleverd, AI-beoordeling aan, geen `ai_feedback`, niet leeg, criteria met de rubric-kopjes, en geen run die niet `superseded` is | wordt **automatisch** agentic gestart (run zonder `requested_by`); niet in `open_student_answers` |
 | Laatste run mislukt (`failed`) | vangnet: terug in `open_student_answers` (gewone AI-beoordeling); niet opnieuw automatisch gestart |
 | Al het andere (vrije criteria, leeg antwoord, …) | `open_student_answers`, zoals altijd |
 
-De voorwaarden staan op één plek: `AnswerAssessment::excludeFromAiGradingSql()` (gebruikt door `StudentAnswer::getPendingAiGrading()`) en `AnswerAssessment::createAutomaticRuns()` delen dezelfde SQL, en de rubric-herkenning (`looksLikeRubric()`, de kopjes `Beoordelingscriteria:` en `Puntentoekenning:`) is dezelfde als bij handmatig starten. Runs worden automatisch gestart op twee momenten: bij het inleveren (`StudentExamController::submitExam()`, alleen die poging) en bij elke poll van `open_assessment_jobs` (hooguit `ASSESSMENT_AUTO_START_BATCH` per keer), zodat ook antwoorden meekomen waarvoor de voorwaarden later gelden. Beide schrijven `answer_assessment_auto_start` in de audit log; die telt niet mee voor de rate limit per docent. Het API-contract met de AI-feedbackworker is ongewijzigd: alleen de selectie in `open_student_answers` verandert. Gevolg: zo'n antwoord heeft geen `ai_feedback`; de AI-beoordeling is dan de agentic beoordeling (bron `Agentic AI` in de statistiek, score en feedback voor de student).
+De voorwaarden staan op één plek: `AnswerAssessment::excludeFromAiGradingSql()` (gebruikt door `StudentAnswer::getPendingAiGrading()`) en `AnswerAssessment::createAutomaticRuns()` delen dezelfde SQL, en de rubric-herkenning (`looksLikeRubric()`, de kopjes `Beoordelingscriteria:` en `Puntentoekenning:`) is dezelfde als bij handmatig starten. Runs worden automatisch gestart op twee momenten: bij het inleveren (`StudentExamController::submitExam()`, alleen die poging) en bij elke poll van `open_assessment_jobs` (hooguit `ASSESSMENT_AUTO_START_BATCH` per keer), zodat ook antwoorden meekomen waarvoor de voorwaarden later gelden. De voorwaarde "geen run" telt `superseded`-runs bewust niet mee: na een reset van de AI-resultaten (§6.1) zijn alle runs van een antwoord `superseded` en moet het weer automatisch agentic starten. Buiten een reset wordt een run alleen `superseded` in `AnswerAssessment::create()`, in dezelfde transactie als een nieuwere run; voor bestaande data verandert er dus niets. Beide schrijven `answer_assessment_auto_start` in de audit log; die telt niet mee voor de rate limit per docent. Het API-contract met de AI-feedbackworker is ongewijzigd: alleen de selectie in `open_student_answers` verandert. Gevolg: zo'n antwoord heeft geen `ai_feedback`; de AI-beoordeling is dan de agentic beoordeling (bron `Agentic AI` in de statistiek, score en feedback voor de student).
 
 **Robuustheid:** de worker telt pogingen per `assessment_id` en stuurt na `ASSESSMENT_MAX_ATTEMPTS` een `error` in (status `failed`, de docent kan opnieuw starten). Een 409 betekent dat de docent intussen opnieuw startte: het resultaat wordt overgeslagen. Starten is begrensd met `ASSESSMENT_START_MAX_PER_HOUR` per docent (één auditregel `answer_assessment_start` per gestart antwoord, ook bij een bulkstart).
 
@@ -770,6 +773,8 @@ Een andere website (leeromgeving, cursusplatform) laat haar eigen deelnemers een
 | `reviewed` | `reviewed_at` gezet (review-endpoint), of elk antwoord heeft een `teacher_score` |
 
 Een mislukte agentic run valt terug op de AI-feedbackworker (§6.8); de poging blijft dan `grading` tot die klaar is.
+
+**Geen reset van AI-resultaten bij koppelingspogingen.** Een reset (§6.1) zou de status van `graded` terugzetten naar `grading`, terwijl `attempt.graded` maar één keer per poging gaat. De externe website zou dan nooit horen dat de nieuwe beoordeling klaar is. Daarom tonen de antwoorden- en resultatenpagina bij een koppelingspoging geen resetknop en weigert de server (`IntegrationAttempt::findByStudentExam()`); de reset van een hele toets slaat die pogingen over. Zo blijft contract 9 ongewijzigd.
 
 **Confidence en `review_needed` per antwoord (B7), in `IntegrationAttempt::answerResult()`:**
 

@@ -10,7 +10,17 @@
  ob_start();
  ?>
 
-<h2>Resultaten toets</h2>
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <h2 class="mb-0">Resultaten toets</h2>
+    <?php if (!empty($canEdit) && !empty($aiResettableCount)): ?>
+    <form action="/?action=ai_results_reset_exam" method="post" class="mb-0">
+        <?= csrfInput() ?>
+        <input type="hidden" name="exam_id" value="<?= (int)$exam['id'] ?>">
+        <button type="submit" class="btn btn-sm btn-outline-warning"
+                data-confirm="De AI-resultaten van alle <?= (int)$aiResettableCount ?> ingeleverde pogingen van deze toets verwijderen en opnieuw laten uitvoeren? Pogingen via een externe koppeling worden overgeslagen. De docentbeoordelingen blijven staan.">AI-resultaten van alle pogingen opnieuw laten uitvoeren</button>
+    </form>
+    <?php endif; ?>
+</div>
 
 <div class="card">
 <div class="table-responsive">
@@ -44,6 +54,15 @@
     <?php if (!empty($canEdit)): ?>
     <a href="/?action=delete_student_exam&student_exam_id=<?= (int)$se['student_exam_id'] ?>" 
        data-confirm="Weet je zeker dat je dit resultaat wilt verwijderen? Alle antwoorden en feedback gaan verloren." class="btn btn-sm btn-outline-danger ms-1">Verwijderen</a>
+    <?php endif; ?>
+    <?php if (!empty($se['can_reset_ai'])): ?>
+    <form action="/?action=ai_results_reset_attempt" method="post" class="d-inline">
+        <?= csrfInput() ?>
+        <input type="hidden" name="student_exam_id" value="<?= (int)$se['student_exam_id'] ?>">
+        <input type="hidden" name="return" value="exam_results">
+        <button type="submit" class="btn btn-sm btn-outline-warning ms-1"
+                data-confirm="Alle AI-resultaten van <?= e($se['name']) ?> bij deze toets verwijderen en opnieuw laten uitvoeren? De docentbeoordeling blijft staan.">AI opnieuw</button>
+    </form>
     <?php endif; ?>
       </td>
     </tr>
