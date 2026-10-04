@@ -35,9 +35,9 @@ class GradingSchemeController {
         validateCsrfToken();
         requireRole('docent');
 
-        [$name, $v, $g, $u] = $this->readInput();
-        $error = Grading::validateScheme($name, $v, $g, $u);
-        if ($error === null && ($existing = GradingScheme::findByPoints($v, $g, $u))) {
+        [$name, $o, $v, $g, $u] = $this->readInput();
+        $error = Grading::validateScheme($name, $o, $v, $g, $u);
+        if ($error === null && ($existing = GradingScheme::findByPoints($o, $v, $g, $u))) {
             $error = 'Dit puntenschema bestaat al: ' . $existing['name'] . '.';
         }
         if ($error !== null) {
@@ -45,11 +45,11 @@ class GradingSchemeController {
             return;
         }
 
-        $id = GradingScheme::create($name, $v, $g, $u, (int)$_SESSION['user_id']);
+        $id = GradingScheme::create($name, $o, $v, $g, $u, (int)$_SESSION['user_id']);
         AuditLog::log('grading_scheme_create', [
             'id' => $id,
             'name' => $name,
-            'points' => [$v, $g, $u],
+            'points' => [$o, $v, $g, $u],
         ]);
         $_SESSION['success_message'] = 'Puntenschema "' . $name . '" is aangemaakt.';
         header('Location: /?action=grading_schemes');
@@ -80,9 +80,9 @@ class GradingSchemeController {
             exit;
         }
 
-        [$name, $v, $g, $u] = $this->readInput();
-        $error = Grading::validateScheme($name, $v, $g, $u);
-        if ($error === null && ($existing = GradingScheme::findByPoints($v, $g, $u)) && (int)$existing['id'] !== $id) {
+        [$name, $o, $v, $g, $u] = $this->readInput();
+        $error = Grading::validateScheme($name, $o, $v, $g, $u);
+        if ($error === null && ($existing = GradingScheme::findByPoints($o, $v, $g, $u)) && (int)$existing['id'] !== $id) {
             $error = 'Dit puntenschema bestaat al: ' . $existing['name'] . '.';
         }
         if ($error !== null) {
@@ -90,14 +90,14 @@ class GradingSchemeController {
             return;
         }
 
-        GradingScheme::update($id, $name, $v, $g, $u);
+        GradingScheme::update($id, $name, $o, $v, $g, $u);
         AuditLog::log('grading_scheme_update', [
             'id' => $id,
             'old' => [
                 'name' => $scheme['name'],
-                'points' => [(int)$scheme['points_voldoende'], (int)$scheme['points_goed'], (int)$scheme['points_uitstekend']],
+                'points' => GradingScheme::points($scheme),
             ],
-            'new' => ['name' => $name, 'points' => [$v, $g, $u]],
+            'new' => ['name' => $name, 'points' => [$o, $v, $g, $u]],
         ]);
         $_SESSION['success_message'] = 'Puntenschema "' . $name . '" is gewijzigd.';
         header('Location: /?action=grading_schemes');
@@ -122,7 +122,7 @@ class GradingSchemeController {
         AuditLog::log('grading_scheme_delete', [
             'id' => $id,
             'name' => $scheme['name'],
-            'points' => [(int)$scheme['points_voldoende'], (int)$scheme['points_goed'], (int)$scheme['points_uitstekend']],
+            'points' => GradingScheme::points($scheme),
         ]);
         $_SESSION['success_message'] = 'Puntenschema "' . $scheme['name'] . '" is verwijderd.';
         header('Location: /?action=grading_schemes');
@@ -145,8 +145,11 @@ class GradingSchemeController {
 
     /** Naam en punten uit het formulier; een ongeldig getal wordt null (validateScheme() meldt dat). */
     private function readInput(): array {
+        // Onvoldoende is optioneel in het formulier: leeg betekent 0
+        $onvoldoende = trim(requestString($_POST, 'points_onvoldoende', 10)) === '' ? 0 : requestInt($_POST, 'points_onvoldoende');
         return [
             trim(requestString($_POST, 'name', 255)),
+            $onvoldoende,
             requestInt($_POST, 'points_voldoende'),
             requestInt($_POST, 'points_goed'),
             requestInt($_POST, 'points_uitstekend'),
@@ -157,6 +160,7 @@ class GradingSchemeController {
     private function postedValues(): array {
         return [
             'name' => requestString($_POST, 'name', 255),
+            'points_onvoldoende' => requestString($_POST, 'points_onvoldoende', 10),
             'points_voldoende' => requestString($_POST, 'points_voldoende', 10),
             'points_goed' => requestString($_POST, 'points_goed', 10),
             'points_uitstekend' => requestString($_POST, 'points_uitstekend', 10),
@@ -166,6 +170,7 @@ class GradingSchemeController {
     private function showForm(?array $scheme, string $action, string $title, ?string $formError = null, ?array $values = null): void {
         $values = $values ?? [
             'name' => $scheme['name'] ?? '',
+            'points_onvoldoende' => $scheme['points_onvoldoende'] ?? 0,
             'points_voldoende' => $scheme['points_voldoende'] ?? '',
             'points_goed' => $scheme['points_goed'] ?? '',
             'points_uitstekend' => $scheme['points_uitstekend'] ?? '',

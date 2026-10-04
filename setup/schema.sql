@@ -11,22 +11,24 @@ CREATE TABLE IF NOT EXISTS users (
 );
 
 -- Puntenschema's: zetten de niveaus van een levels-toets om in punten (zie Grading).
--- Onvoldoende is altijd 0 punten. Een combinatie van punten bestaat maar één keer.
+-- Een combinatie van punten bestaat maar één keer.
 CREATE TABLE IF NOT EXISTS grading_schemes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,                   -- Naam, bijvoorbeeld "Standaard (3/4/5)"
+    points_onvoldoende INTEGER NOT NULL DEFAULT 0, -- Punten voor onvoldoende (standaard 0)
     points_voldoende INTEGER NOT NULL,    -- Punten voor voldoende
     points_goed INTEGER NOT NULL,         -- Punten voor goed
     points_uitstekend INTEGER NOT NULL,   -- Punten voor uitstekend (ook de noemer van het cijfer)
     owner_id INTEGER,                     -- Docent die het schema maakte; NULL = systeemschema (alleen de admin wijzigt het)
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE (points_voldoende, points_goed, points_uitstekend),
-    CHECK (points_voldoende > 0 AND points_voldoende < points_goed AND points_goed < points_uitstekend AND points_uitstekend <= 100),
+    UNIQUE (points_onvoldoende, points_voldoende, points_goed, points_uitstekend),
+    CHECK (points_onvoldoende >= 0 AND points_onvoldoende < points_voldoende AND points_voldoende < points_goed
+           AND points_goed < points_uitstekend AND points_uitstekend <= 100),
     FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE SET NULL
 );
-INSERT OR IGNORE INTO grading_schemes (name, points_voldoende, points_goed, points_uitstekend, owner_id)
-VALUES ('Standaard (3/4/5)', 3, 4, 5, NULL);
+INSERT OR IGNORE INTO grading_schemes (name, points_onvoldoende, points_voldoende, points_goed, points_uitstekend, owner_id)
+VALUES ('Standaard (3/4/5)', 0, 3, 4, 5, NULL);
 
 -- Toetsen (voorheen exams): hoofd-entiteit voor een toets.
 CREATE TABLE IF NOT EXISTS exams (

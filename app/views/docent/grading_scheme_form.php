@@ -32,24 +32,27 @@ ob_start(); ?>
     </div>
 
     <div class="row g-3 mb-3">
-        <div class="col-sm-4">
+        <div class="col-sm-3">
+            <label class="form-label" for="pointsOnvoldoende">Punten voor onvoldoende</label>
+            <input type="number" name="points_onvoldoende" id="pointsOnvoldoende" class="form-control" min="0" max="97" step="1" value="<?= e($values['points_onvoldoende']) ?>" required>
+        </div>
+        <div class="col-sm-3">
             <label class="form-label" for="pointsVoldoende">Punten voor voldoende</label>
             <input type="number" name="points_voldoende" id="pointsVoldoende" class="form-control" min="1" max="98" step="1" value="<?= e($values['points_voldoende']) ?>" required>
         </div>
-        <div class="col-sm-4">
+        <div class="col-sm-3">
             <label class="form-label" for="pointsGoed">Punten voor goed</label>
             <input type="number" name="points_goed" id="pointsGoed" class="form-control" min="2" max="99" step="1" value="<?= e($values['points_goed']) ?>" required>
         </div>
-        <div class="col-sm-4">
+        <div class="col-sm-3">
             <label class="form-label" for="pointsUitstekend">Punten voor uitstekend</label>
             <input type="number" name="points_uitstekend" id="pointsUitstekend" class="form-control" min="3" max="100" step="1" value="<?= e($values['points_uitstekend']) ?>" required>
         </div>
     </div>
 
-    <p class="mb-1"><strong>Onvoldoende = 0 punten</strong> (vast).</p>
-    <p class="form-text mb-1">De punten moeten oplopen: 0 &lt; voldoende &lt; goed &lt; uitstekend ≤ 100. Elke combinatie bestaat maar één keer.</p>
+    <p class="form-text mb-1">De punten moeten oplopen: 0 ≤ onvoldoende &lt; voldoende &lt; goed &lt; uitstekend ≤ 100. Meestal is onvoldoende 0 punten. Elke combinatie bestaat maar één keer.</p>
     <p class="form-text mb-4">
-        Rekenvoorbeeld: alles voldoende = 10 × V / U<span id="schemeExample"></span>.
+        Rekenvoorbeeld: alles onvoldoende = 10 × O / U, alles voldoende = 10 × V / U<span id="schemeExample"></span>.
         Alles uitstekend geeft altijd een 10.
     </p>
 
@@ -66,20 +69,22 @@ ob_start(); ?>
 
 <script nonce="<?= e(cspNonce()) ?>">
 document.addEventListener('DOMContentLoaded', function () {
+    var o = document.getElementById('pointsOnvoldoende');
     var v = document.getElementById('pointsVoldoende');
     var g = document.getElementById('pointsGoed');
     var u = document.getElementById('pointsUitstekend');
     var out = document.getElementById('schemeExample');
     function fmt(x) { return (Math.floor(x * 10 + 0.5 + 1e-9) / 10).toFixed(1).replace('.', ','); }
     function update() {
-        var vv = parseInt(v.value, 10), gg = parseInt(g.value, 10), uu = parseInt(u.value, 10);
-        if (vv > 0 && gg > vv && uu > gg) {
-            out.textContent = ' = ' + fmt(10 * vv / uu) + '; alles goed = ' + fmt(10 * gg / uu);
+        var oo = parseInt(o.value || '0', 10), vv = parseInt(v.value, 10), gg = parseInt(g.value, 10), uu = parseInt(u.value, 10);
+        if (oo >= 0 && vv > oo && gg > vv && uu > gg) {
+            out.textContent = ' (nu: alles onvoldoende = ' + fmt(10 * oo / uu) + ', alles voldoende = ' + fmt(10 * vv / uu)
+                + ', alles goed = ' + fmt(10 * gg / uu) + ')';
         } else {
             out.textContent = '';
         }
     }
-    [v, g, u].forEach(function (el) { el.addEventListener('input', update); });
+    [o, v, g, u].forEach(function (el) { el.addEventListener('input', update); });
     update();
 });
 </script>

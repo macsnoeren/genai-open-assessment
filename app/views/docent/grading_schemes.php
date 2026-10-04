@@ -11,7 +11,7 @@ ob_start();
 ?>
 
 <h2>Puntenschema's</h2>
-<p>Een puntenschema zet de niveaus van een toets met <em>Beoordelen met niveaus</em> om in punten. Onvoldoende is altijd 0 punten.
+<p>Een puntenschema zet de niveaus van een toets met <em>Beoordelen met niveaus</em> om in punten: een aantal punten voor onvoldoende (meestal 0), voldoende, goed en uitstekend.
 Het eindcijfer is 10 × de som van de punten / (aantal vragen × de punten voor uitstekend). Je kunt elk schema kiezen bij een toets;
 alleen de maker kan een eigen schema wijzigen of verwijderen.</p>
 
@@ -25,7 +25,7 @@ alleen de maker kan een eigen schema wijzigen of verwijderen.</p>
   <thead class="table-light">
     <tr>
       <th>Naam</th>
-      <th class="text-center" title="Voldoende / Goed / Uitstekend">Punten (V/G/U)</th>
+      <th class="text-center" title="Onvoldoende / Voldoende / Goed / Uitstekend">Punten (O/V/G/U)</th>
       <th>Eigenaar</th>
       <th class="text-center">Toetsen</th>
       <th class="text-end">Acties</th>
@@ -35,7 +35,7 @@ alleen de maker kan een eigen schema wijzigen of verwijderen.</p>
     <?php foreach ($schemes as $scheme): ?>
     <tr>
       <td><?= e($scheme['name']) ?></td>
-      <td class="text-center font-monospace"><?= (int)$scheme['points_voldoende'] ?> / <?= (int)$scheme['points_goed'] ?> / <?= (int)$scheme['points_uitstekend'] ?></td>
+      <td class="text-center font-monospace"><?= e(str_replace('/', ' / ', GradingScheme::pointsLabel($scheme))) ?></td>
       <td>
         <?php if ($scheme['owner_id'] === null): ?>
           <span class="badge bg-light text-dark border">Systeem</span>

@@ -77,8 +77,8 @@ ob_start();
         <?php if ($attemptResult['scheme']): ?>
         <div class="small text-muted mt-2">
             Puntenschema: <?= e($attemptResult['scheme']['name']) ?>
-            (voldoende <?= (int)$attemptResult['scheme']['points_voldoende'] ?>, goed <?= (int)$attemptResult['scheme']['points_goed'] ?>,
-            uitstekend <?= (int)$attemptResult['scheme']['points_uitstekend'] ?>, onvoldoende 0).
+            (onvoldoende <?= (int)$attemptResult['scheme']['points_onvoldoende'] ?>, voldoende <?= (int)$attemptResult['scheme']['points_voldoende'] ?>,
+            goed <?= (int)$attemptResult['scheme']['points_goed'] ?>, uitstekend <?= (int)$attemptResult['scheme']['points_uitstekend'] ?>).
             Eindcijfer = 10 × punten / (<?= (int)$attemptResult['total'] ?> × <?= (int)$attemptResult['scheme']['points_uitstekend'] ?>).
         </div>
         <?php endif; ?>

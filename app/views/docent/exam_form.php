@@ -65,12 +65,12 @@ ob_start(); ?>
             <select name="grading_scheme_id" class="form-select" id="gradingSchemeSelect">
                 <?php foreach ($gradingSchemes as $scheme): ?>
                     <option value="<?= (int)$scheme['id'] ?>" <?= (int)$scheme['id'] === $selectedSchemeId ? 'selected' : '' ?>>
-                        <?= e($scheme['name']) ?> (<?= (int)$scheme['points_voldoende'] ?>/<?= (int)$scheme['points_goed'] ?>/<?= (int)$scheme['points_uitstekend'] ?>)
+                        <?= e($scheme['name']) ?> (<?= e(GradingScheme::pointsLabel($scheme)) ?>)
                     </option>
                 <?php endforeach; ?>
             </select>
             <div class="form-text">
-                Punten voor voldoende/goed/uitstekend; onvoldoende is altijd 0. Eindcijfer = 10 × punten / (aantal vragen × punten voor uitstekend).
+                Punten voor onvoldoende/voldoende/goed/uitstekend. Eindcijfer = 10 × punten / (aantal vragen × punten voor uitstekend).
                 <a href="/?action=grading_schemes" target="_blank">Puntenschema's</a> bekijken of maken.
                 <?php if ($scaleLocked): ?>Een ander schema berekent de cijfers opnieuw; er wordt niets opnieuw beoordeeld.<?php endif; ?>
             </div>

@@ -66,12 +66,12 @@ class Grading {
     return $index === false ? null : $index;
   }
 
-  /** Punten voor een niveau volgens het schema. Onvoldoende is altijd 0 punten. */
+  /** Punten voor een niveau volgens het schema (onvoldoende standaard 0). */
   public static function pointsFor(string $level, array $scheme): int {
-    if ($level === 'onvoldoende' || !self::isLevel($level)) {
+    if (!self::isLevel($level)) {
       return 0;
     }
-    return (int)$scheme['points_' . $level];
+    return (int)($scheme['points_' . $level] ?? 0);
   }
 
   /**
@@ -120,20 +120,21 @@ class Grading {
 
   /**
    * Controleert een puntenschema. Geeft een Nederlandse foutmelding, of null als
-   * het schema geldig is: naam 1-100 tekens, gehele getallen, 0 < V < G < U ≤ 100.
+   * het schema geldig is: naam 1-100 tekens, gehele getallen,
+   * 0 ≤ onvoldoende < voldoende < goed < uitstekend ≤ 100.
    */
-  public static function validateScheme(string $name, $v, $g, $u): ?string {
+  public static function validateScheme(string $name, $o, $v, $g, $u): ?string {
     $length = mb_strlen(trim($name), 'UTF-8');
     if ($length < 1 || $length > 100) {
       return 'De naam is verplicht en hooguit 100 tekens.';
     }
-    foreach ([$v, $g, $u] as $points) {
+    foreach ([$o, $v, $g, $u] as $points) {
       if (!is_int($points)) {
         return 'De punten moeten gehele getallen zijn.';
       }
     }
-    if (!(0 < $v && $v < $g && $g < $u && $u <= 100)) {
-      return 'De punten moeten oplopen: 0 < voldoende < goed < uitstekend ≤ 100.';
+    if (!(0 <= $o && $o < $v && $v < $g && $g < $u && $u <= 100)) {
+      return 'De punten moeten oplopen: 0 ≤ onvoldoende < voldoende < goed < uitstekend ≤ 100.';
     }
     return null;
   }
@@ -162,7 +163,7 @@ class Grading {
                se.grade_override_at, se.grade_override_basis, ou.name AS override_by_name,
                e.grading_scale, e.show_grade_label,
                gs.id AS scheme_id, gs.name AS scheme_name,
-               gs.points_voldoende, gs.points_goed, gs.points_uitstekend
+               gs.points_onvoldoende, gs.points_voldoende, gs.points_goed, gs.points_uitstekend
         FROM student_exams se
         JOIN exams e ON se.exam_id = e.id
         LEFT JOIN grading_schemes gs ON e.grading_scheme_id = gs.id
@@ -185,6 +186,7 @@ class Grading {
     $scheme = $row['scheme_id'] !== null ? [
       'id' => (int)$row['scheme_id'],
       'name' => (string)$row['scheme_name'],
+      'points_onvoldoende' => (int)$row['points_onvoldoende'],
       'points_voldoende' => (int)$row['points_voldoende'],
       'points_goed' => (int)$row['points_goed'],
       'points_uitstekend' => (int)$row['points_uitstekend'],

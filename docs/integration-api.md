@@ -181,7 +181,7 @@ Bij `grading_scale: "levels"` krijgt elk antwoord een niveau: `onvoldoende`, `vo
 
 - `answers[].ai` heeft `level` in plaats van `score`. Bij `source: models` staat het niveau per model in `model_levels` (in plaats van `model_scores`); `level` is dan het **laagste** niveau van de modellen.
 - `answers[].teacher` is `{"level": "goed", "feedback": "..."}`.
-- `ai_score` en `teacher_score` zijn `null`. Het eindcijfer staat in `grade` (en `grade_label`): `10 × de som van de punten / (aantal vragen × punten voor uitstekend)`, met een puntenschema dat de docent kiest (onvoldoende is altijd 0 punten). `grade` is er pas als een mens elk antwoord een niveau heeft gegeven, of als een docent het eindcijfer handmatig heeft vastgesteld.
+- `ai_score` en `teacher_score` zijn `null`. Het eindcijfer staat in `grade` (en `grade_label`): `10 × de som van de punten / (aantal vragen × punten voor uitstekend)`, met een puntenschema dat de docent kiest (punten voor onvoldoende, voldoende, goed en uitstekend; onvoldoende meestal 0). `grade` is er pas als een mens elk antwoord een niveau heeft gegeven, of als een docent het eindcijfer handmatig heeft vastgesteld.
 
 ```json
 {"grading_scale": "levels", "ai_score": null, "teacher_score": null,

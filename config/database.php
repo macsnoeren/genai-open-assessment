@@ -29,7 +29,9 @@ class Database {
     
     // Check of de users tabel bestaat
     $stmt = $pdo->query("SELECT name FROM sqlite_master WHERE type='table' AND name='users'");
-    if (!$stmt->fetch()) {
+    $initialized = (bool)$stmt->fetch();
+    $stmt->closeCursor(); // open statements blokkeren een DROP TABLE in migrate()
+    if (!$initialized) {
         throw new RuntimeException("Database is nog niet geïnitialiseerd. Voer eerst setup/init_db.php uit.");
     }
 
@@ -201,24 +203,17 @@ class Database {
 
     // Beoordelen met niveaus en puntenschema's. Zelfde definitie als in setup/schema.sql.
     $stmt = $pdo->query("SELECT name FROM sqlite_master WHERE type='table' AND name='grading_schemes'");
-    if (!$stmt->fetch()) {
-        $pdo->exec("
-            CREATE TABLE IF NOT EXISTS grading_schemes (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT NOT NULL,
-                points_voldoende INTEGER NOT NULL,
-                points_goed INTEGER NOT NULL,
-                points_uitstekend INTEGER NOT NULL,
-                owner_id INTEGER,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                UNIQUE (points_voldoende, points_goed, points_uitstekend),
-                CHECK (points_voldoende > 0 AND points_voldoende < points_goed AND points_goed < points_uitstekend AND points_uitstekend <= 100),
-                FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE SET NULL
-            )
-        ");
-        $pdo->exec("INSERT OR IGNORE INTO grading_schemes (name, points_voldoende, points_goed, points_uitstekend, owner_id)
-                    VALUES ('Standaard (3/4/5)', 3, 4, 5, NULL)");
+    $schemesExist = (bool)$stmt->fetch();
+    $stmt->closeCursor(); // een open statement blokkeert de DROP TABLE in rebuildGradingSchemes()
+    if (!$schemesExist) {
+        $pdo->exec(self::gradingSchemesTableSql('grading_schemes'));
+        $pdo->exec("INSERT OR IGNORE INTO grading_schemes (name, points_onvoldoende, points_voldoende, points_goed, points_uitstekend, owner_id)
+                    VALUES ('Standaard (3/4/5)', 0, 3, 4, 5, NULL)");
+    } else {
+        $schemeColumns = $pdo->query("PRAGMA table_info(grading_schemes)")->fetchAll(PDO::FETCH_COLUMN, 1);
+        if (!in_array('points_onvoldoende', $schemeColumns, true)) {
+            self::rebuildGradingSchemes($pdo);
+        }
     }
 
     // Bestaande rijen krijgen veilige defaults: toetsen en prompts blijven points,
@@ -257,6 +252,53 @@ class Database {
     }
   }
   
+  /** CREATE TABLE van grading_schemes (zelfde definitie als in setup/schema.sql). */
+  private static function gradingSchemesTableSql(string $table): string {
+    return "
+        CREATE TABLE IF NOT EXISTS $table (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            points_onvoldoende INTEGER NOT NULL DEFAULT 0,
+            points_voldoende INTEGER NOT NULL,
+            points_goed INTEGER NOT NULL,
+            points_uitstekend INTEGER NOT NULL,
+            owner_id INTEGER,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE (points_onvoldoende, points_voldoende, points_goed, points_uitstekend),
+            CHECK (points_onvoldoende >= 0 AND points_onvoldoende < points_voldoende AND points_voldoende < points_goed
+                   AND points_goed < points_uitstekend AND points_uitstekend <= 100),
+            FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE SET NULL
+        )
+    ";
+  }
+
+  /**
+   * Eenmalig: grading_schemes uit de eerste versie (onvoldoende vast 0, UNIQUE op
+   * drie kolommen) opnieuw opbouwen met points_onvoldoende en UNIQUE op vier
+   * kolommen. SQLite kan een constraint niet wijzigen, dus volgens de
+   * standaardprocedure: foreign keys uit, nieuwe tabel, kopiëren, oude weg,
+   * hernoemen. De ids blijven gelijk, zodat exams.grading_scheme_id blijft kloppen.
+   */
+  private static function rebuildGradingSchemes(PDO $pdo): void {
+    $pdo->exec('PRAGMA foreign_keys = OFF');
+    $pdo->beginTransaction();
+    try {
+      $pdo->exec('DROP TABLE IF EXISTS grading_schemes_new');
+      $pdo->exec(self::gradingSchemesTableSql('grading_schemes_new'));
+      $pdo->exec("INSERT INTO grading_schemes_new (id, name, points_onvoldoende, points_voldoende, points_goed, points_uitstekend, owner_id, created_at, updated_at)
+                  SELECT id, name, 0, points_voldoende, points_goed, points_uitstekend, owner_id, created_at, updated_at FROM grading_schemes");
+      $pdo->exec('DROP TABLE grading_schemes');
+      $pdo->exec('ALTER TABLE grading_schemes_new RENAME TO grading_schemes');
+      $pdo->commit();
+    } catch (Throwable $e) {
+      $pdo->rollBack();
+      $pdo->exec('PRAGMA foreign_keys = ON');
+      throw $e;
+    }
+    $pdo->exec('PRAGMA foreign_keys = ON');
+  }
+
     private static function createDefaultUser() {
       $pdo = self::$pdo;
       

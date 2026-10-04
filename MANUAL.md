@@ -116,7 +116,7 @@ Klik op "Resultaten" bij een toets voor een lijst met inzendingen. De kolom **Ei
 
 ### Puntenschema's
 Via **Puntenschema's** in het menu beheer je de schema's waarmee een toets met niveaus punten geeft.
-*   Een schema heeft een naam en punten voor **voldoende**, **goed** en **uitstekend** (gehele getallen, oplopend, hooguit 100). **Onvoldoende is altijd 0 punten.**
+*   Een schema heeft een naam en punten voor **onvoldoende**, **voldoende**, **goed** en **uitstekend** (gehele getallen, oplopend, hooguit 100). Onvoldoende is meestal **0 punten** (laat je het veld leeg, dan wordt het 0); geef je onvoldoende punten, dan levert ook een onvoldoende antwoord iets op en is het laagst mogelijke cijfer hoger dan 0.
 *   Elke combinatie bestaat maar één keer. Voer je een bestaande combinatie in, dan noemt de melding het bestaande schema; kies dat dan gewoon bij je toets.
 *   Er is een systeemschema **"Standaard (3/4/5)"**. Elke docent kan elk schema kiezen en zelf schema's maken. Alleen de maker (en de Admin) kan een eigen schema wijzigen of verwijderen; het systeemschema alleen de Admin.
 *   **Wijzigen** kan alleen zolang geen toets met een ingeleverde poging het schema gebruikt (anders zouden cijfers ongemerkt veranderen: maak dan een nieuw schema). **Verwijderen** kan alleen als geen enkele toets het schema gebruikt.
@@ -130,7 +130,7 @@ Bij een toets met **"Beoordelen met niveaus"** krijgt elk antwoord een niveau: *
 
 Alles uitstekend geeft dus altijd een 10. Elke vraag telt even zwaar, ook een vraag die de student leeg liet. Het eindcijfer verschijnt pas als **elk** antwoord een docentniveau heeft; tot die tijd zie je *"x van y beoordeeld"*.
 
-**Rekenvoorbeeld** (schema 3/4/5, vier vragen): uitstekend, goed, voldoende en onvoldoende geeft 5 + 4 + 3 + 0 = 12 van de 20 punten, dus een **6,0**. Met schema 7/9/10 geeft alles voldoende een 7,0 en alles goed een 9,0.
+**Rekenvoorbeeld** (schema 0/3/4/5 voor onvoldoende/voldoende/goed/uitstekend, vier vragen): uitstekend, goed, voldoende en onvoldoende geeft 5 + 4 + 3 + 0 = 12 van de 20 punten, dus een **6,0**. Met schema 0/7/9/10 geeft alles voldoende een 7,0 en alles goed een 9,0. Met schema 2/6/8/10 geeft alles onvoldoende een 2,0.
 
 **Een ander schema kiezen** mag ook als er al resultaten zijn: de cijfers worden dan opnieuw berekend (er wordt niets opnieuw beoordeeld), en de wijziging staat in de audit log.
 

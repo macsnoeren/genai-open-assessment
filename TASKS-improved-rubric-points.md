@@ -18,7 +18,7 @@ Takenlijst voor de branch `dev-rubric-levels`.
 Nu krijgt elk antwoord een score: de AI geeft 0, 1, 5 of 10, de docent 0 t/m 10, en het eindcijfer is het gemiddelde van de docentscores. Dat wordt:
 
 1. **Per vraag een niveau:** onvoldoende, voldoende, goed of uitstekend. Dat geldt voor de AI en voor de docent. Een niveau per vraag is **geen** woordbeoordeling van het eindcijfer.
-2. **Een puntenschema per toets** zet de niveaus om in punten. Onvoldoende is altijd 0 punten. Docenten maken zelf schema's (bijvoorbeeld 3/4/5 of 7/9/10) en kiezen er één per toets.
+2. **Een puntenschema per toets** zet de niveaus om in punten. Onvoldoende is standaard 0 punten, maar is ook in te vullen (wijziging na fase 15). Docenten maken zelf schema's (bijvoorbeeld 3/4/5 of 7/9/10) en kiezen er één per toets.
 3. **Eindcijfer 0–10:** `10 × som van de punten / (aantal vragen × punten voor uitstekend)`. Alles uitstekend geeft dus altijd een 10.
 4. **Woordbeoordeling (optioneel per toets):** het eindcijfer wordt omgezet naar onvoldoende (0–5), voldoende (6–7), goed (8–9) of uitstekend (10).
 5. **Eindcijfer handmatig aanpassen** met een verplichte reden, door iedereen die de toets nakijkt.
@@ -46,6 +46,7 @@ De AI beoordeelt per criterium. **Het niveau volgt deterministisch** uit die sta
 
 **B4. Puntenschema's.**
 - Tabel `grading_schemes` met een naam en punten voor voldoende, goed en uitstekend (gehele getallen, `0 < voldoende < goed < uitstekend ≤ 100`).
+- *Wijziging na fase 15:* ook de punten voor onvoldoende zijn in te vullen (`points_onvoldoende`, standaard 0, `0 ≤ onvoldoende < voldoende`); de UNIQUE geldt voor alle vier. Bestaande tabellen worden eenmalig opnieuw opgebouwd in `Database::migrate()`.
 - Een combinatie van punten bestaat maar één keer (UNIQUE). Wie een bestaande combinatie invoert, krijgt een melding met de naam van het bestaande schema.
 - Iedereen met rol `docent` kan elk schema kiezen en zelf schema's maken. Alleen de maker (en de admin) kan een eigen schema wijzigen of verwijderen.
 - Wijzigen kan alleen zolang geen toets met een ingeleverde poging het schema gebruikt. Verwijderen kan alleen als geen enkele toets het gebruikt.

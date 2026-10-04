@@ -352,9 +352,10 @@ erDiagram
         int show_grade_label "woordbeoordeling" }
     grading_schemes { int id PK
         text name
+        int points_onvoldoende "standaard 0"
         int points_voldoende
         int points_goed
-        int points_uitstekend "UNIQUE met V en G"
+        int points_uitstekend "UNIQUE met O, V en G"
         int owner_id FK "NULL = systeemschema" }
     questions { int id PK
         int exam_id FK
@@ -526,13 +527,13 @@ Een toets heeft een **schaal** (`exams.grading_scale`, constanten `Grading::SCAL
 
 De schaal ligt vast zodra de toets een ingeleverde poging heeft (`Exam::hasSubmittedAttempts()`; het formulier toont hem dan alleen, `updateExam()` geeft `400` bij een wijziging). De schaal komt in elke controller en elk API-endpoint **uit de database** (de toets van het antwoord, de run of het ontwerp), nooit uit de POST of de body van de worker. Een prompt heeft ook een schaal (`prompts.grading_scale`, B9): een toets kiest alleen een prompt met dezelfde schaal (`DocentController::readPromptId()`), en de schaal van een prompt die toetsen met de andere schaal gebruiken, kan niet wijzigen.
 
-**Puntenschema's** (`grading_schemes`, `GradingScheme`): punten voor voldoende, goed en uitstekend (gehele getallen, `0 < V < G < U ≤ 100`, `CHECK` in het schema en `Grading::validateScheme()` in PHP); onvoldoende is altijd 0. Een combinatie bestaat één keer (`UNIQUE`). Er is één systeemschema "Standaard (3/4/5)" (`owner_id` NULL, alleen de admin wijzigt het). Elke docent kiest elk schema; wijzigen en verwijderen alleen de maker of de admin (`GradingScheme::canManage()`). Wijzigen kan alleen zolang geen toets met een ingeleverde poging het schema gebruikt (`isLocked()`), verwijderen alleen zonder toetsen (`usageCount()`; daarnaast `ON DELETE RESTRICT`). Een ander schema kiezen voor een toets met resultaten mag: punten worden pas bij het tonen berekend, er wordt niets opnieuw beoordeeld (wel een regel in de audit log).
+**Puntenschema's** (`grading_schemes`, `GradingScheme`): punten voor onvoldoende, voldoende, goed en uitstekend (gehele getallen, `0 ≤ O < V < G < U ≤ 100`, `CHECK` in het schema en `Grading::validateScheme()` in PHP; onvoldoende standaard 0). Een combinatie van de vier bestaat één keer (`UNIQUE`). Databases met de eerste versie van de tabel (onvoldoende vast 0, `UNIQUE` op drie kolommen) bouwt `Database::migrate()` eenmalig opnieuw op (`rebuildGradingSchemes()`: foreign keys uit, nieuwe tabel, kopiëren met dezelfde ids, hernoemen). Er is één systeemschema "Standaard (3/4/5)" (`owner_id` NULL, alleen de admin wijzigt het). Elke docent kiest elk schema; wijzigen en verwijderen alleen de maker of de admin (`GradingScheme::canManage()`). Wijzigen kan alleen zolang geen toets met een ingeleverde poging het schema gebruikt (`isLocked()`), verwijderen alleen zonder toetsen (`usageCount()`; daarnaast `ON DELETE RESTRICT`). Een ander schema kiezen voor een toets met resultaten mag: punten worden pas bij het tonen berekend, er wordt niets opnieuw beoordeeld (wel een regel in de audit log).
 
 **Rekenregels** staan allemaal in `app/models/Grading.php`:
 
 | Functie | Regel |
 |---|---|
-| `pointsFor($level, $scheme)` | onvoldoende 0, anders `points_<niveau>` |
+| `pointsFor($level, $scheme)` | `points_<niveau>` (ook voor onvoldoende) |
 | `grade($levels, $scheme)` | `round(10 × som / (aantal × points_uitstekend), 1)`, half naar boven, minimaal 0; `null` bij een lege lijst of een antwoord zonder niveau. Het aantal is het aantal `student_answers` van de poging (een leeg antwoord telt mee) |
 | `gradeLabel($grade)` | eerst afronden op een geheel getal (half naar boven), dan 0–5 onvoldoende, 6–7 voldoende, 8–9 goed, 10 uitstekend (vast voor alle toetsen) |
 | `aiGrades($answers, $scheme)` | per AI-bron het cijfer over de antwoorden waarvoor die bron een niveau heeft |
