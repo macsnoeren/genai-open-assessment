@@ -136,16 +136,16 @@ Alle rekenregels staan op één plek, zodat de aggregatie niet opnieuw op meerde
 
 ## Fase 3: Puntenschema's beheren
 
-- [ ] **3.1 Model `app/models/GradingScheme.php`:** `all()` (op naam, met de naam van de eigenaar), `find($id)`, `findByPoints($v, $g, $u)`, `create($name, $v, $g, $u, $ownerId): int`, `update($id, $name, $v, $g, $u)` en `delete($id)`. Alleen prepared statements.
-- [ ] **3.2 In gebruik?** `usageCount($id): int` (toetsen met dit schema) en `isLocked($id): bool` (minstens één toets met dit schema heeft een poging met `completed_at` gevuld).
-- [ ] **3.3 Mag deze gebruiker wijzigen?** `canManage(array $scheme): bool`: admin altijd; anders alleen als `owner_id` gelijk is aan de huidige gebruiker. Een systeemschema (`owner_id` NULL) alleen door de admin.
-- [ ] **3.4 Controller `app/controllers/GradingSchemeController.php`** met `index()` voor action `grading_schemes`, `requireRole('docent')`. De view `app/views/docent/grading_schemes.php` toont een tabel met naam, punten (V/G/U), eigenaar en het aantal toetsen, plus knoppen Wijzigen/Verwijderen alleen als `canManage()`.
-- [ ] **3.5 Cases** in `htdocs/index.php` voor `grading_schemes`, `create_grading_scheme`, `store_grading_scheme`, `edit_grading_scheme`, `update_grading_scheme` en `delete_grading_scheme`.
-- [ ] **3.6 Formulier** `app/views/docent/grading_scheme_form.php` (voor aanmaken én wijzigen): naam en drie getallen, de vaste regel "Onvoldoende = 0 punten" als tekst, `csrfInput()` en alles via `e()`. Zet er een rekenvoorbeeld bij: "Alles voldoende = 10 × V / U".
-- [ ] **3.7 `store()`:** `validateCsrfToken()`, `requireRole('docent')`, invoer via `requestString`/`requestInt`, daarna `Grading::validateScheme()`. Bestaat de combinatie al (`findByPoints`), meld dan: "Dit puntenschema bestaat al: <naam>." Na `create()`: `AuditLog::log('grading_scheme_create', …)` en een redirect naar `grading_schemes`.
-- [ ] **3.8 `edit()`/`update()`:** zelfde patroon, plus `canManage()` (anders 403) en `isLocked()` (anders een melding: "Dit schema wordt gebruikt door een toets met resultaten. Maak een nieuw schema."). Bij `update` nogmaals de UNIQUE-controle, met uitzondering van het schema zelf. Daarna `AuditLog::log('grading_scheme_update', [old/new])`.
-- [ ] **3.9 `delete()`:** POST via een link met `data-confirm`, `canManage()`, en alleen als `usageCount() === 0`, anders een melding. Daarna `AuditLog::log('grading_scheme_delete', …)`.
-- [ ] **3.10 Navigatie:** een link "Puntenschema's" in `layouts/main.php` voor docent en admin.
+- [x] **3.1 Model `app/models/GradingScheme.php`:** `all()` (op naam, met de naam van de eigenaar), `find($id)`, `findByPoints($v, $g, $u)`, `create($name, $v, $g, $u, $ownerId): int`, `update($id, $name, $v, $g, $u)` en `delete($id)`. Alleen prepared statements.
+- [x] **3.2 In gebruik?** `usageCount($id): int` (toetsen met dit schema) en `isLocked($id): bool` (minstens één toets met dit schema heeft een poging met `completed_at` gevuld).
+- [x] **3.3 Mag deze gebruiker wijzigen?** `canManage(array $scheme): bool`: admin altijd; anders alleen als `owner_id` gelijk is aan de huidige gebruiker. Een systeemschema (`owner_id` NULL) alleen door de admin.
+- [x] **3.4 Controller `app/controllers/GradingSchemeController.php`** met `index()` voor action `grading_schemes`, `requireRole('docent')`. De view `app/views/docent/grading_schemes.php` toont een tabel met naam, punten (V/G/U), eigenaar en het aantal toetsen, plus knoppen Wijzigen/Verwijderen alleen als `canManage()`.
+- [x] **3.5 Cases** in `htdocs/index.php` voor `grading_schemes`, `create_grading_scheme`, `store_grading_scheme`, `edit_grading_scheme`, `update_grading_scheme` en `delete_grading_scheme`.
+- [x] **3.6 Formulier** `app/views/docent/grading_scheme_form.php` (voor aanmaken én wijzigen): naam en drie getallen, de vaste regel "Onvoldoende = 0 punten" als tekst, `csrfInput()` en alles via `e()`. Zet er een rekenvoorbeeld bij: "Alles voldoende = 10 × V / U".
+- [x] **3.7 `store()`:** `validateCsrfToken()`, `requireRole('docent')`, invoer via `requestString`/`requestInt`, daarna `Grading::validateScheme()`. Bestaat de combinatie al (`findByPoints`), meld dan: "Dit puntenschema bestaat al: <naam>." Na `create()`: `AuditLog::log('grading_scheme_create', …)` en een redirect naar `grading_schemes`.
+- [x] **3.8 `edit()`/`update()`:** zelfde patroon, plus `canManage()` (anders 403) en `isLocked()` (anders een melding: "Dit schema wordt gebruikt door een toets met resultaten. Maak een nieuw schema."). Bij `update` nogmaals de UNIQUE-controle, met uitzondering van het schema zelf. Daarna `AuditLog::log('grading_scheme_update', [old/new])`.
+- [x] **3.9 `delete()`:** POST via een link met `data-confirm`, `canManage()`, en alleen als `usageCount() === 0`, anders een melding. Daarna `AuditLog::log('grading_scheme_delete', …)`.
+- [x] **3.10 Navigatie:** een link "Puntenschema's" in `layouts/main.php` voor docent en admin.
   *Klaar als:* een docent in Docker een schema maakt, wijzigt en verwijdert; een dubbele combinatie een melding geeft; een tweede docent het schema ziet maar niet kan wijzigen (ook niet via een handmatige POST: 403); en een GET op `store_grading_scheme` een 405 geeft. Commit: `Manage grading schemes`.
 
 ## Fase 4: Toetsinstellingen

@@ -36,6 +36,7 @@ require_once __DIR__ . '/../app/controllers/PromptController.php';
 require_once __DIR__ . '/../app/controllers/QuestionDesignController.php';
 require_once __DIR__ . '/../app/controllers/AnswerAssessmentController.php';
 require_once __DIR__ . '/../app/controllers/IntegrationController.php';
+require_once __DIR__ . '/../app/controllers/GradingSchemeController.php';
 
 $action = $_GET['action'] ?? 'login';
 if (!is_string($action)) {
@@ -51,6 +52,7 @@ $promptController = new PromptController();
 $questionDesignController = new QuestionDesignController();
 $answerAssessmentController = new AnswerAssessmentController();
 $integrationController = new IntegrationController();
+$gradingSchemeController = new GradingSchemeController();
 
 switch ($action) {
  case 'login':
@@ -387,6 +389,30 @@ switch ($action) {
 
  case 'prompt_help':
     $promptController->help();
+    break;
+
+ case 'grading_schemes':
+    $gradingSchemeController->index();
+    break;
+
+ case 'create_grading_scheme':
+    $gradingSchemeController->create();
+    break;
+
+ case 'store_grading_scheme':
+    $gradingSchemeController->store();
+    break;
+
+ case 'edit_grading_scheme':
+    $gradingSchemeController->edit();
+    break;
+
+ case 'update_grading_scheme':
+    $gradingSchemeController->update();
+    break;
+
+ case 'delete_grading_scheme':
+    $gradingSchemeController->delete();
     break;
 
  case 'privacy':

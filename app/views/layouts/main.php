@@ -67,6 +67,7 @@ unset($_SESSION['error'], $_SESSION['success_message']);
                     <li class="nav-item"><a class="nav-link" href="/?action=integrations">Koppelingen</a></li>
                     <li class="nav-item"><a class="nav-link" href="/?action=prompts">Prompts</a></li>
                 <?php endif; ?>
+                <li class="nav-item"><a class="nav-link" href="/?action=grading_schemes">Puntenschema's</a></li>
                 <li class="nav-item"><a class="nav-link" href="/?action=audit_log">Audit Log</a></li>
                 <li class="nav-item"><a class="nav-link" href="/?action=my_exams">Mijn Toetsen</a></li>
             <?php elseif (isset($_SESSION['role']) && $_SESSION['role'] === 'beoordelaar'): ?>
