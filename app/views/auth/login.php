@@ -10,39 +10,36 @@
 ob_start();
 ?>
 
-<div class="row justify-content-center align-items-center" style="min-height: 60vh;">
-    <div class="col-md-6 col-lg-4">
-        <div class="card shadow">
-            <div class="card-body p-4">
-                <div class="text-center mb-4">
-                    <img src="/images/logo.png" alt="Logo" style="max-height: 200px;">
-                </div>
-                <h3 class="card-title text-center mb-4">Inloggen</h3>
-                
-                <?php if (isset($_SESSION['error'])): ?>
-                    <div class="alert alert-danger">
-                        <?= e($_SESSION['error']) ?>
-                        <?php unset($_SESSION['error']); ?>
-                    </div>
-                <?php endif; ?>
+<div class="auth-wrapper">
+    <div class="card auth-card">
+        <div class="card-body p-4">
+            <img src="/images/logo.png" alt="<?= e(APP_NAME) ?>" class="auth-logo">
+            <h1 class="h4 card-title text-center mb-4">Inloggen</h1>
 
-                <form method="POST" action="index.php?action=do_login">
-                    <?= csrfInput() ?>
-                    <div class="mb-3">
-                        <label class="form-label">Email</label>
-                        <input type="email" name="email" class="form-control" required autofocus>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Wachtwoord</label>
-                        <input type="password" name="password" class="form-control" required>
-                    </div>
-                    <div class="d-grid">
-                        <button type="submit" class="btn btn-primary">Inloggen</button>
-                    </div>
-                </form>
-            </div>
+            <?php if (isset($_SESSION['error'])): ?>
+                <div class="alert alert-danger">
+                    <?= e($_SESSION['error']) ?>
+                    <?php unset($_SESSION['error']); ?>
+                </div>
+            <?php endif; ?>
+
+            <form method="POST" action="index.php?action=do_login">
+                <?= csrfInput() ?>
+                <div class="mb-3">
+                    <label class="form-label" for="login-email">E-mail</label>
+                    <input type="email" name="email" id="login-email" class="form-control" required autofocus autocomplete="username">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="login-password">Wachtwoord</label>
+                    <input type="password" name="password" id="login-password" class="form-control" required autocomplete="current-password">
+                </div>
+                <div class="d-grid">
+                    <button type="submit" class="btn btn-primary">Inloggen</button>
+                </div>
+            </form>
         </div>
     </div>
+    <p class="auth-back"><a href="/"><i class="bi bi-arrow-left me-1" aria-hidden="true"></i>Terug naar de startpagina</a></p>
 </div>
 
 <?php

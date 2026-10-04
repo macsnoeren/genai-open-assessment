@@ -17,6 +17,7 @@
     --border: #E2E8F0;      /* kaarten, tabellen, topbalk */
     --text: #1E293B;        /* lopende tekst */
     --muted: #5A6B82;       /* labels en metadata */
+    --on-brand: #FFFFFF;    /* tekst op --brand-900 en --brand-600 */
 
     /* Oude namen, verwijzen naar de nieuwe tokens */
     --brand-primary: var(--brand-600);
@@ -43,20 +44,6 @@
 body {
     background-color: var(--bg);
     color: var(--text);
-}
-
-/* Navbar customization (tijdelijk, tot de nieuwe layout) */
-.navbar-custom {
-    background-color: var(--brand-900);
-}
-
-.navbar-custom .navbar-brand,
-.navbar-custom .nav-link {
-    color: rgba(255, 255, 255, 0.9);
-}
-
-.navbar-custom .nav-link:hover {
-    color: var(--surface);
 }
 
 /* Knoppen */
@@ -154,10 +141,6 @@ body {
     outline-offset: 2px;
 }
 
-/* Status badges (tijdelijk, tot de nieuwe layout) */
-.badge-status-active { background-color: var(--success); }
-.badge-status-inactive { background-color: var(--danger); }
-
 /* Sticky exam header (take_exam.php) */
 .exam-topbar {
     position: fixed;
@@ -227,4 +210,408 @@ body {
     padding: .1rem .5rem;
     min-width: 1.5rem;
     text-align: center;
+}
+
+/* ------------------------------------------------------------------
+ * Layout 'staff': zijbalk en topbalk (docent, admin, beoordelaar)
+ * ------------------------------------------------------------------ */
+.app-shell {
+    display: flex;
+    min-height: 100vh;
+}
+
+.app-main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.app-content {
+    padding: 1.5rem;
+    max-width: 1320px;
+    width: 100%;
+}
+
+.skip-link {
+    position: absolute;
+    top: .5rem;
+    left: .5rem;
+    z-index: 1100;
+    padding: .5rem 1rem;
+    background-color: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: .5rem;
+}
+
+/* Zijbalk */
+.app-sidebar {
+    --bs-offcanvas-width: 240px;
+    --bs-offcanvas-bg: var(--brand-900);
+    --bs-offcanvas-color: var(--on-brand);
+    width: 240px;
+    color: var(--on-brand);
+    display: flex;
+    flex-direction: column;
+}
+
+.app-sidebar.offcanvas-lg {
+    background-color: var(--brand-900) !important;
+}
+
+@media (min-width: 992px) {
+    .app-sidebar {
+        flex: 0 0 240px;
+        position: sticky;
+        top: 0;
+        height: 100vh;
+        overflow-y: auto;
+    }
+}
+
+.app-sidebar-brand {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .5rem;
+    padding: 1rem 1rem .75rem;
+}
+
+.app-sidebar-logo {
+    display: flex;
+    align-items: center;
+    gap: .6rem;
+    color: var(--on-brand);
+    text-decoration: none;
+    font-size: .8rem;
+    font-weight: 600;
+    line-height: 1.2;
+}
+
+.app-sidebar-logo:hover {
+    color: var(--on-brand);
+}
+
+.app-sidebar-logo img {
+    height: 36px;
+    width: auto;
+}
+
+.app-sidebar-nav {
+    flex: 1;
+    padding: 0 .75rem 1rem;
+    overflow-y: auto;
+}
+
+.app-nav-group {
+    margin: 1.25rem .75rem .4rem;
+    font-size: .7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: rgba(255, 255, 255, .6);
+}
+
+.app-nav-link {
+    position: relative;
+    display: flex;
+    gap: .75rem;
+    align-items: center;
+    padding: .5rem .75rem;
+    margin-bottom: 2px;
+    border-radius: .5rem;
+    color: rgba(255, 255, 255, .8);
+    text-decoration: none;
+}
+
+.app-nav-link:hover,
+.app-nav-link:focus-visible {
+    background-color: rgba(255, 255, 255, .08);
+    color: var(--on-brand);
+}
+
+.app-nav-link.active {
+    background-color: rgba(255, 255, 255, .12);
+    color: var(--on-brand);
+    font-weight: 600;
+}
+
+.app-nav-link.active::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: .4rem;
+    bottom: .4rem;
+    width: 3px;
+    border-radius: 3px;
+    background-color: var(--accent);
+}
+
+.app-nav-link:focus-visible {
+    outline-color: var(--on-brand);
+}
+
+.app-sidebar-footer {
+    padding: 1rem 1.5rem;
+    font-size: .75rem;
+    color: rgba(255, 255, 255, .6);
+    border-top: 1px solid rgba(255, 255, 255, .08);
+}
+
+.app-sidebar-footer a {
+    color: rgba(255, 255, 255, .6);
+}
+
+.app-sidebar-footer a:hover {
+    color: var(--on-brand);
+}
+
+/* Topbalk */
+.app-topbar {
+    min-height: 56px;
+    background-color: var(--surface);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 1020;
+}
+
+.layout-staff .app-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0 1.5rem;
+}
+
+.app-topbar-start {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    min-width: 0;
+    flex: 1;
+}
+
+.app-topbar-end {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-shrink: 0;
+}
+
+.app-topbar-toggle {
+    font-size: 1.5rem;
+    line-height: 1;
+    padding: .25rem .5rem;
+    margin-left: -.5rem;
+    color: var(--text);
+}
+
+/* Breadcrumbs */
+.app-breadcrumbs {
+    min-width: 0;
+}
+
+.app-breadcrumbs .breadcrumb {
+    flex-wrap: nowrap;
+    font-size: .9rem;
+}
+
+.app-topbar .app-breadcrumbs .breadcrumb-item {
+    white-space: nowrap;
+}
+
+.app-topbar .app-breadcrumbs .breadcrumb-item.active {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+    color: var(--text);
+    font-weight: 600;
+}
+
+.layout-simple .app-breadcrumbs .breadcrumb {
+    flex-wrap: wrap;
+}
+
+@media (max-width: 767.98px) {
+    .app-topbar .app-breadcrumbs .breadcrumb-item + .breadcrumb-item::before {
+        display: none;
+    }
+    .app-topbar .app-breadcrumbs .breadcrumb-item {
+        padding-left: 0;
+    }
+}
+
+/* Status van de AI-worker */
+.worker-status {
+    display: inline-flex;
+    align-items: center;
+    gap: .5rem;
+    font-size: .85rem;
+    color: var(--muted);
+}
+
+.status-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+
+.status-dot-active { background-color: var(--success); }
+.status-dot-inactive { background-color: var(--danger); }
+
+/* Gebruikersmenu */
+.user-menu-toggle {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    padding: .25rem .5rem;
+    border: 0;
+    color: var(--text);
+}
+
+.user-menu-text {
+    text-align: left;
+    line-height: 1.2;
+}
+
+.user-menu-name {
+    display: block;
+    font-size: .875rem;
+    font-weight: 600;
+}
+
+.user-menu-role {
+    display: block;
+    font-size: .75rem;
+    color: var(--muted);
+}
+
+.user-menu-chevron {
+    font-size: .75rem;
+    color: var(--muted);
+}
+
+.avatar {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background-color: var(--brand-50);
+    color: var(--brand-700);
+    font-weight: 700;
+    font-size: .8rem;
+    flex-shrink: 0;
+}
+
+/* ------------------------------------------------------------------
+ * Layout 'simple': witte topnavigatie (student, uitgelogd)
+ * ------------------------------------------------------------------ */
+.app-topbar-simple {
+    padding-top: .5rem;
+    padding-bottom: .5rem;
+}
+
+.app-topbar-simple .nav-link {
+    color: var(--muted);
+    border-radius: .5rem;
+    padding-left: .75rem !important;
+    padding-right: .75rem !important;
+}
+
+.app-topbar-simple .nav-link:hover {
+    color: var(--text);
+}
+
+.app-topbar-simple .nav-link.active {
+    color: var(--brand-700);
+    background-color: var(--brand-50);
+    font-weight: 600;
+}
+
+.app-topbar-simple .navbar-toggler {
+    border: 0;
+    font-size: 1.5rem;
+    padding: .25rem .5rem;
+    color: var(--text);
+}
+
+.app-footer {
+    padding: 1rem 0;
+    font-size: .8rem;
+    color: var(--muted);
+    text-align: center;
+}
+
+.app-footer a {
+    color: var(--muted);
+}
+
+/* Cookiemelding: kleine kaart linksonder */
+.cookie-toast {
+    position: fixed;
+    left: 1rem;
+    right: 1rem;
+    bottom: 1rem;
+    z-index: 1050;
+    max-width: 420px;
+    padding: 1rem;
+    background-color: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: .75rem;
+    box-shadow: 0 8px 24px rgba(15, 42, 79, .15);
+    font-size: .875rem;
+}
+
+/* ------------------------------------------------------------------
+ * Losse pagina's: login, gastlogin, startlink, registreren
+ * ------------------------------------------------------------------ */
+.auth-wrapper {
+    min-height: calc(100vh - 3rem);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem 0;
+}
+
+.auth-card {
+    width: 100%;
+    max-width: 420px;
+}
+
+.auth-card-wide {
+    max-width: 520px;
+}
+
+.auth-logo {
+    display: block;
+    max-width: 220px;
+    width: 100%;
+    height: auto;
+    margin: 0 auto 1.5rem;
+}
+
+.auth-logo-small {
+    max-width: 160px;
+}
+
+.auth-back {
+    margin-top: 1rem;
+    font-size: .875rem;
+    text-align: center;
+}
+
+.auth-back a {
+    color: var(--muted);
+    text-decoration: none;
+}
+
+.auth-back a:hover {
+    color: var(--text);
+    text-decoration: underline;
 }

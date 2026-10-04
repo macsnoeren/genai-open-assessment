@@ -10,7 +10,22 @@
 
 // Security headers worden centraal gezet in htdocs/index.php (sendSecurityHeaders()).
 
-$parserStatus = workerStatus();
+// Drie standen van de layout:
+// - bare:   eigen opzet zonder header en footer ($hideHeaderFooter): login, gastlogin,
+//           startlink, toets maken en de landingspagina ($fullWidth: zonder container)
+// - staff:  zijbalk en topbalk voor docent, admin en beoordelaar
+// - simple: witte topnavigatie voor studenten, uitgelogde bezoekers en wie eerst het
+//           wachtwoord moet wijzigen
+$staffRoles = ['docent', 'admin', 'beoordelaar'];
+if (!empty($hideHeaderFooter)) {
+    $layoutMode = 'bare';
+} elseif (!empty($_SESSION['user_id']) && in_array($_SESSION['role'] ?? '', $staffRoles, true)
+          && empty($_SESSION['force_password_change'])) {
+    $layoutMode = 'staff';
+} else {
+    $layoutMode = 'simple';
+}
+$currentAction = currentAction();
 
 $flashError = $_SESSION['error'] ?? null;
 $flashSuccess = $_SESSION['success_message'] ?? null;
@@ -36,119 +51,54 @@ unset($_SESSION['error'], $_SESSION['success_message']);
     <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon.png" />
     <link rel="manifest" href="/site.webmanifest" />
 </head>
-<body class="d-flex flex-column min-vh-100">
-
-<?php if (!isset($hideHeaderFooter) || !$hideHeaderFooter): ?>
-<nav class="navbar navbar-expand-lg navbar-dark navbar-custom shadow-sm">
-  <div class="container">
-    <a class="navbar-brand fw-bold" href="/">
-        <img src="/images/logo-h.png" alt="Logo" height="40" class="d-inline-block align-text-top me-2">
-    </a>
-    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-      <span class="navbar-toggler-icon"></span>
-    </button>
-    
-    <div class="collapse navbar-collapse" id="navbarNav">
-      <ul class="navbar-nav me-auto">
-        <?php if (!empty($_SESSION['user_id'])): ?>
-            <?php if (empty($_SESSION['force_password_change'])): ?>
-            <?php if (isset($_SESSION['role']) && ($_SESSION['role'] === 'docent' || $_SESSION['role'] === 'admin')): ?>
-                <li class="nav-item"><a class="nav-link" href="index.php?action=docent_dashboard">Dashboard</a></li>
-                <li class="nav-item"><a class="nav-link" href="/?action=pending_assessments">Beoordelen</a></li>
-                <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin'): ?>
-                    <li class="nav-item"><a class="nav-link" href="/?action=students">Gebruikers</a></li>
-                    <li class="nav-item"><a class="nav-link" href="/?action=api_keys">API Keys</a></li>
-                    <li class="nav-item"><a class="nav-link" href="/?action=integrations">Koppelingen</a></li>
-                    <li class="nav-item"><a class="nav-link" href="/?action=prompts">Prompts</a></li>
-                <?php endif; ?>
-                <li class="nav-item"><a class="nav-link" href="/?action=grading_schemes">Puntenschema's</a></li>
-                <li class="nav-item"><a class="nav-link" href="/?action=audit_log">Audit Log</a></li>
-                <li class="nav-item"><a class="nav-link" href="/?action=my_exams">Mijn Toetsen</a></li>
-            <?php elseif (isset($_SESSION['role']) && $_SESSION['role'] === 'beoordelaar'): ?>
-                <li class="nav-item"><a class="nav-link" href="/?action=pending_assessments">Beoordelen</a></li>
-            <?php elseif (isset($_SESSION['role']) && $_SESSION['role'] === 'student'): ?>
-                <li class="nav-item"><a class="nav-link" href="index.php?action=student_dashboard">Dashboard</a></li>
-                <li class="nav-item"><a class="nav-link" href="/?action=my_exams">Mijn Toetsen</a></li>
-            <?php endif; ?>
-            <?php endif; ?>
-        <?php endif; ?>
-      </ul>
-      
-      <div class="d-flex align-items-center gap-3">
-        <span class="badge <?= $parserStatus === 'active' ? 'badge-status-active' : 'badge-status-inactive' ?>">
-            Parser <?= $parserStatus === 'active' ? 'Actief' : 'Inactief' ?>
-        </span>
-        <?php if (isset($_SESSION['user_id'])): ?>
-            <div class="text-white text-end lh-1 d-none d-lg-block">
-                <small class="d-block fw-bold"><?= e($_SESSION['name'] ?? '') ?></small>
-                <small class="opacity-75" style="font-size: 0.75rem;"><?= e(ucfirst($_SESSION['role'] ?? '')) ?></small>
-            </div>
-            <?php if (empty($_SESSION['force_password_change'])): ?>
-            <a href="/?action=student_edit&id=<?= (int)$_SESSION['user_id'] ?>" class="btn btn-sm btn-outline-light ms-2">Profiel</a>
-            <?php endif; ?>
-            <a href="index.php?action=logout" class="btn btn-sm btn-outline-light ms-2">Uitloggen</a>
-        <?php else: ?>
-            <?php if (empty($isGuest)): ?>
-                <a href="index.php?action=login" class="btn btn-sm btn-light">Login</a>
-            <?php endif; ?>
-        <?php endif; ?>
-      </div>
-    </div>
-  </div>
-</nav>
-<?php endif; ?>
-
-<main class="container my-4 flex-grow-1">
-<?php if (isset($breadcrumbs) && !empty($breadcrumbs)): ?>
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <span aria-label="breadcrumb">
-        <ol class="breadcrumb mb-0">
-            <?php foreach ($breadcrumbs as $label => $url): ?>
-                <?php if ($url): ?>
-                    <li class="breadcrumb-item"><a href="<?= e($url) ?>" class="text-decoration-none"><?= e($label) ?></a></li>
-                <?php else: ?>
-                    <li class="breadcrumb-item active" aria-current="page"><?= e($label) ?></li>
-                <?php endif; ?>
-            <?php endforeach; ?>
-        </ol>
-    </span>
-    <?php 
-    // Zoek de laatste URL om als terug-knop te gebruiken
-    $backUrl = null;
-    $urls = array_filter(array_values($breadcrumbs));
-    if (!empty($urls)) {
-        $backUrl = end($urls);
-    }
-    ?>
-    <?php if ($backUrl): ?>
-        <a href="<?= e($backUrl) ?>" class="btn btn-outline-secondary btn-sm">
-            &larr; Terug
-        </a>
-    <?php endif; ?>
-</div>
-<?php endif; ?>
+<?php ob_start(); ?>
 <?php if ($flashError): ?>
     <div class="alert alert-danger alert-dismissible fade show" role="alert">
         <?= e($flashError) ?>
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Sluiten"></button>
     </div>
 <?php endif; ?>
 <?php if ($flashSuccess): ?>
     <div class="alert alert-success alert-dismissible fade show" role="alert">
         <?= e($flashSuccess) ?>
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Sluiten"></button>
     </div>
 <?php endif; ?>
-<?= $content ?? '' ?>
+<?php $flashHtml = ob_get_clean(); ?>
+<?php if ($layoutMode === 'staff'): ?>
+<body class="layout-staff">
+<a class="visually-hidden-focusable skip-link" href="#main">Naar de inhoud</a>
+<div class="app-shell">
+    <?php require __DIR__ . '/partials/sidebar.php'; ?>
+    <div class="app-main">
+        <?php require __DIR__ . '/partials/topbar.php'; ?>
+        <main class="app-content" id="main">
+            <?= $flashHtml ?>
+            <?= $content ?? '' ?>
+        </main>
+    </div>
+</div>
+<?php elseif ($layoutMode === 'simple'): ?>
+<body class="layout-simple d-flex flex-column min-vh-100">
+<?php require __DIR__ . '/partials/simple_nav.php'; ?>
+<main class="container my-4 flex-grow-1" id="main">
+    <?php $breadcrumbsCompact = false; ?>
+    <div class="mb-3"><?php require __DIR__ . '/partials/breadcrumbs.php'; ?></div>
+    <?= $flashHtml ?>
+    <?= $content ?? '' ?>
 </main>
-
-<?php if (!isset($hideHeaderFooter) || !$hideHeaderFooter): ?>
-<footer class="bg-light py-4 mt-auto border-top">
-    <div class="container text-center text-muted">
-        &copy; <?= date('Y') ?> Openvragen kennistoetsing (proof-of-concept) - powered by JMNL Innovation<br>
-        <small><a href="/?action=privacy" class="text-decoration-none text-muted">Privacy & Cookies</a></small>
+<footer class="app-footer">
+    <div class="container">
+        &copy; <?= date('Y') ?> <?= e(APP_NAME) ?> &middot; <?= e(CONTACT_NAME) ?> &middot;
+        <a href="/?action=privacy">Privacy &amp; Cookies</a>
     </div>
 </footer>
+<?php else: ?>
+<body class="layout-bare d-flex flex-column min-vh-100">
+<main class="<?= empty($fullWidth) ? 'container my-4 ' : '' ?>flex-grow-1" id="main">
+    <?php if (empty($fullWidth)): ?><?= $flashHtml ?><?php endif; ?>
+    <?= $content ?? '' ?>
+</main>
 <?php endif; ?>
 
 <!-- Bootstrap JS Bundle -->
@@ -175,15 +125,13 @@ unset($_SESSION['error'], $_SESSION['success_message']);
 </div>
 
 <!-- Cookie Banner -->
-<div id="cookieBanner" class="fixed-bottom p-3 bg-dark text-white shadow-lg" style="display: none; z-index: 1050;">
-    <div class="container">
-        <div class="d-flex flex-column flex-md-row justify-content-between align-items-center">
-            <div class="mb-2 mb-md-0">
-                <strong>Cookie melding:</strong> Wij gebruiken functionele cookies om deze applicatie goed te laten werken en voor onderzoeksdoeleinden in het onderwijs. 
-                <a href="/?action=privacy" class="text-info text-decoration-underline">Lees meer</a>.
-            </div>
-            <button id="acceptCookiesBtn" class="btn btn-primary btn-sm text-nowrap">Ik begrijp het</button>
-        </div>
+<div id="cookieBanner" class="cookie-toast d-none" role="region" aria-label="Cookiemelding">
+    <p class="mb-2">
+        <strong>Cookies:</strong> wij gebruiken functionele cookies om deze applicatie goed te laten werken en voor onderzoeksdoeleinden in het onderwijs.
+        <a href="/?action=privacy">Lees meer</a>.
+    </p>
+    <div class="text-end">
+        <button id="acceptCookiesBtn" class="btn btn-primary btn-sm">Ik begrijp het</button>
     </div>
 </div>
 
@@ -282,7 +230,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Check if cookie exists
     if (document.cookie.indexOf('cookie_consent=1') === -1) {
-        cookieBanner.style.display = 'block';
+        cookieBanner.classList.remove('d-none');
     }
 
     acceptBtn.addEventListener('click', function() {
@@ -290,7 +238,7 @@ document.addEventListener('DOMContentLoaded', function() {
         var date = new Date();
         date.setTime(date.getTime() + (365*24*60*60*1000));
         document.cookie = "cookie_consent=1; expires=" + date.toUTCString() + "; path=/; SameSite=Strict";
-        cookieBanner.style.display = 'none';
+        cookieBanner.classList.add('d-none');
     });
 });
 </script>

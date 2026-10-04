@@ -10,35 +10,32 @@
 ob_start();
 ?>
 
-<div class="row justify-content-center align-items-center" style="min-height: 60vh;">
-    <div class="col-md-6 col-lg-5">
-        <div class="card shadow">
-            <div class="card-body p-4">
-                <div class="text-center mb-4">
-                    <img src="/images/logo.png" alt="Logo" style="max-height: 200px;">
-                </div>
-                <h3 class="card-title text-center mb-4">Toets Starten</h3>
-                <p class="text-center text-muted mb-4">
-                    Je staat op het punt om de toets <strong><?= htmlspecialchars($exam['title']) ?></strong> te starten.
-                    Vul je voornaam en de eerste letter van je achternaam in om te beginnen.
-                </p>
+<div class="auth-wrapper">
+    <div class="card auth-card">
+        <div class="card-body p-4">
+            <img src="/images/logo.png" alt="<?= e(APP_NAME) ?>" class="auth-logo">
+            <h1 class="h4 card-title text-center mb-3">Toets starten</h1>
+            <p class="text-center text-muted mb-4">
+                Je staat op het punt om de toets <strong><?= e($exam['title']) ?></strong> te starten.
+                Vul je voornaam en de eerste letter van je achternaam in om te beginnen.
+            </p>
 
-                <form method="POST" action="index.php?action=guest_start">
-                    <?= csrfInput() ?>
-                    <input type="hidden" name="token" value="<?= htmlspecialchars($_GET['token']) ?>">
-                    
-                    <div class="mb-3">
-                        <label class="form-label">Voornaam én eerste letter achternaam</label>
-                        <input type="text" name="name" class="form-control" required autofocus placeholder="Bijv. Jan J">
-                    </div>
-                    
-                    <div class="d-grid">
-                        <button type="submit" class="btn btn-primary btn-lg">Start Toets</button>
-                    </div>
-                </form>
-            </div>
+            <form method="POST" action="index.php?action=guest_start">
+                <?= csrfInput() ?>
+                <input type="hidden" name="token" value="<?= e(requestString($_GET, 'token', 128)) ?>">
+
+                <div class="mb-3">
+                    <label class="form-label" for="guest-name">Voornaam én eerste letter achternaam</label>
+                    <input type="text" name="name" id="guest-name" class="form-control" required autofocus placeholder="Bijv. Jan J">
+                </div>
+
+                <div class="d-grid">
+                    <button type="submit" class="btn btn-primary btn-lg">Start toets</button>
+                </div>
+            </form>
         </div>
     </div>
+    <p class="auth-back"><a href="/"><i class="bi bi-arrow-left me-1" aria-hidden="true"></i>Terug naar de startpagina</a></p>
 </div>
 
 <?php
