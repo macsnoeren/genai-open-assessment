@@ -14,6 +14,7 @@ require_once __DIR__ . '/../models/Exam.php';
 require_once __DIR__ . '/../models/AuditLog.php';
 require_once __DIR__ . '/../models/Questions.php';
 require_once __DIR__ . '/../models/QuestionDesign.php';
+require_once __DIR__ . '/../models/Grading.php';
 
 /**
  * Class QuestionDesignController

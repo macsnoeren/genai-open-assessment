@@ -179,8 +179,11 @@ class AnswerAssessmentController {
     if ((int)$answer['ai_grading_enabled'] !== 1) {
         return 'AI-beoordeling staat uit voor deze toets. Zet die aan bij de instellingen van de toets om agentic te beoordelen.';
     }
+    if (($answer['grading_scale'] ?? 'points') === 'levels' && !LEVELS_AI_ENABLED) {
+        return 'Agentic beoordelen met niveaus staat nog uit op deze server (LEVELS_AI_ENABLED). Beoordeel deze toets zelf.';
+    }
     if (!AnswerAssessment::looksLikeRubric($answer['criteria'])) {
-        return 'De criteria van deze vraag hebben geen rubric-opbouw (met de kopjes "Beoordelingscriteria:" en "Puntentoekenning:"); '
+        return 'De criteria van deze vraag hebben geen rubric-opbouw (met de kopjes "Beoordelingscriteria:" en "Puntentoekenning:" of "Niveaus:"); '
             . 'agentic beoordelen kan alleen met een rubric. Ontwerp de vraag met de AI-vraagontwerper of neem die opbouw over.';
     }
     return null;

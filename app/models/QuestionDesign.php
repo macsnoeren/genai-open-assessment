@@ -39,6 +39,16 @@ class QuestionDesign {
   const MAX_CHANGES = 8;
   const WEIGHTS = ['essentieel', 'aanvullend'];
   const CHECKS = ['coverage', 'clarity_independence', 'alternatives', 'not_too_literal', 'levels', 'consistency'];
+  /** Sleutels van de niveauteksten per schaal (contract 6 en 7). */
+  const LEVEL_KEYS = [
+    'points' => ['level_10', 'level_5', 'level_1', 'level_0'],
+    'levels' => ['level_uitstekend', 'level_goed', 'level_voldoende', 'level_onvoldoende'],
+  ];
+  /** Weergavenamen van de niveauteksten (views en rubricToCriteriaText()). */
+  const LEVEL_LABELS = [
+    'level_10' => '10 punten', 'level_5' => '5 punten', 'level_1' => '1 punt', 'level_0' => '0 punten',
+    'level_uitstekend' => 'Uitstekend', 'level_goed' => 'Goed', 'level_voldoende' => 'Voldoende', 'level_onvoldoende' => 'Onvoldoende',
+  ];
 
   /** JSON-kolommen die decode() omzet naar arrays. */
   const JSON_COLUMNS = ['analysis', 'teacher_answers', 'assessment', 'validation'];
@@ -63,7 +73,7 @@ class QuestionDesign {
       'clarity_independence' => 'Duidelijke en onafhankelijke criteria',
       'alternatives' => 'Ruimte voor alternatieve antwoorden',
       'not_too_literal' => 'Niet te letterlijk gekoppeld aan het modelantwoord',
-      'levels' => 'Logische puntverdeling over de niveaus',
+      'levels' => 'Logische puntverdeling over de niveaus (bij niveaus: minstens één aanvullend criterium, niveaus volgen uit de criteria)',
       'consistency' => 'Geen tegenstrijdigheden',
     ];
     return $labels[$check] ?? $check;
@@ -253,8 +263,12 @@ class QuestionDesign {
     return $out;
   }
 
-  /** Rubric: 1–6 criteria, vier niveaus (10/5/1/0) en 0–5 alternatieve antwoorden. */
-  public static function normalizeRubric($r): ?array {
+  /**
+   * Rubric: 1–6 criteria, vier niveauteksten en 0–5 alternatieve antwoorden.
+   * points: level_10/level_5/level_1/level_0. levels: level_uitstekend/level_goed/
+   * level_voldoende/level_onvoldoende (zelfde limieten).
+   */
+  public static function normalizeRubric($r, string $scale = 'points'): ?array {
     if (!is_array($r)) {
       return null;
     }
@@ -285,7 +299,7 @@ class QuestionDesign {
     }
 
     $rubric = ['criteria' => $criteria];
-    foreach (['level_10', 'level_5', 'level_1', 'level_0'] as $level) {
+    foreach (self::LEVEL_KEYS[$scale === 'levels' ? 'levels' : 'points'] as $level) {
       $text = self::cleanText($r[$level] ?? null);
       if ($text === null || $text === '') {
         return null;
@@ -333,11 +347,11 @@ class QuestionDesign {
   }
 
   /** Uitvoer van de Assessment Agent: {rubric, explanation}. */
-  public static function normalizeAssessment($a): ?array {
+  public static function normalizeAssessment($a, string $scale = 'points'): ?array {
     if (!is_array($a)) {
       return null;
     }
-    $rubric = self::normalizeRubric($a['rubric'] ?? null);
+    $rubric = self::normalizeRubric($a['rubric'] ?? null, $scale);
     if ($rubric === null) {
       return null;
     }
@@ -345,7 +359,7 @@ class QuestionDesign {
   }
 
   /** Uitvoer van de Validation Agent: zes controles (elk één keer), wijzigingen en een verbeterde rubric. */
-  public static function normalizeValidation($v): ?array {
+  public static function normalizeValidation($v, string $scale = 'points'): ?array {
     if (!is_array($v)) {
       return null;
     }
@@ -363,7 +377,7 @@ class QuestionDesign {
     if (count($checks) !== count(self::CHECKS)) {
       return null;
     }
-    $rubric = self::normalizeRubric($v['rubric'] ?? null);
+    $rubric = self::normalizeRubric($v['rubric'] ?? null, $scale);
     if ($rubric === null) {
       return null;
     }
@@ -381,24 +395,45 @@ class QuestionDesign {
   // Goedkeuren
   // ---------------------------------------------------------------------
 
+  /** Rubricformaat van een rubric: levels als de niveauteksten level_uitstekend ... zijn, anders points. */
+  public static function rubricScale(array $rubric): string {
+    return isset($rubric['level_uitstekend']) ? 'levels' : 'points';
+  }
+
   /**
    * Platte tekst voor questions.criteria. De beoordelingsworker herkent deze
    * opbouw met parse_rubric_criteria() en beoordeelt dan per criterium
    * (contract 7: wijzig kopjes, de criteriumregels of de niveauregels alleen
-   * samen met die parser). Bevat bewust niet de labels "Model:" en
-   * "Aantal punten:" uit het ai_feedback-formaat (contract 1).
+   * samen met die parser). Bevat bewust niet de labels "Model:", "Aantal
+   * punten:" en "Niveau:" uit het ai_feedback-formaat (contract 1).
+   *
+   * Het formaat volgt de schaal: points geeft het kopje "Puntentoekenning:" met
+   * 10/5/1/0 punten, levels het kopje "Niveaus:" met Uitstekend/Goed/Voldoende/
+   * Onvoldoende. Ontbreken de niveauteksten van die schaal (de schaal van de
+   * toets is gewijzigd tijdens het ontwerp), dan volgt het formaat de rubric.
    */
-  public static function rubricToCriteriaText(string $modelAnswer, array $rubric): string {
+  public static function rubricToCriteriaText(string $modelAnswer, array $rubric, string $scale = 'points'): string {
+    if (!isset($rubric[self::LEVEL_KEYS[$scale === 'levels' ? 'levels' : 'points'][0]])) {
+      $scale = self::rubricScale($rubric);
+    }
     $lines = ['Modelantwoord:', trim($modelAnswer), '', 'Beoordelingscriteria:'];
     foreach ($rubric['criteria'] ?? [] as $c) {
       $lines[] = '- [' . $c['weight'] . '] ' . $c['name'] . ': ' . $c['description'];
     }
     $lines[] = '';
-    $lines[] = 'Puntentoekenning:';
-    $lines[] = '10 punten: ' . ($rubric['level_10'] ?? '');
-    $lines[] = '5 punten: ' . ($rubric['level_5'] ?? '');
-    $lines[] = '1 punt: ' . ($rubric['level_1'] ?? '');
-    $lines[] = '0 punten: ' . ($rubric['level_0'] ?? '');
+    if ($scale === 'levels') {
+      $lines[] = 'Niveaus:';
+      $lines[] = 'Uitstekend: ' . ($rubric['level_uitstekend'] ?? '');
+      $lines[] = 'Goed: ' . ($rubric['level_goed'] ?? '');
+      $lines[] = 'Voldoende: ' . ($rubric['level_voldoende'] ?? '');
+      $lines[] = 'Onvoldoende: ' . ($rubric['level_onvoldoende'] ?? '');
+    } else {
+      $lines[] = 'Puntentoekenning:';
+      $lines[] = '10 punten: ' . ($rubric['level_10'] ?? '');
+      $lines[] = '5 punten: ' . ($rubric['level_5'] ?? '');
+      $lines[] = '1 punt: ' . ($rubric['level_1'] ?? '');
+      $lines[] = '0 punten: ' . ($rubric['level_0'] ?? '');
+    }
     if (!empty($rubric['alternative_answers'])) {
       $lines[] = '';
       $lines[] = 'Ook correct:';
@@ -443,16 +478,26 @@ class QuestionDesign {
   // Wachtrij voor de ontwerp-worker
   // ---------------------------------------------------------------------
 
-  /** Ontwerpen waar de worker aan moet werken, oudste eerst. */
+  /** Ontwerpen waar de worker aan moet werken, oudste eerst, met de schaal van de toets. */
   public static function getPendingJobs(int $limit) {
     $pdo = Database::connect();
     $stmt = $pdo->prepare("
-      SELECT * FROM question_designs
-      WHERE status IN (?, ?)
-      ORDER BY updated_at ASC, id ASC
+      SELECT qd.*, e.grading_scale
+      FROM question_designs qd
+      JOIN exams e ON qd.exam_id = e.id
+      WHERE qd.status IN (?, ?)
+      ORDER BY qd.updated_at ASC, qd.id ASC
       LIMIT " . (int)$limit
     );
     $stmt->execute([self::STATUS_ANALYSIS_PENDING, self::STATUS_ASSESSMENT_PENDING]);
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
+  }
+
+  /** Schaal van de toets van een ontwerp (uit de database, nooit uit de body van de worker). */
+  public static function scaleForDesign(array $design): string {
+    $pdo = Database::connect();
+    $stmt = $pdo->prepare("SELECT grading_scale FROM exams WHERE id = ?");
+    $stmt->execute([(int)$design['exam_id']]);
+    return $stmt->fetchColumn() === 'levels' ? 'levels' : 'points';
   }
 }

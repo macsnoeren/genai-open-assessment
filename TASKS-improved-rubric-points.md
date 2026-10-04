@@ -207,14 +207,14 @@ Alle rekenregels staan op één plek, zodat de aggregatie niet opnieuw op meerde
 
 ## Fase 9: Worker-contract, webapp-kant
 
-- [ ] **9.1 `getPendingAiGrading()`:** selecteer `e.grading_scale` mee. Sla `levels`-toetsen over zolang `LEVELS_AI_ENABLED` uit staat (`AND (e.grading_scale = 'points' OR ?)`).
-- [ ] **9.2 `getOpenAnswers()`:** elk antwoord krijgt het veld `grading_scale`, dat al uit de query in 9.1 komt.
-- [ ] **9.3 `AnswerAssessment::createAutomaticRuns()` en `getPendingJobs()`:** dezelfde filter op de vlag. `getOpenAssessmentJobs()` stuurt `grading_scale` mee.
-- [ ] **9.4 `getOpenDesignJobs()`:** stuur `grading_scale` van de toets mee. Hier is geen vlag nodig: de parser accepteert beide rubricformaten (fase 12).
-- [ ] **9.5 `AnswerAssessment::normalizeDecision()`:** accepteer optioneel `level` (enum). `normalizeAssessment()`/`normalizeValidation()` accepteren bij `levels` een niveau als `score`. Geef de schaal mee als parameter, uit de run of de toets in de database, niet uit de body.
-- [ ] **9.6 `AnswerAssessment::saveResult()`:** schrijf bij `levels` `final_level` en laat `final_score` NULL.
-- [ ] **9.7 `AnswerAssessment::studentSummary()`:** geeft bij `levels` `level` terug in plaats van `score`.
-- [ ] **9.8 `QuestionDesign::rubricToCriteriaText()`:** krijgt de schaal mee. Bij `levels` komt er het kopje `Niveaus:` met `Uitstekend:` / `Goed:` / `Voldoende:` / `Onvoldoende:`. `normalize*()` accepteert bij `levels` de sleutels `level_uitstekend`, `level_goed`, `level_voldoende` en `level_onvoldoende`, met dezelfde limieten als nu. `question_design_rubric.php` toont de juiste labels.
+- [x] **9.1 `getPendingAiGrading()`:** selecteer `e.grading_scale` mee. Sla `levels`-toetsen over zolang `LEVELS_AI_ENABLED` uit staat (`AND (e.grading_scale = 'points' OR ?)`).
+- [x] **9.2 `getOpenAnswers()`:** elk antwoord krijgt het veld `grading_scale`, dat al uit de query in 9.1 komt.
+- [x] **9.3 `AnswerAssessment::createAutomaticRuns()` en `getPendingJobs()`:** dezelfde filter op de vlag. `getOpenAssessmentJobs()` stuurt `grading_scale` mee.
+- [x] **9.4 `getOpenDesignJobs()`:** stuur `grading_scale` van de toets mee. Hier is geen vlag nodig: de parser accepteert beide rubricformaten (fase 12).
+- [x] **9.5 `AnswerAssessment::normalizeDecision()`:** accepteer optioneel `level` (enum). `normalizeAssessment()`/`normalizeValidation()` accepteren bij `levels` een niveau als `score`. Geef de schaal mee als parameter, uit de run of de toets in de database, niet uit de body.
+- [x] **9.6 `AnswerAssessment::saveResult()`:** schrijf bij `levels` `final_level` en laat `final_score` NULL.
+- [x] **9.7 `AnswerAssessment::studentSummary()`:** geeft bij `levels` `level` terug in plaats van `score`.
+- [x] **9.8 `QuestionDesign::rubricToCriteriaText()`:** krijgt de schaal mee. Bij `levels` komt er het kopje `Niveaus:` met `Uitstekend:` / `Goed:` / `Voldoende:` / `Onvoldoende:`. `normalize*()` accepteert bij `levels` de sleutels `level_uitstekend`, `level_goed`, `level_voldoende` en `level_onvoldoende`, met dezelfde limieten als nu. `question_design_rubric.php` toont de juiste labels.
   *Klaar als:* met de vlag uit verschijnen `levels`-antwoorden niet in `open_student_answers` (controleer met `curl` en een worker-key); met de vlag aan wel, met `"grading_scale": "levels"`; en `points`-antwoorden blijven gelijk. Commit: `Send grading scale to workers`.
 
 ## Fase 10: AI-worker (`bin/process_ai_feedback.py`)

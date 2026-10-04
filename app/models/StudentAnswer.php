@@ -53,7 +53,7 @@ class StudentAnswer {
     $pdo = Database::connect();
     $stmt = $pdo->prepare("
         SELECT sa.id, sa.student_exam_id, sa.question_id, sa.answer, sa.teacher_score, sa.teacher_feedback,
-               se.completed_at, se.exam_id, e.ai_grading_enabled, e.title AS exam_title,
+               se.completed_at, se.exam_id, e.ai_grading_enabled, e.grading_scale, e.title AS exam_title,
                q.question_text, q.criteria,
                COALESCE(u.name, se.guest_name, 'Gast') AS student_name
         FROM student_answers sa
@@ -156,8 +156,9 @@ class StudentAnswer {
   public static function getPendingAiGrading($limit = null) {
     $pdo = Database::connect();
     [$excludeSql, $params] = AnswerAssessment::excludeFromAiGradingSql('sa', 'q');
+    // Toetsen met niveaus alleen als de worker ze begrijpt (overgangsvlag, zie config/app.php)
     $sql = "
-        SELECT sa.id as student_answer_id, sa.answer, q.question_text, q.criteria, p.prompt_text
+        SELECT sa.id as student_answer_id, sa.answer, q.question_text, q.criteria, p.prompt_text, e.grading_scale
         FROM student_answers sa
         INNER JOIN questions q ON sa.question_id = q.id
         INNER JOIN student_exams se ON sa.student_exam_id = se.id
@@ -166,6 +167,7 @@ class StudentAnswer {
         WHERE (sa.ai_feedback IS NULL OR sa.ai_feedback = '')
         AND se.completed_at IS NOT NULL
         AND e.ai_grading_enabled = 1
+        AND (e.grading_scale = 'points' OR ?)
         $excludeSql
         ORDER BY sa.id ASC
     ";
@@ -175,7 +177,7 @@ class StudentAnswer {
     }
 
     $stmt = $pdo->prepare($sql);
-    $stmt->execute($params);
+    $stmt->execute(array_merge([LEVELS_AI_ENABLED ? 1 : 0], $params));
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
   }
 

@@ -21,7 +21,7 @@
         <?= $validation['validated'] ? 'Beoordeling bevestigd' : 'Beoordeling niet bevestigd' ?>
     </span>
     <span class="badge <?= e(AnswerAssessment::confidenceClass($validation['confidence'])) ?>">confidence <?= e($validation['confidence']) ?></span>
-    <span class="badge bg-light text-dark border">eindscore validatie: <?= (int)$validation['final_assessment']['score'] ?></span>
+    <span class="badge bg-light text-dark border">eindoordeel validatie: <?= e(AnswerAssessment::resultText($validation['final_assessment']['score'])) ?></span>
 </p>
 
 <h6>Controles</h6>

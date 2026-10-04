@@ -40,11 +40,15 @@
     </table>
 </div>
 
-<h6>Puntentoekenning</h6>
+<?php $rubricScale = QuestionDesign::rubricScale($rubric); ?>
+<h6><?= $rubricScale === 'levels' ? 'Niveaus' : 'Puntentoekenning' ?></h6>
+<?php if ($rubricScale === 'levels'): ?>
+<p class="small text-muted mb-1">Het niveau volgt uit de criteria: alle essentiële voldaan is voldoende; met aanvullende criteria erbij goed of uitstekend.</p>
+<?php endif; ?>
 <dl class="row mb-3">
-    <?php foreach (['level_10' => '10 punten', 'level_5' => '5 punten', 'level_1' => '1 punt', 'level_0' => '0 punten'] as $key => $label): ?>
-        <dt class="col-sm-2"><?= e($label) ?></dt>
-        <dd class="col-sm-10"><?= e($rubric[$key]) ?></dd>
+    <?php foreach (QuestionDesign::LEVEL_KEYS[$rubricScale] as $key): ?>
+        <dt class="col-sm-2"><?= e(QuestionDesign::LEVEL_LABELS[$key]) ?></dt>
+        <dd class="col-sm-10"><?= e($rubric[$key] ?? '') ?></dd>
     <?php endforeach; ?>
 </dl>
 

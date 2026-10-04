@@ -123,7 +123,8 @@ $overrideShowComputed = false;
 require __DIR__ . '/final_grade_override.php';
 ?>
 
-<?php $canAssess = !empty($exam['ai_grading_enabled']) && !empty($studentExam['completed_at']); ?>
+<?php $levelsAiOff = $isLevels && !LEVELS_AI_ENABLED; ?>
+<?php $canAssess = !empty($exam['ai_grading_enabled']) && !empty($studentExam['completed_at']) && !$levelsAiOff; ?>
 <div class="card mb-4">
     <div class="card-body d-flex flex-wrap align-items-center gap-3">
         <div class="flex-grow-1">
@@ -133,6 +134,8 @@ require __DIR__ . '/final_grade_override.php';
                 AI-beoordeling staat uit voor deze toets, dus agentic beoordelen kan hier niet. Zet AI-beoordeling aan bij de instellingen van de toets.
             <?php elseif (empty($studentExam['completed_at'])): ?>
                 Deze toetspoging is nog niet ingeleverd.
+            <?php elseif ($levelsAiOff): ?>
+                AI-beoordeling met niveaus staat nog uit op deze server. Beoordeel deze toets zelf per niveau.
             <?php else: ?>
                 AI-agents zoeken per rubriccriterium bewijs in het antwoord, beoordelen en controleren elkaar. Dat levert een AI-beoordeling op, net als de AI-feedback; jouw eigen beoordeling staat daar los van.
             <?php endif; ?>

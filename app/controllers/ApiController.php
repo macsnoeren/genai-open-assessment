@@ -183,6 +183,8 @@ class ApiController {
                 'teacher_answers' => $design['teacher_answers'] ?? [],
                 'teacher_feedback' => (string)($design['teacher_feedback'] ?? ''),
                 'previous_rubric' => $design['validation']['rubric'] ?? null,
+                // points | levels (van de toets); een worker zonder dit veld gaat uit van points
+                'grading_scale' => ($design['grading_scale'] ?? 'points') === 'levels' ? 'levels' : 'points',
             ];
         }
 
@@ -260,12 +262,14 @@ class ApiController {
             $saved = QuestionDesign::saveAnalysis($designId, $revision, $analysis);
         } else {
             $result = $input['result'];
-            $assessment = QuestionDesign::normalizeAssessment(is_array($result) ? ($result['assessment'] ?? null) : null);
+            // De schaal komt uit de database (de toets van het ontwerp), nooit uit de body
+            $scale = QuestionDesign::scaleForDesign($design);
+            $assessment = QuestionDesign::normalizeAssessment(is_array($result) ? ($result['assessment'] ?? null) : null, $scale);
             if ($assessment === null) {
                 $this->jsonError(400, 'Invalid assessment');
                 return;
             }
-            $validation = QuestionDesign::normalizeValidation($result['validation'] ?? null);
+            $validation = QuestionDesign::normalizeValidation($result['validation'] ?? null, $scale);
             if ($validation === null) {
                 $this->jsonError(400, 'Invalid validation');
                 return;
@@ -322,6 +326,8 @@ class ApiController {
                 'question_text' => $row['question_snapshot'],
                 'criteria' => $row['criteria_snapshot'],
                 'answer' => $row['answer_snapshot'],
+                // points | levels; een worker zonder dit veld gaat uit van points
+                'grading_scale' => $row['grading_scale'] === 'levels' ? 'levels' : 'points',
             ];
         }
 
@@ -383,7 +389,9 @@ class ApiController {
             $saved = AnswerAssessment::markFailed($assessmentId, $message);
             $details = ['id' => $assessmentId, 'failed' => true];
         } else {
-            $result = AnswerAssessment::normalizeResult($input['result'], $reason);
+            // De schaal komt uit de database (de toets van de run), nooit uit de body
+            $scale = AnswerAssessment::scaleForRun($run);
+            $result = AnswerAssessment::normalizeResult($input['result'], $reason, $scale);
             if ($result === null) {
                 $this->jsonError(400, $reason ?? 'Invalid result');
                 return;
@@ -392,8 +400,12 @@ class ApiController {
             $details = [
                 'id' => $assessmentId,
                 'human_review_needed' => $result['decision']['human_review_needed'],
-                'final_score' => $result['decision']['score'],
             ];
+            if ($scale === 'levels') {
+                $details['final_level'] = $result['decision']['level'];
+            } else {
+                $details['final_score'] = $result['decision']['score'];
+            }
         }
 
         // De run kan net door de docent zijn vervangen (tussen find en update).

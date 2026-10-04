@@ -114,8 +114,13 @@ $renderRound = function (array $round, bool $withDecision) use ($rubric, $eviden
     <div class="card-body">
         <div class="d-flex flex-wrap align-items-center gap-3 mb-3">
             <div>
+                <?php if (isset($decision['level'])): ?>
+                <div class="small text-muted">AI-niveau (agentic)</div>
+                <div class="fs-2 fw-bold"><?= e(AnswerAssessment::resultText($decision['level'])) ?></div>
+                <?php else: ?>
                 <div class="small text-muted">AI-score (agentic)</div>
                 <div class="fs-2 fw-bold"><?= (int)$decision['score'] ?> <span class="fs-6 text-muted">/ 10</span></div>
+                <?php endif; ?>
             </div>
             <div>
                 <div class="small text-muted">Confidence</div>
@@ -185,8 +190,8 @@ $renderRound = function (array $round, bool $withDecision) use ($rubric, $eviden
     <summary class="card-header fw-bold">Eerdere ronde <?= (int)$i + 1 ?> (voor de extra ronde)</summary>
     <div class="card-body">
         <p class="small text-muted">
-            Voorlopige score in deze ronde: Assessment <?= (int)$round['assessment']['score'] ?>,
-            Validation <?= (int)$round['validation']['final_assessment']['score'] ?>.
+            Voorlopige <?= isset($decision['level']) ? 'uitkomst' : 'score' ?> in deze ronde: Assessment <?= e(AnswerAssessment::resultText($round['assessment']['score'])) ?>,
+            Validation <?= e(AnswerAssessment::resultText($round['validation']['final_assessment']['score'])) ?>.
         </p>
         <?php $renderRound($round, false); ?>
         <h5 class="mt-3">Validatie in ronde <?= (int)$i + 1 ?></h5>
@@ -230,9 +235,15 @@ $renderRound = function (array $round, bool $withDecision) use ($rubric, $eviden
             <?php endforeach; ?>
         </ol>
         <ul class="small list-unstyled">
+            <?php if (($rubric['levels_format'] ?? 'points') === 'levels'): ?>
+                <?php foreach (AnswerAssessment::LEVEL_NAMES as $level): ?>
+                    <li><span class="fw-semibold"><?= e(ucfirst($level)) ?>:</span> <?= e($rubric['levels'][$level] ?? '') ?></li>
+                <?php endforeach; ?>
+            <?php else: ?>
             <?php foreach (AnswerAssessment::LEVELS as $level): ?>
                 <li><span class="fw-semibold"><?= e($level) ?> <?= $level === '1' ? 'punt' : 'punten' ?>:</span> <?= e($rubric['levels'][$level] ?? '') ?></li>
             <?php endforeach; ?>
+            <?php endif; ?>
         </ul>
         <?php if ($rubric['alternatives']): ?>
             <p class="small fw-semibold mb-1">Ook correct:</p>
@@ -253,6 +264,7 @@ $renderRound = function (array $round, bool $withDecision) use ($rubric, $eviden
             <span class="badge <?= e(AnswerAssessment::statusClass($h['status'])) ?>"><?= e(AnswerAssessment::statusLabel($h['status'])) ?></span>
             <span>Run <?= (int)$h['id'] ?> · <?= e($h['created_at']) ?></span>
             <?php if ($h['final_score'] !== null): ?><span class="text-muted">AI-score <?= (int)$h['final_score'] ?></span><?php endif; ?>
+            <?php if (($h['final_level'] ?? null) !== null): ?><span class="text-muted">AI-niveau <?= e(AnswerAssessment::resultText($h['final_level'])) ?></span><?php endif; ?>
             <?php if ((int)$h['id'] === (int)$run['id']): ?>
                 <span class="ms-auto text-muted">deze pagina</span>
             <?php else: ?>

@@ -274,7 +274,7 @@ $previousRound = $isPending ? ' <span class="badge bg-light text-muted border ms
                     Laat de opbouw (de kopjes, de regels met [essentieel] of [aanvullend] en de vier regels van de puntentoekenning) intact,
                     dan beoordeelt de AI elk antwoord per criterium.</div>
                 <textarea name="criteria" id="approveCriteria" class="form-control font-monospace" rows="14" required><?=
-                    e(QuestionDesign::rubricToCriteriaText($design['model_answer'], $validation['rubric'])) ?></textarea>
+                    e(QuestionDesign::rubricToCriteriaText($design['model_answer'], $validation['rubric'], Grading::examScale($exam))) ?></textarea>
             </div>
             <button type="submit" class="btn btn-success"
                     data-confirm="De vraag met deze criteria toevoegen aan de toets?">Goedkeuren en vraag toevoegen</button>

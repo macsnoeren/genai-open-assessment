@@ -49,6 +49,10 @@ class AnswerAssessment {
   const MAX_SHORT = 100;   // modelnamen en tijdstempels in de run_log
   const WEIGHTS = ['essentieel', 'aanvullend'];
   const LEVELS = ['10', '5', '1', '0'];
+  /** Niveauteksten van een rubric in het niveauformaat (kopje "Niveaus:", contract 7). */
+  const LEVEL_NAMES = ['uitstekend', 'goed', 'voldoende', 'onvoldoende'];
+  /** Niveaus als uitkomst bij grading_scale levels (gelijk aan Grading::LEVELS). */
+  const RESULT_LEVELS = ['onvoldoende', 'voldoende', 'goed', 'uitstekend'];
   const EVIDENCE_FOUND = ['ja', 'gedeeltelijk', 'nee'];
   const STATUSES = ['voldaan', 'deels', 'niet'];
   const CONFIDENCES = ['hoog', 'middel', 'laag'];
@@ -69,9 +73,19 @@ class AnswerAssessment {
    * een fout terug, waarna het antwoord terugvalt op de gewone AI-beoordeling.
    */
   const RUBRIC_HEADINGS = ['Beoordelingscriteria:', 'Puntentoekenning:'];
+  /** Alternatief voor "Puntentoekenning:" in het niveauformaat (contract 7). */
+  const RUBRIC_LEVELS_HEADING = 'Niveaus:';
 
   /** Statussen waarmee een antwoord bij agentic beoordelen hoort (niet bij process_ai_feedback). */
   const ACTIVE_STATUSES = [self::STATUS_PENDING, self::STATUS_DONE];
+
+  /**
+   * Weergave van een AI-uitkomst in de views: een score (points, "5") of een
+   * niveau (levels, "Goed").
+   */
+  public static function resultText($value): string {
+    return is_string($value) ? ucfirst($value) : (string)(int)$value;
+  }
 
   /** Nederlands label voor een status. */
   public static function statusLabel(string $status): string {
@@ -264,7 +278,7 @@ class AnswerAssessment {
   public static function historyByAnswer($studentAnswerId): array {
     $pdo = Database::connect();
     $stmt = $pdo->prepare("
-      SELECT id, status, final_score, human_review_needed, created_at, updated_at
+      SELECT id, status, final_score, final_level, human_review_needed, created_at, updated_at
       FROM answer_assessments
       WHERE student_answer_id = ?
       ORDER BY id DESC
@@ -294,15 +308,20 @@ class AnswerAssessment {
   // Overgangen door de worker (alleen vanuit pending)
   // ---------------------------------------------------------------------
 
-  /** pending → done, met het genormaliseerde resultaat (zie normalizeResult()). */
+  /**
+   * pending → done, met het genormaliseerde resultaat (zie normalizeResult()).
+   * points: final_score uit decision.score; levels: final_level uit decision.level.
+   */
   public static function saveResult($id, array $result): bool {
     $pdo = Database::connect();
     $stmt = $pdo->prepare("
       UPDATE answer_assessments
       SET status = ?, rubric = ?, evidence = ?, rounds = ?, decision = ?, run_log = ?,
-          final_score = ?, human_review_needed = ?, error_message = NULL, updated_at = CURRENT_TIMESTAMP
+          final_score = ?, final_level = ?, human_review_needed = ?, error_message = NULL, updated_at = CURRENT_TIMESTAMP
       WHERE id = ? AND status = ?
     ");
+    // Bij grading_scale levels staat het niveau in decision.level en blijft final_score NULL
+    $level = $result['decision']['level'] ?? null;
     $stmt->execute([
       self::STATUS_DONE,
       self::encode($result['rubric']),
@@ -310,7 +329,8 @@ class AnswerAssessment {
       self::encode($result['rounds']),
       self::encode($result['decision']),
       self::encode($result['run_log']),
-      (int)$result['decision']['score'],
+      $level === null ? (int)$result['decision']['score'] : null,
+      $level,
       $result['decision']['human_review_needed'] ? 1 : 0,
       $id,
       self::STATUS_PENDING,
@@ -415,7 +435,16 @@ class AnswerAssessment {
     return ($score !== null && in_array($score, self::SCORES, true)) ? $score : null;
   }
 
-  /** Rubric zoals de worker die uit de criteria-snapshot parseerde: 1–10 criteria, vier niveaus, alternatieven. */
+  /** Uitkomst per schaal: een score uit SCORES (points) of een niveau uit RESULT_LEVELS (levels). */
+  private static function scaleScore($v, string $scale) {
+    return $scale === 'levels' ? self::enum($v, self::RESULT_LEVELS) : self::score($v);
+  }
+
+  /**
+   * Rubric zoals de worker die uit de criteria-snapshot parseerde: 1–10 criteria,
+   * vier niveauteksten (10/5/1/0 of, met levels_format levels, uitstekend/goed/
+   * voldoende/onvoldoende) en alternatieven.
+   */
   public static function normalizeRubric($r): ?array {
     if (!is_array($r)) {
       return null;
@@ -439,9 +468,12 @@ class AnswerAssessment {
       $criteria[] = ['nr' => $nr, 'name' => $name, 'weight' => $weight, 'description' => $description];
     }
 
+    // levels_format: welk rubricformaat de worker parseerde (contract 7). Het puntenformaat
+    // heeft de niveaus 10/5/1/0, het niveauformaat uitstekend/goed/voldoende/onvoldoende.
+    $format = ($r['levels_format'] ?? 'points') === 'levels' ? 'levels' : 'points';
     $levels = [];
     $rawLevels = is_array($r['levels'] ?? null) ? $r['levels'] : [];
-    foreach (self::LEVELS as $level) {
+    foreach ($format === 'levels' ? self::LEVEL_NAMES : self::LEVELS as $level) {
       $text = self::cleanText($rawLevels[$level] ?? null);
       if ($text === null || $text === '') {
         return null;
@@ -463,6 +495,7 @@ class AnswerAssessment {
     return [
       'model_answer' => self::cleanText($r['model_answer'] ?? null, self::MAX_MODEL_ANSWER) ?? '',
       'criteria' => $criteria,
+      'levels_format' => $format,
       'levels' => $levels,
       'alternatives' => $alternatives,
     ];
@@ -493,8 +526,11 @@ class AnswerAssessment {
     return ['criteria' => $criteria, 'summary' => self::cleanText($e['summary'] ?? null) ?? ''];
   }
 
-  /** Uitvoer van de Assessment Agent: status per criterium, score, confidence en feedback. */
-  public static function normalizeAssessment($a, int $count): ?array {
+  /**
+   * Uitvoer van de Assessment Agent: status per criterium, score, confidence en
+   * feedback. Bij grading_scale levels is score een niveau.
+   */
+  public static function normalizeAssessment($a, int $count, string $scale = 'points'): ?array {
     $map = is_array($a) ? self::criterionMap($a['criteria'] ?? null, $count) : null;
     if ($map === null) {
       return null;
@@ -515,7 +551,7 @@ class AnswerAssessment {
         'confidence' => $confidence,
       ];
     }
-    $score = self::score($a['score'] ?? null);
+    $score = self::scaleScore($a['score'] ?? null, $scale);
     $confidence = self::enum($a['confidence'] ?? null, self::CONFIDENCES);
     if ($score === null || $confidence === null) {
       return null;
@@ -528,8 +564,11 @@ class AnswerAssessment {
     ];
   }
 
-  /** Uitvoer van de Validation Agent: zeven controles (elk één keer), issues, correcties en een eindoordeel. */
-  public static function normalizeValidation($v, int $count): ?array {
+  /**
+   * Uitvoer van de Validation Agent: zeven controles (elk één keer), issues,
+   * correcties en een eindoordeel. Bij grading_scale levels is de score een niveau.
+   */
+  public static function normalizeValidation($v, int $count, string $scale = 'points'): ?array {
     if (!is_array($v)) {
       return null;
     }
@@ -574,7 +613,7 @@ class AnswerAssessment {
 
     $final = $v['final_assessment'] ?? null;
     $map = is_array($final) ? self::criterionMap($final['criteria'] ?? null, $count) : null;
-    $score = is_array($final) ? self::score($final['score'] ?? null) : null;
+    $score = is_array($final) ? self::scaleScore($final['score'] ?? null, $scale) : null;
     $confidence = self::enum($v['confidence'] ?? null, self::CONFIDENCES);
     if ($map === null || $score === null || $confidence === null) {
       return null;
@@ -603,8 +642,10 @@ class AnswerAssessment {
   /**
    * Beslissing van de orchestrator (deterministisch berekend in de worker).
    * human_review_needed wordt true als het veld ontbreekt of geen boolean is.
+   * points: score uit SCORES verplicht. levels: level (niveau) verplicht en
+   * score null.
    */
-  public static function normalizeDecision($d, int $count): ?array {
+  public static function normalizeDecision($d, int $count, string $scale = 'points'): ?array {
     $map = is_array($d) ? self::criterionMap($d['criteria'] ?? null, $count) : null;
     if ($map === null) {
       return null;
@@ -629,10 +670,17 @@ class AnswerAssessment {
         'unverified_quotes' => $unverified,
       ];
     }
-    $score = self::score($d['score'] ?? null);
+    $level = null;
+    $score = null;
+    if ($scale === 'levels') {
+      $level = self::enum($d['level'] ?? null, self::RESULT_LEVELS);
+    } else {
+      $score = self::score($d['score'] ?? null);
+    }
     $confidence = self::enum($d['confidence'] ?? null, self::CONFIDENCES);
     $extraRounds = self::intValue($d['extra_rounds'] ?? null);
-    if ($score === null || $confidence === null || $extraRounds === null || $extraRounds > self::MAX_ROUNDS - 1) {
+    if (($scale === 'levels' ? $level === null : $score === null)
+        || $confidence === null || $extraRounds === null || $extraRounds > self::MAX_ROUNDS - 1) {
       return null;
     }
     $reasons = [];
@@ -646,7 +694,7 @@ class AnswerAssessment {
       }
     }
     $humanReview = $d['human_review_needed'] ?? null;
-    return [
+    $decision = [
       'criteria' => $criteria,
       'score' => $score,
       'score_capped' => ($d['score_capped'] ?? false) === true,
@@ -656,6 +704,10 @@ class AnswerAssessment {
       'reasons' => $reasons,
       'extra_rounds' => $extraRounds,
     ];
+    if ($scale === 'levels') {
+      $decision['level'] = $level;
+    }
+    return $decision;
   }
 
   /** Run-gegevens (alleen ter informatie): modellen, tijdsduren, injection-vermoeden en tijdstippen. */
@@ -685,10 +737,11 @@ class AnswerAssessment {
 
   /**
    * Het volledige resultaat van submit_assessment_result. De rubric bepaalt
-   * het aantal criteria voor de rest. Bij een ongeldig onderdeel: null, en
+   * het aantal criteria voor de rest. $scale is de schaal van de toets (uit de
+   * database): bij levels zijn de scores niveaus en heeft decision een level. Bij een ongeldig onderdeel: null, en
    * $error noemt welk onderdeel (voor de 400-melding).
    */
-  public static function normalizeResult($r, ?string &$error = null): ?array {
+  public static function normalizeResult($r, ?string &$error = null, string $scale = 'points'): ?array {
     $error = null;
     if (!is_array($r)) {
       $error = 'Invalid result';
@@ -714,8 +767,8 @@ class AnswerAssessment {
     }
     $rounds = [];
     foreach ($rawRounds as $i => $round) {
-      $assessment = is_array($round) ? self::normalizeAssessment($round['assessment'] ?? null, $count) : null;
-      $validation = is_array($round) ? self::normalizeValidation($round['validation'] ?? null, $count) : null;
+      $assessment = is_array($round) ? self::normalizeAssessment($round['assessment'] ?? null, $count, $scale) : null;
+      $validation = is_array($round) ? self::normalizeValidation($round['validation'] ?? null, $count, $scale) : null;
       if ($assessment === null || $validation === null) {
         $error = 'Invalid ' . ($assessment === null ? 'assessment' : 'validation') . ' in round ' . ($i + 1);
         return null;
@@ -723,7 +776,7 @@ class AnswerAssessment {
       $rounds[] = ['assessment' => $assessment, 'validation' => $validation];
     }
 
-    $decision = self::normalizeDecision($r['decision'] ?? null, $count);
+    $decision = self::normalizeDecision($r['decision'] ?? null, $count, $scale);
     if ($decision === null || $decision['extra_rounds'] !== count($rounds) - 1) {
       $error = 'Invalid decision';
       return null;
@@ -790,21 +843,26 @@ class AnswerAssessment {
   // Automatisch starten en de verdeling met process_ai_feedback
   // ---------------------------------------------------------------------
 
-  /** True als de criteria de rubric-kopjes bevatten (zelfde regel als rubricSql()). */
+  /**
+   * True als de criteria de rubric-kopjes bevatten (zelfde regel als rubricSql()):
+   * "Beoordelingscriteria:" en "Puntentoekenning:" (puntenformaat) of "Niveaus:"
+   * (niveauformaat).
+   */
   public static function looksLikeRubric(?string $criteria): bool {
-    foreach (self::RUBRIC_HEADINGS as $heading) {
-      if (stripos((string)$criteria, $heading) === false) {
-        return false;
-      }
+    $criteria = (string)$criteria;
+    if (stripos($criteria, self::RUBRIC_HEADINGS[0]) === false) {
+      return false;
     }
-    return true;
+    return stripos($criteria, self::RUBRIC_HEADINGS[1]) !== false
+        || stripos($criteria, self::RUBRIC_LEVELS_HEADING) !== false;
   }
 
   /** SQL-voorwaarde voor looksLikeRubric() op een kolom, met de bijbehorende parameters. */
   private static function rubricSql(string $column): array {
-    $parts = array_fill(0, count(self::RUBRIC_HEADINGS), "$column LIKE ?");
-    $params = array_map(fn($heading) => '%' . $heading . '%', self::RUBRIC_HEADINGS);
-    return ['(' . implode(' AND ', $parts) . ')', $params];
+    return [
+      "($column LIKE ? AND ($column LIKE ? OR $column LIKE ?))",
+      ['%' . self::RUBRIC_HEADINGS[0] . '%', '%' . self::RUBRIC_HEADINGS[1] . '%', '%' . self::RUBRIC_LEVELS_HEADING . '%'],
+    ];
   }
 
   /**
@@ -869,8 +927,11 @@ class AnswerAssessment {
       JOIN questions q ON sa.question_id = q.id
       WHERE se.completed_at IS NOT NULL
         AND e.ai_grading_enabled = 1
+        AND (e.grading_scale = 'points' OR ?)
         AND (sa.ai_feedback IS NULL OR sa.ai_feedback = '')
         AND $autoSql";
+    // Toetsen met niveaus alleen als de worker ze begrijpt (overgangsvlag, zie config/app.php)
+    array_unshift($params, LEVELS_AI_ENABLED ? 1 : 0);
     if ($studentExamId !== null) {
       $sql .= " AND sa.student_exam_id = ?";
       $params[] = $studentExamId;
@@ -892,17 +953,39 @@ class AnswerAssessment {
   // Wachtrij voor de assessment-worker
   // ---------------------------------------------------------------------
 
-  /** Runs waar de worker aan moet werken, oudste eerst. */
+  /**
+   * Runs waar de worker aan moet werken, oudste eerst, met de schaal van de toets.
+   * Runs van een toets met niveaus alleen als LEVELS_AI_ENABLED aan staat (een
+   * oude worker zou ze als points beoordelen).
+   */
   public static function getPendingJobs(int $limit): array {
     $pdo = Database::connect();
     $stmt = $pdo->prepare("
-      SELECT id, question_snapshot, criteria_snapshot, answer_snapshot
-      FROM answer_assessments
-      WHERE status = ?
-      ORDER BY id ASC
+      SELECT aa.id, aa.question_snapshot, aa.criteria_snapshot, aa.answer_snapshot, e.grading_scale
+      FROM answer_assessments aa
+      JOIN student_answers sa ON aa.student_answer_id = sa.id
+      JOIN student_exams se ON sa.student_exam_id = se.id
+      JOIN exams e ON se.exam_id = e.id
+      WHERE aa.status = ?
+        AND (e.grading_scale = 'points' OR ?)
+      ORDER BY aa.id ASC
       LIMIT " . (int)$limit
     );
-    $stmt->execute([self::STATUS_PENDING]);
+    $stmt->execute([self::STATUS_PENDING, LEVELS_AI_ENABLED ? 1 : 0]);
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
+  }
+
+  /** Schaal van de toets van een run (uit de database, nooit uit de body van de worker). */
+  public static function scaleForRun(array $run): string {
+    $pdo = Database::connect();
+    $stmt = $pdo->prepare("
+      SELECT e.grading_scale
+      FROM student_answers sa
+      JOIN student_exams se ON sa.student_exam_id = se.id
+      JOIN exams e ON se.exam_id = e.id
+      WHERE sa.id = ?
+    ");
+    $stmt->execute([(int)$run['student_answer_id']]);
+    return $stmt->fetchColumn() === 'levels' ? 'levels' : 'points';
   }
 }
