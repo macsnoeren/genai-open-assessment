@@ -14,7 +14,8 @@ volgende:
 
 1. AnalysisAgent: essentiële elementen, duidelijkheid, beoordelingsproblemen
    en zo nodig verduidelijkende vragen aan de docent.
-2. AssessmentAgent: een rubric (criteria + niveaus 10/5/1/0 + alternatieven).
+2. AssessmentAgent: een rubric (criteria + niveaus 10/5/1/0 + alternatieven; bij een
+   toets met grading_scale "levels" de niveaus uitstekend/goed/voldoende/onvoldoende).
 3. ValidationAgent: controleert het voorstel kritisch en levert een verbeterde rubric.
 
 Dit bestand bevat geen netwerkcode richting de webapp (zie process_design_jobs.py),
@@ -29,7 +30,7 @@ import re
 from typing import Callable, Dict, List, Optional
 
 import config
-from process_ai_feedback import call_ollama, NUM_PREDICT_MAX
+from process_ai_feedback import call_ollama, job_scale, NUM_PREDICT_MAX, SCALE_LEVELS, SCALE_POINTS
 from config import LLM_MODELS
 
 # =========================
@@ -66,6 +67,11 @@ MAX_CHANGES = 8
 WEIGHTS = ["essentieel", "aanvullend"]
 CHECKS = ["coverage", "clarity_independence", "alternatives", "not_too_literal", "levels", "consistency"]
 LEVELS = ["level_10", "level_5", "level_1", "level_0"]
+# Sleutels van de niveauteksten per schaal (QuestionDesign::LEVEL_KEYS in PHP)
+LEVEL_KEYS = {
+    SCALE_POINTS: LEVELS,
+    SCALE_LEVELS: ["level_uitstekend", "level_goed", "level_voldoende", "level_onvoldoende"],
+}
 
 # =========================
 # JSON-SCHEMA'S (Ollama "format")
@@ -104,7 +110,10 @@ ANALYSIS_SCHEMA = {
                  "essential_elements", "issues", "clarifying_questions"],
 }
 
-RUBRIC_SCHEMA = {
+def rubric_schema(scale: str = SCALE_POINTS) -> Dict:
+    """JSON-schema van een rubric; de niveausleutels volgen de schaal."""
+    levels = LEVEL_KEYS[SCALE_LEVELS if scale == SCALE_LEVELS else SCALE_POINTS]
+    return {
     "type": "object",
     "properties": {
         "criteria": {
@@ -122,19 +131,23 @@ RUBRIC_SCHEMA = {
                 "required": ["name", "description", "weight", "why"],
             },
         },
-        **{level: _text() for level in LEVELS},
+        **{level: _text() for level in levels},
         "alternative_answers": {"type": "array", "maxItems": MAX_ALTERNATIVE_ANSWERS, "items": _text()},
     },
-    "required": ["criteria", *LEVELS, "alternative_answers"],
-}
+    "required": ["criteria", *levels, "alternative_answers"],
+    }
 
-ASSESSMENT_SCHEMA = {
-    "type": "object",
-    "properties": {"rubric": RUBRIC_SCHEMA, "explanation": _text()},
-    "required": ["rubric", "explanation"],
-}
 
-VALIDATION_SCHEMA = {
+def assessment_schema(scale: str = SCALE_POINTS) -> Dict:
+    return {
+        "type": "object",
+        "properties": {"rubric": rubric_schema(scale), "explanation": _text()},
+        "required": ["rubric", "explanation"],
+    }
+
+
+def validation_schema(scale: str = SCALE_POINTS) -> Dict:
+    return {
     "type": "object",
     "properties": {
         "checks": {
@@ -152,12 +165,20 @@ VALIDATION_SCHEMA = {
             },
         },
         "changes": _items("change", MAX_CHANGES),
-        "rubric": RUBRIC_SCHEMA,
+        "rubric": rubric_schema(scale),
         "suggested_question_text": _text(),
         "explanation": _text(),
     },
     "required": ["checks", "changes", "rubric", "suggested_question_text", "explanation"],
-}
+    }
+
+
+# Schema's per schaal, één keer opgebouwd (de puntenschaal houdt de oorspronkelijke namen)
+RUBRIC_SCHEMA = rubric_schema(SCALE_POINTS)
+ASSESSMENT_SCHEMA = assessment_schema(SCALE_POINTS)
+VALIDATION_SCHEMA = validation_schema(SCALE_POINTS)
+ASSESSMENT_LEVELS_SCHEMA = assessment_schema(SCALE_LEVELS)
+VALIDATION_LEVELS_SCHEMA = validation_schema(SCALE_LEVELS)
 
 # =========================
 # VALIDATIE (spiegel van QuestionDesign::normalize*() in PHP)
@@ -191,7 +212,11 @@ def _items_of(value, key: str, max_items: int) -> List[Dict]:
     return out
 
 
-def validate_rubric(rubric) -> Optional[Dict]:
+def validate_rubric(rubric, scale: str = SCALE_POINTS) -> Optional[Dict]:
+    """
+    Rubric: 1–6 criteria, vier niveauteksten en 0–5 alternatieven. De sleutels
+    van de niveaus volgen de schaal (LEVEL_KEYS). Spiegel van QuestionDesign::normalizeRubric().
+    """
     if not isinstance(rubric, dict):
         return None
     criteria = []
@@ -211,7 +236,7 @@ def validate_rubric(rubric) -> Optional[Dict]:
         return None
 
     result = {"criteria": criteria}
-    for level in LEVELS:
+    for level in LEVEL_KEYS[SCALE_LEVELS if scale == SCALE_LEVELS else SCALE_POINTS]:
         text = clean_text(rubric.get(level))
         if not text:
             return None
@@ -249,16 +274,16 @@ def validate_analysis(analysis) -> Optional[Dict]:
     }
 
 
-def validate_assessment(assessment) -> Optional[Dict]:
+def validate_assessment(assessment, scale: str = SCALE_POINTS) -> Optional[Dict]:
     if not isinstance(assessment, dict):
         return None
-    rubric = validate_rubric(assessment.get("rubric"))
+    rubric = validate_rubric(assessment.get("rubric"), scale)
     if rubric is None:
         return None
     return {"rubric": rubric, "explanation": clean_text(assessment.get("explanation")) or ""}
 
 
-def validate_validation(validation) -> Optional[Dict]:
+def validate_validation(validation, scale: str = SCALE_POINTS) -> Optional[Dict]:
     if not isinstance(validation, dict):
         return None
     checks = {}
@@ -271,7 +296,7 @@ def validate_validation(validation) -> Optional[Dict]:
         checks[name] = {"check": name, "ok": c["ok"], "comment": clean_text(c.get("comment")) or ""}
     if len(checks) != len(CHECKS):
         return None
-    rubric = validate_rubric(validation.get("rubric"))
+    rubric = validate_rubric(validation.get("rubric"), scale)
     if rubric is None:
         return None
     return {
@@ -478,6 +503,58 @@ OUTPUTFORMAAT (JSON):
  "explanation": "..."}}
 """
 
+# Niveauvarianten (grading_scale "levels", B3): het niveau van een antwoord volgt
+# uit de criteria, de niveauteksten zijn toelichting bij die regels.
+RUBRIC_FORMAT_LEVELS = """{"criteria": [{"name": "...", "description": "...", "weight": "essentieel", "why": "..."}],
+  "level_uitstekend": "...", "level_goed": "...", "level_voldoende": "...", "level_onvoldoende": "...",
+  "alternative_answers": ["..."]}"""
+
+LEVEL_RULES = """De toets beoordeelt met niveaus. Het niveau van een antwoord volgt vast uit de criteria
+  (alleen "voldaan" telt):
+  - onvoldoende: niet alle essentiële criteria voldaan;
+  - voldoende: alle essentiële criteria voldaan, geen enkel aanvullend criterium;
+  - goed: alle essentiële criteria en een deel van de aanvullende criteria voldaan;
+  - uitstekend: alle essentiële en alle aanvullende criteria voldaan."""
+
+
+def _levels_variant(prompt: str, replacements: List[tuple]) -> str:
+    """Niveauvariant van een prompt; elke vervanging moet precies passen (anders een fout bij het laden)."""
+    for old, new in replacements:
+        if old not in prompt:
+            raise ValueError(f"Prompttekst niet gevonden voor de niveauvariant: {old[:60]!r}")
+        prompt = prompt.replace(old, new)
+    return prompt
+
+
+ASSESSMENT_LEVELS_PROMPT = _levels_variant(ASSESSMENT_PROMPT, [
+    ("""- Beschrijf de niveaus in termen van de criteria. De schaal ligt vast: alleen 10, 5, 1 of 0 punten.
+  level_10 = volledig correct, level_5 = gedeeltelijk correct, level_1 = minimaal (een spoor van
+  begrip), level_0 = onvoldoende. Gebruik geen punten per criterium en geen andere scores.
+  Voor level_10 zijn alle essentiële criteria nodig, de aanvullende niet.""",
+     f"""- {LEVEL_RULES}
+- Maak daarom MINSTENS ÉÉN aanvullend criterium (bij voorkeur twee of meer): zonder aanvullende
+  criteria komt een antwoord hooguit op voldoende uit. Een aanvullend criterium beloont wat een
+  student méér laat zien dan de essentie, binnen wat de vraag vraagt.
+- Beschrijf de niveaus (level_uitstekend, level_goed, level_voldoende, level_onvoldoende) in termen
+  van de criteria, volgens de regels hierboven. Gebruik geen punten."""),
+    (RUBRIC_FORMAT, RUBRIC_FORMAT_LEVELS),
+])
+
+VALIDATION_LEVELS_PROMPT = _levels_variant(VALIDATION_PROMPT, [
+    ("- levels: sluiten de niveaus 10/5/1/0 logisch aan op de criteria (essentieel tegenover aanvullend)?",
+     "- levels: is er minstens één aanvullend criterium, en volgen de niveaus (uitstekend, goed,\n"
+     "  voldoende, onvoldoende) uit de criteria volgens de vaste regels hieronder?"),
+    ("""Let daarbij vooral op: eist de rubric iets wat de vraag niet vraagt? Zo'n onderdeel mag niet
+essentieel zijn en niet nodig voor 10 punten (tenzij de docent dat zegt).""",
+     f"""{LEVEL_RULES.replace("  ", "")}
+
+Let daarbij vooral op: eist de rubric iets wat de vraag niet vraagt? Zo'n onderdeel mag niet
+essentieel zijn en niet nodig voor voldoende (tenzij de docent dat zegt)."""),
+    ("""  vaste schaal 10/5/1/0 zonder punten per criterium.""",
+     """  minstens één aanvullend criterium, de niveaus uitstekend/goed/voldoende/onvoldoende en geen punten."""),
+    (RUBRIC_FORMAT, RUBRIC_FORMAT_LEVELS),
+])
+
 # =========================
 # AGENTS
 # =========================
@@ -508,6 +585,9 @@ class Agent:
             num_predict=self.num_predict, num_ctx=self.num_ctx,
         )
 
+    def configure(self, scale: str) -> None:
+        """Past prompt, schema en validator aan de schaal van de job aan (standaard: niets)."""
+
     def run(self, user_message: str) -> Optional[Dict]:
         parsed, duration = self._call_llm(user_message)
         self.last_duration = duration
@@ -536,6 +616,12 @@ class AssessmentAgent(Agent):
     schema = ASSESSMENT_SCHEMA
     validator = staticmethod(validate_assessment)
 
+    def configure(self, scale: str) -> None:
+        levels = scale == SCALE_LEVELS
+        self.system_prompt = ASSESSMENT_LEVELS_PROMPT if levels else ASSESSMENT_PROMPT
+        self.schema = ASSESSMENT_LEVELS_SCHEMA if levels else ASSESSMENT_SCHEMA
+        self.validator = lambda parsed: validate_assessment(parsed, scale)
+
 
 class ValidationAgent(Agent):
     name = "Validation"
@@ -545,6 +631,12 @@ class ValidationAgent(Agent):
 
     def __init__(self, model: Optional[str] = None):
         super().__init__(model or DESIGN_VALIDATION_MODEL)
+
+    def configure(self, scale: str) -> None:
+        levels = scale == SCALE_LEVELS
+        self.system_prompt = VALIDATION_LEVELS_PROMPT if levels else VALIDATION_PROMPT
+        self.schema = VALIDATION_LEVELS_SCHEMA if levels else VALIDATION_SCHEMA
+        self.validator = lambda parsed: validate_validation(parsed, scale)
 
 # =========================
 # ORCHESTRATOR
@@ -596,6 +688,10 @@ class Orchestrator:
         return True
 
     def _assessment(self, job: Dict) -> bool:
+        # points | levels (van de toets); een job van een webapp zonder het veld gaat uit van points
+        scale = job_scale(job)
+        for agent in (self.assessment_agent, self.validation_agent):
+            agent.configure(scale)
         assessment = self.assessment_agent.run(build_user_message(job))
         if assessment is None:
             return False

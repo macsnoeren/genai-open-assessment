@@ -40,7 +40,7 @@ from typing import Callable, Dict, List, Optional
 
 import config
 from process_ai_feedback import (call_ollama, parse_rubric_criteria, detect_prompt_injection, job_scale,
-                                 level_from_statuses, INJECTION_CHECK_MODEL, INJECTION_FLAG_NOTE, MAX_ANSWER_CHARS,
+                                 level_from_statuses, DEFAULT_POINTS_LEVEL_TEXTS, INJECTION_CHECK_MODEL, INJECTION_FLAG_NOTE, MAX_ANSWER_CHARS,
                                  NUM_PREDICT_MAX, RUBRIC_NUM_CTX, SCALE_LEVELS, SCALE_POINTS)
 from design_agents import Agent, _block, DESIGN_MODEL, STALE, clean_text
 
@@ -542,11 +542,14 @@ def format_rubric(rubric: Dict, scale: str = SCALE_POINTS) -> str:
             lines += ["", "Toelichting van de docent per niveau:"]
             lines += [f"{level.capitalize()}: {rubric['levels'][level]}" for level in LEVEL_NAMES]
         return "\n".join(lines)
+    # Een rubric in het niveauformaat bij een toets met punten: de vaste puntenregels
+    texts = rubric["levels"] if rubric.get("levels_format") != SCALE_LEVELS \
+        else {str(level): text for level, text in DEFAULT_POINTS_LEVEL_TEXTS.items()}
     lines += ["", "Puntentoekenning (alleen deze vier scores bestaan):",
-              f"10 punten: {rubric['levels']['10']}",
-              f"5 punten: {rubric['levels']['5']}",
-              f"1 punt: {rubric['levels']['1']}",
-              f"0 punten: {rubric['levels']['0']}"]
+              f"10 punten: {texts['10']}",
+              f"5 punten: {texts['5']}",
+              f"1 punt: {texts['1']}",
+              f"0 punten: {texts['0']}"]
     return "\n".join(lines)
 
 

@@ -33,9 +33,14 @@ PHP_LEVEL_REGEX = re.compile(r'Model:\s+(.+?)\s+.*?Niveau:\s+(onvoldoende|voldoe
                              re.IGNORECASE | re.DOTALL)
 
 
-def criteria_text():
-    with open(os.path.join(FIXTURES, "criteria_rubric.txt"), encoding="utf-8") as f:
+def criteria_text(name="criteria_rubric.txt"):
+    with open(os.path.join(FIXTURES, name), encoding="utf-8") as f:
         return f.read()
+
+
+def levels_criteria_text():
+    """fixtures/criteria_rubric_levels.txt: rubricToCriteriaText() met het kopje Niveaus: (fase 12)."""
+    return criteria_text("criteria_rubric_levels.txt")
 
 
 def answer(**fields):
@@ -281,6 +286,38 @@ def levels_output(statuses):
     }
 
 
+class ParseLevelsRubricTest(unittest.TestCase):
+    """parse_rubric_criteria() herkent ook het niveauformaat (contract 7, fase 12)."""
+
+    def test_parses_levels_format(self):
+        rubric = paf.parse_rubric_criteria(levels_criteria_text())
+        self.assertIsNotNone(rubric)
+        self.assertEqual(rubric["levels_format"], "levels")
+        self.assertEqual(sorted(rubric["levels"]), ["goed", "onvoldoende", "uitstekend", "voldoende"])
+        self.assertTrue(rubric["levels"]["uitstekend"].startswith("Beide essentiële criteria"))
+        self.assertEqual([c["weight"] for c in rubric["criteria"]],
+                         ["essentieel", "essentieel", "aanvullend", "aanvullend"])
+        self.assertEqual(len(rubric["alternatives"]), 2)
+
+    def test_points_format_is_marked(self):
+        self.assertEqual(paf.parse_rubric_criteria(criteria_text())["levels_format"], "points")
+
+    def test_mix_of_both_formats_is_rejected(self):
+        niveaus = levels_criteria_text().split("Niveaus:")[1].split("\n\nOok correct:")[0]
+        mixed = criteria_text().replace("\n\nOok correct:", "\n\nNiveaus:" + niveaus + "\n\nOok correct:")
+        self.assertIn("Puntentoekenning:", mixed)
+        self.assertIn("Niveaus:", mixed)
+        self.assertIsNone(paf.parse_rubric_criteria(mixed))
+
+    def test_point_lines_under_niveaus_are_rejected(self):
+        text = levels_criteria_text().replace("Goed: ", "5 punten: ")
+        self.assertIsNone(paf.parse_rubric_criteria(text))
+
+    def test_level_missing_or_twice_is_rejected(self):
+        self.assertIsNone(paf.parse_rubric_criteria(levels_criteria_text().replace("Goed: ", "Matig: ")))
+        self.assertIsNone(paf.parse_rubric_criteria(levels_criteria_text().replace("Voldoende: ", "Goed: ")))
+
+
 class LevelFromStatusesTest(unittest.TestCase):
     """De regels van B3: het niveau volgt deterministisch uit de statussen."""
 
@@ -353,6 +390,23 @@ class LevelsGradingTest(ProcessMixin, unittest.TestCase):
         q = answer(criteria="x", grading_scale="levels")
         text, _ = self.run_process(q, lambda schema: {"level": "matig", "feedback": "Ok.", "uitleg": ""})
         self.assertIsNone(text)
+
+    def test_levels_format_rubric_gives_goed(self):
+        q = answer(criteria=levels_criteria_text(), grading_scale="levels")
+        text, calls = self.run_process(q, lambda schema: levels_output(("voldaan", "voldaan", "voldaan", "niet")))
+        grading = [c for c in calls if c["schema"] is not paf.INJECTION_SCHEMA]
+        self.assertTrue(all("NIVEAUS (toelichting van de docent)" in c["system"] for c in grading))
+        self.assertTrue(all("Uitstekend: Beide essentiële" in c["system"] for c in grading))
+        self.assertEqual(PHP_LEVEL_REGEX.findall(text), [("model-a", "goed"), ("model-b", "goed")])
+
+    def test_levels_format_rubric_in_a_points_exam_uses_fixed_point_rules(self):
+        # De schaal van de toets is na het ontwerpen naar punten gezet: geen KeyError, vaste puntenregels
+        rubric = paf.parse_rubric_criteria(levels_criteria_text())
+        system, _ = paf.build_rubric_prompts(answer(criteria=levels_criteria_text()), rubric)
+        self.assertIn("10 punten: " + paf.DEFAULT_POINTS_LEVEL_TEXTS[10], system)
+        text, _ = self.run_process(answer(criteria=levels_criteria_text()),
+                                   lambda schema: {**levels_output(("voldaan", "voldaan", "niet", "niet")), "score": 10})
+        self.assertEqual(PHP_SCORE_REGEX.findall(text), [("model-a", "10"), ("model-b", "10")])
 
     def test_job_without_grading_scale_gives_points(self):
         q = answer(criteria="10 punten als de student firewall noemt.")

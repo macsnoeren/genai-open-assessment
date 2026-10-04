@@ -198,5 +198,55 @@ class ValidatorTest(unittest.TestCase):
         self.assertNotIn("<analyse>", message)
 
 
+class LevelsDesignTest(unittest.TestCase):
+    """Een ontwerp voor een toets met grading_scale levels (fase 12)."""
+
+    def fake(self):
+        def side_effect(model, system_prompt, user_prompt, schema, num_predict, num_ctx=None):
+            if schema is design_agents.ASSESSMENT_LEVELS_SCHEMA:
+                return copy.deepcopy(load("assessment_levels")), 0.1
+            if schema is design_agents.VALIDATION_LEVELS_SCHEMA:
+                return copy.deepcopy(load("validation_levels")), 0.1
+            raise AssertionError("Schema van de puntenschaal gebruikt bij een levels-job")
+        return side_effect
+
+    @mock.patch.object(design_agents, "call_ollama")
+    def test_levels_job_delivers_level_keys(self, call):
+        call.side_effect = self.fake()
+        submit = mock.Mock(return_value={"status": "success", "next_status": "review"})
+
+        self.assertTrue(Orchestrator(submit).handle(job("assessment", 2, analysis=load("analysis"),
+                                                        grading_scale="levels")))
+
+        result = submit.call_args.kwargs["result"]
+        for rubric in (result["assessment"]["rubric"], result["validation"]["rubric"]):
+            self.assertIn("level_uitstekend", rubric)
+            self.assertIn("level_onvoldoende", rubric)
+            self.assertNotIn("level_10", rubric)
+        systems = [c.args[1] for c in call.call_args_list]
+        self.assertIn("MINSTENS ÉÉN aanvullend criterium", systems[0])
+        self.assertIn("minstens één aanvullend criterium", systems[1])
+        self.assertNotIn("10/5/1/0", systems[0])
+
+    @mock.patch.object(design_agents, "call_ollama")
+    def test_job_without_scale_delivers_point_keys(self, call):
+        call.side_effect = fake_ollama()
+        submit = mock.Mock(return_value={"status": "success", "next_status": "review"})
+        j = job("assessment", 2, analysis=load("analysis"))
+        self.assertNotIn("grading_scale", j)
+
+        self.assertTrue(Orchestrator(submit).handle(j))
+
+        rubric = submit.call_args.kwargs["result"]["validation"]["rubric"]
+        self.assertIn("level_10", rubric)
+        self.assertNotIn("level_uitstekend", rubric)
+
+    def test_validators_follow_the_scale(self):
+        self.assertEqual(validate_validation(load("validation_levels"), "levels"), load("validation_levels"))
+        self.assertIsNone(validate_validation(load("validation_levels")))
+        self.assertIsNone(validate_validation(load("validation"), "levels"))
+        self.assertIsNone(validate_rubric(load("validation")["rubric"], "levels"))
+
+
 if __name__ == "__main__":
     unittest.main()

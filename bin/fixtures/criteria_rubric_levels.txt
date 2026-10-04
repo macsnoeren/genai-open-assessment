@@ -1,0 +1,18 @@
+Modelantwoord:
+PLC's zijn slecht beveiligd; een aanvaller kan het proces verstoren. Zet ze achter een firewall.
+
+Beoordelingscriteria:
+- [essentieel] Zwakke beveiliging van de PLC: De student legt uit dat PLC's beperkt beveiligd zijn, bijvoorbeeld door ontbrekende authenticatie of versleuteling of door verouderde software, omdat ze voor gesloten netwerken zijn ontworpen.
+- [essentieel] Gevolgen van misbruik: De student noemt dat een aanvaller het fysieke proces kan verstoren, manipuleren of stilleggen, met gevolgen voor veiligheid, productie of milieu.
+- [aanvullend] Juiste netwerkplaatsing: De student noemt een passende maatregel, zoals netwerksegmentatie, een firewall, een DMZ of toegang via VPN.
+- [aanvullend] Voorbeeld uit de praktijk: De student geeft een concreet voorbeeld van een incident of aanval op een industriële installatie.
+
+Niveaus:
+Uitstekend: Beide essentiële criteria zijn juist en concreet uitgelegd, met een passende maatregel én een voorbeeld uit de praktijk.
+Goed: Beide essentiële criteria zijn juist uitgelegd, met een passende maatregel of een voorbeeld uit de praktijk.
+Voldoende: Beide essentiële criteria zijn juist uitgelegd: de zwakke beveiliging en de gevolgen van misbruik.
+Onvoldoende: Een essentieel criterium ontbreekt, is te vaag of bevat een fout.
+
+Ook correct:
+- Een uitleg via bekende incidenten (zoals Stuxnet of aanvallen op waterzuiveringen) die de zwakke beveiliging en de fysieke gevolgen duidelijk maakt.
+- Een uitleg vanuit de CIA-driehoek waarin vooral integriteit en beschikbaarheid van het proces centraal staan.

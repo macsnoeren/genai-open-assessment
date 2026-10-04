@@ -244,12 +244,12 @@ Alle rekenregels staan op één plek, zodat de aggregatie niet opnieuw op meerde
 
 ## Fase 12: Rubricformaat en vraagontwerper
 
-- [ ] **12.1 `parse_rubric_criteria()`:** herken naast `Puntentoekenning:` ook `Niveaus:` met `Uitstekend:` / `Goed:` / `Voldoende:` / `Onvoldoende:` (regex zoals `_RUBRIC_LEVEL`). Het resultaat krijgt `levels_format: "points"|"levels"`. Voor de beoordeling bij `levels` tellen alleen de criteria (B3); de niveauteksten zijn toelichting.
-- [ ] **12.2 Fixture** `bin/fixtures/criteria_rubric_levels.txt`, aangemaakt met de nieuwe `rubricToCriteriaText()` (stap 9.8). Het bestaande `criteria_rubric.txt` blijft.
-- [ ] **12.3 Tests:** de parser accepteert beide formaten en weigert een mengsel van beide.
-- [ ] **12.4 `bin/design_agents.py`:** `LEVELS` per schaal (`level_10`… of `level_uitstekend`…). De prompt voor het rubricvoorstel krijgt bij `levels` de uitleg uit B3 en de eis van minstens één aanvullend criterium. `validate_*()` volgt de schaal uit de job.
-- [ ] **12.5 Validatiecheck `levels`** (bestaande check): bij `levels` betekent die "minstens één aanvullend criterium en de niveaus volgen uit de criteria".
-- [ ] **12.6 Tests in `bin/test_design_agents.py`:** een `levels`-job levert de nieuwe sleutels, een job zonder schaal levert de oude.
+- [x] **12.1 `parse_rubric_criteria()`:** herken naast `Puntentoekenning:` ook `Niveaus:` met `Uitstekend:` / `Goed:` / `Voldoende:` / `Onvoldoende:` (regex zoals `_RUBRIC_LEVEL`). Het resultaat krijgt `levels_format: "points"|"levels"`. Voor de beoordeling bij `levels` tellen alleen de criteria (B3); de niveauteksten zijn toelichting.
+- [x] **12.2 Fixture** `bin/fixtures/criteria_rubric_levels.txt`, aangemaakt met de nieuwe `rubricToCriteriaText()` (stap 9.8). Het bestaande `criteria_rubric.txt` blijft.
+- [x] **12.3 Tests:** de parser accepteert beide formaten en weigert een mengsel van beide.
+- [x] **12.4 `bin/design_agents.py`:** `LEVELS` per schaal (`level_10`… of `level_uitstekend`…). De prompt voor het rubricvoorstel krijgt bij `levels` de uitleg uit B3 en de eis van minstens één aanvullend criterium. `validate_*()` volgt de schaal uit de job.
+- [x] **12.5 Validatiecheck `levels`** (bestaande check): bij `levels` betekent die "minstens één aanvullend criterium en de niveaus volgen uit de criteria".
+- [x] **12.6 Tests in `bin/test_design_agents.py`:** een `levels`-job levert de nieuwe sleutels, een job zonder schaal levert de oude.
   *Klaar als:* alle drie de mocktestsuites slagen en een goedgekeurd ontwerp in een `levels`-toets in Docker criteria met `Niveaus:` oplevert. Commit: `Support levels in rubric format and designer`.
 
 ## Fase 13: Integratie-API (contract 9, alleen toevoegingen)

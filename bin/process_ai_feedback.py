@@ -534,6 +534,13 @@ def build_prompts(q: Dict, injection_suspected: bool = False) -> Tuple[str, str]
 #   Ook correct:            (optioneel)
 #   - <tekst>
 #
+# Bij een toets met niveaus (grading_scale "levels") staat in plaats van
+# "Puntentoekenning:" het kopje "Niveaus:" met de regels "Uitstekend: <tekst>",
+# "Goed: <tekst>", "Voldoende: <tekst>" en "Onvoldoende: <tekst>". De parser
+# herkent beide formaten (levels_format "points" of "levels"), maar niet een
+# mengsel van beide. Bij een levels-toets tellen voor het niveau alleen de
+# criteria (B3); de niveauteksten zijn toelichting.
+#
 # Herkent parse_rubric_criteria() die opbouw, dan beoordeelt het model het
 # antwoord eerst per criterium en kiest het pas daarna de score. Anders (een
 # zelfgeschreven criteriatekst of een opbouw die de docent heeft losgelaten)
@@ -555,9 +562,11 @@ MAX_CRITERION_FIELD_CHARS = 300
 MAX_CRITERION_SENTENCES = 2
 MAX_CRITERION_NAME_CHARS = 100
 
-_RUBRIC_SECTION = re.compile(r'^(modelantwoord|beoordelingscriteria|puntentoekenning|ook correct)\s*:\s*$', re.IGNORECASE)
+_RUBRIC_SECTION = re.compile(r'^(modelantwoord|beoordelingscriteria|puntentoekenning|niveaus|ook correct)\s*:\s*$',
+                             re.IGNORECASE)
 _RUBRIC_CRITERION = re.compile(r'^-\s*\[\s*(essentieel|aanvullend)\s*\]\s*(.+?)\s*:\s+(.+)$', re.IGNORECASE)
 _RUBRIC_LEVEL = re.compile(r'^(10|5|1|0)\s+punt(?:en)?\s*:\s*(.+)$', re.IGNORECASE)
+_RUBRIC_LEVEL_NAME = re.compile(r'^(uitstekend|goed|voldoende|onvoldoende)\s*:\s*(.+)$', re.IGNORECASE)
 _RUBRIC_ITEM = re.compile(r'^-\s*(.+)$')
 
 
@@ -574,7 +583,8 @@ def _parse_rubric_lines(lines: List[str], pattern, to_item) -> Optional[List[Dic
         match = pattern.match(line)
         if match:
             items.append(to_item(match))
-        elif items and not line.startswith("-") and not _RUBRIC_LEVEL.match(line):
+        elif items and not line.startswith("-") and not _RUBRIC_LEVEL.match(line) \
+                and not _RUBRIC_LEVEL_NAME.match(line):
             items[-1]["text"] += " " + line
         else:
             return None
@@ -585,8 +595,9 @@ def parse_rubric_criteria(text) -> Optional[Dict]:
     """
     Herkent de rubric-opbouw van QuestionDesign::rubricToCriteriaText().
 
-    :return: {"model_answer", "criteria": [{weight, name, text}], "levels": {10: ..., 5: ..., 1: ..., 0: ...},
-              "alternatives": [...]}, of None als de tekst die opbouw niet (meer) heeft
+    :return: {"model_answer", "criteria": [{weight, name, text}], "levels_format": "points"|"levels",
+              "levels": {10: ..., 5: ..., 1: ..., 0: ...} of {"uitstekend": ..., "goed": ..., "voldoende": ...,
+              "onvoldoende": ...}, "alternatives": [...]}, of None als de tekst die opbouw niet (meer) heeft
     """
     sections: Dict[str, List[str]] = {}
     current = None
@@ -603,8 +614,12 @@ def parse_rubric_criteria(text) -> Optional[Dict]:
         elif line:
             return None  # tekst vóór het eerste kopje
 
-    if "beoordelingscriteria" not in sections or "puntentoekenning" not in sections:
+    if "beoordelingscriteria" not in sections:
         return None
+    # Precies één van beide formaten: puntentoekenning (points) of niveaus (levels)
+    if ("puntentoekenning" in sections) == ("niveaus" in sections):
+        return None
+    levels_format = SCALE_LEVELS if "niveaus" in sections else SCALE_POINTS
 
     criteria = _parse_rubric_lines(
         sections["beoordelingscriteria"], _RUBRIC_CRITERION,
@@ -613,11 +628,19 @@ def parse_rubric_criteria(text) -> Optional[Dict]:
     if not criteria or len(criteria) > MAX_RUBRIC_CRITERIA:
         return None
 
-    levels = _parse_rubric_lines(
-        sections["puntentoekenning"], _RUBRIC_LEVEL,
-        lambda m: {"level": int(m.group(1)), "text": m.group(2)},
-    )
-    if levels is None or sorted(l["level"] for l in levels) != sorted(RUBRIC_LEVELS):
+    if levels_format == SCALE_LEVELS:
+        levels = _parse_rubric_lines(
+            sections["niveaus"], _RUBRIC_LEVEL_NAME,
+            lambda m: {"level": m.group(1).lower(), "text": m.group(2)},
+        )
+        expected = sorted(LEVELS)
+    else:
+        levels = _parse_rubric_lines(
+            sections["puntentoekenning"], _RUBRIC_LEVEL,
+            lambda m: {"level": int(m.group(1)), "text": m.group(2)},
+        )
+        expected = sorted(RUBRIC_LEVELS)
+    if levels is None or sorted(l["level"] for l in levels) != expected:
         return None  # elk niveau precies één keer
 
     alternatives = _parse_rubric_lines(
@@ -629,9 +652,28 @@ def parse_rubric_criteria(text) -> Optional[Dict]:
     return {
         "model_answer": "\n".join(sections.get("modelantwoord", [])).strip(),
         "criteria": [{"weight": c["weight"], "name": c["name"], "description": c["text"]} for c in criteria],
+        "levels_format": levels_format,
         "levels": {l["level"]: l["text"] for l in levels},
         "alternatives": [a["text"] for a in alternatives],
     }
+
+
+# Puntentoekenning voor een toets met punten als de rubric in het niveauformaat
+# staat (de schaal van de toets is na het ontwerpen gewijzigd): de vaste regels
+# van de rubric-beoordeling, in plaats van de niveauteksten.
+DEFAULT_POINTS_LEVEL_TEXTS = {
+    10: "Volledig correct: alle essentiële criteria zijn voldaan; aanvullende criteria zijn niet nodig.",
+    5: "Gedeeltelijk correct: niet alle essentiële criteria zijn volledig voldaan, maar het antwoord gaat in de goede richting.",
+    1: "Minimaal: een spoor van begrip, zonder dat een essentieel criterium (deels) voldaan is.",
+    0: "Onvoldoende: geen relevant of een inhoudelijk onjuist antwoord.",
+}
+
+
+def points_level_texts(rubric: Dict) -> Dict[int, str]:
+    """De teksten bij 10/5/1/0 punten: uit een rubric in het puntenformaat, anders de vaste regels."""
+    if rubric.get("levels_format", SCALE_POINTS) == SCALE_POINTS:
+        return {level: rubric["levels"][level] for level in RUBRIC_LEVELS}
+    return dict(DEFAULT_POINTS_LEVEL_TEXTS)
 
 
 RUBRIC_SYSTEM_PROMPT = """Je bent een automatisch beoordelingssysteem voor open toetsvragen.
@@ -801,7 +843,7 @@ def build_rubric_prompts(q: Dict, rubric: Dict, injection_suspected: bool = Fals
     else:
         system_prompt = RUBRIC_SYSTEM_PROMPT.format(
             **common,
-            **{f"level_{level}": rubric["levels"][level] for level in RUBRIC_LEVELS},
+            **{f"level_{level}": text for level, text in points_level_texts(rubric).items()},
         )
     system_prompt += SAFETY_SUFFIX
     return system_prompt, build_user_prompt(str(q.get('answer') or ""), injection_suspected)

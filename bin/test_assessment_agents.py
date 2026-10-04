@@ -490,6 +490,17 @@ class OrchestratorLevelsTest(unittest.TestCase):
             if kind(c.args[3]) == "assessment":
                 self.assertEqual(c.args[3]["properties"]["score"]["enum"], assessment_agents.SCORES)
 
+    def test_levels_format_rubric(self):
+        rubric = numbered_rubric(parse_rubric_criteria(read(os.path.join("fixtures", "criteria_rubric_levels.txt"))))
+        self.assertEqual(rubric["levels_format"], "levels")
+        self.assertEqual(list(rubric["levels"]), assessment_agents.LEVEL_NAMES)
+        self.assertEqual(len(rubric["criteria"]), 4)
+        text = assessment_agents.format_rubric(rubric, "levels")
+        self.assertIn("Toelichting van de docent per niveau:", text)
+        self.assertIn("Goed: Beide essentiële criteria", text)
+        # Bij een toets met punten: de vaste puntenregels in plaats van de niveauteksten
+        self.assertIn("10 punten: Volledig correct", assessment_agents.format_rubric(rubric))
+
     def test_level_fixtures_are_valid(self):
         self.assertEqual(validate_assessment(load("assessment_levels"), 3, "levels"), load("assessment_levels"))
         self.assertEqual(validate_validation(load("validation_levels"), 3, "levels"), load("validation_levels"))
