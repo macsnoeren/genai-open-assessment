@@ -10,16 +10,7 @@
 
 // Security headers worden centraal gezet in htdocs/index.php (sendSecurityHeaders()).
 
-$parserStatus = 'inactive';
-$pingFile = __DIR__ . '/../../../database/last_api_ping.txt';
-
-// Check if the file exists, is readable, and contains a recent timestamp
-if (file_exists($pingFile) && is_readable($pingFile)) {
-    $lastPing = file_get_contents($pingFile);
-    if ($lastPing !== false && is_numeric($lastPing) && (time() - (int)$lastPing) < 120) {
-        $parserStatus = 'active';
-    }
-}
+$parserStatus = workerStatus();
 
 $flashError = $_SESSION['error'] ?? null;
 $flashSuccess = $_SESSION['success_message'] ?? null;
@@ -30,10 +21,13 @@ unset($_SESSION['error'], $_SESSION['success_message']);
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?= e($title ?? 'Openvragen kennistoetsing') ?></title>
+    <title><?= e(!empty($title) && $title !== APP_NAME ? $title . ' · ' . APP_NAME : APP_NAME) ?></title>
     <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"
           integrity="sha384-9ndCyUaIbzAi2FUVXJi0CjmCapSmO7SnpJef0486qhLnuZ2cdeRhO02iuK6FUUVM" crossorigin="anonymous">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
+          integrity="sha384-XGjxtQfXaH2tnPFa9x+ruJTuLE3Aa6LhHSWRr1XeTyhezb4abCG4ccI5AkVDxqC+" crossorigin="anonymous">
     <!-- Custom CSS -->
     <link rel="stylesheet" href="/style.css">
     <link rel="icon" type="image/png" href="/images/favicon-96x96.png" sizes="96x96" />

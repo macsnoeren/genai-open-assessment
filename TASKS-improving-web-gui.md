@@ -147,18 +147,18 @@ Geen wijziging aan de markup. Na deze fase is de hele app blauw in plaats van ro
 
 ## Fase 2: Basis voor de nieuwe layout (nog geen zichtbare wijziging)
 
-- [ ] **2.1 Constanten** in `config/app.php`, met commentaar: `APP_NAME = 'Open vragen | AI-Toetsing'`, `CONTACT_NAME = 'JMNL Innovation'`, `CONTACT_URL = 'https://jmnl.nl'` en `CONTACT_EMAIL = ''`. **Controleer de URL en een eventueel e-mailadres bij Maurice.**
-- [ ] **2.2 Titel.** Vervang in `layouts/main.php` de standaardtitel `'Openvragen kennistoetsing'` door `APP_NAME`, en maak de titel `<paginatitel> · <APP_NAME>` als `$title` gezet is.
-- [ ] **2.3 Iconen laden.** Voeg de stylesheet van Bootstrap Icons uit B7 toe aan `<head>` in `layouts/main.php`, onder Bootstrap.
+- [x] **2.1 Constanten** in `config/app.php`, met commentaar: `APP_NAME = 'Open vragen | AI-Toetsing'`, `CONTACT_NAME = 'JMNL Innovation'`, `CONTACT_URL = 'https://jmnl.nl'` en `CONTACT_EMAIL = ''`. **Controleer de URL en een eventueel e-mailadres bij Maurice.**
+- [x] **2.2 Titel.** Vervang in `layouts/main.php` de standaardtitel `'Openvragen kennistoetsing'` door `APP_NAME`, en maak de titel `<paginatitel> · <APP_NAME>` als `$title` gezet is.
+- [x] **2.3 Iconen laden.** Voeg de stylesheet van Bootstrap Icons uit B7 toe aan `<head>` in `layouts/main.php`, onder Bootstrap.
   *Klaar als:* een tijdelijk `<i class="bi bi-check"></i>` zichtbaar is en de console geen CSP-fout geeft. Haal het tijdelijke icoon weer weg.
-- [ ] **2.4 Helperbestand.** Maak `app/helpers/navigation.php` met de copyright-kop zoals de andere helpers, en laad het in `htdocs/index.php` bij de andere helpers.
-- [ ] **2.5 `currentAction(): string`.** Geeft `requestString($_GET, 'action', 64)` terug; leeg wordt `'home'`.
-- [ ] **2.6 `navItems(): array`.** Geeft de items uit de tabel in B4 terug (alleen data, geen logica).
-- [ ] **2.7 `navItemsForRole(string $role): array`.** Filtert `navItems()` op `roles` en groepeert op `group` (volgorde behouden).
-- [ ] **2.8 `navIsActive(array $item, string $current): bool`.** Waar als `$current` gelijk is aan `action` of in `also` staat.
-- [ ] **2.9 `userInitials(string $name): string`.** Eerste letter van het eerste en het laatste woord, in hoofdletters, via `mb_substr`/`mb_strtoupper`. Leeg geeft `'?'`.
-- [ ] **2.10 `workerStatus(): string`.** Verplaats de ping-logica van bovenin `layouts/main.php` naar deze functie (geeft `'active'` of `'inactive'`). De layout roept hem aan.
-- [ ] **2.11 Syntaxcheck** van PHP (zie CLAUDE.md).
+- [x] **2.4 Helperbestand.** Maak `app/helpers/navigation.php` met de copyright-kop zoals de andere helpers, en laad het in `htdocs/index.php` bij de andere helpers.
+- [x] **2.5 `currentAction(): string`.** Geeft `requestString($_GET, 'action', 64)` terug; leeg wordt `'home'`.
+- [x] **2.6 `navItems(): array`.** Geeft de items uit de tabel in B4 terug (alleen data, geen logica).
+- [x] **2.7 `navItemsForRole(string $role): array`.** Filtert `navItems()` op `roles` en groepeert op `group` (volgorde behouden).
+- [x] **2.8 `navIsActive(array $item, string $current): bool`.** Waar als `$current` gelijk is aan `action` of in `also` staat.
+- [x] **2.9 `userInitials(string $name): string`.** Eerste letter van het eerste en het laatste woord, in hoofdletters, via `mb_substr`/`mb_strtoupper`. Leeg geeft `'?'`.
+- [x] **2.10 `workerStatus(): string`.** Verplaats de ping-logica van bovenin `layouts/main.php` naar deze functie (geeft `'active'` of `'inactive'`). De layout roept hem aan.
+- [x] **2.11 Syntaxcheck** van PHP (zie CLAUDE.md).
   *Klaar als:* de app er nog precies zo uitziet als na fase 1 en de syntaxcheck slaagt. Commit: `Add navigation helper and app constants`.
 
 ## Fase 3: De teller bij Beoordelen

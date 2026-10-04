@@ -27,6 +27,7 @@ session_start();
 
 require_once __DIR__ . '/../app/helpers/csrf.php';
 require_once __DIR__ . '/../app/helpers/auth.php';
+require_once __DIR__ . '/../app/helpers/navigation.php';
 require_once __DIR__ . '/../app/controllers/AuthController.php';
 require_once __DIR__ . '/../app/controllers/StudentController.php';
 require_once __DIR__ . '/../app/controllers/DocentController.php';

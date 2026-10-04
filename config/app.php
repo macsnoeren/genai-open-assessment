@@ -82,3 +82,9 @@ define('INTEGRATION_ALLOW_HTTP', getenv('INTEGRATION_ALLOW_HTTP') === '1');
 // worker (die grading_scale begrijpt) draait. Toetsen met points merken hier niets van.
 const LEVELS_AI_ENABLED = true;
 const MAX_GRADE_OVERRIDE_REASON = 1000;  // tekens: reden bij een handmatig aangepast eindcijfer
+
+// Naam en contact (layout, footer en de openbare landingspagina op /)
+const APP_NAME = 'Open vragen | AI-Toetsing';  // één naam: <title>, footer en landingspagina
+const CONTACT_NAME = 'JMNL Innovation';        // organisatie achter de applicatie
+const CONTACT_URL = 'https://jmnl.nl';         // website voor contact; leeg = geen knop
+const CONTACT_EMAIL = '';                      // e-mailadres voor contact; leeg = niet tonen
