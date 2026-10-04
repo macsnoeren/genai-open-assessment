@@ -207,26 +207,26 @@ Splits `layouts/main.php` in partials. Houd in elke stap de bestaande scripts (b
 
 ## Fase 6: Landingspagina
 
-- [ ] **6.1 Standaard-action.** Zet in `htdocs/index.php` `$action = $_GET['action'] ?? 'home'` (en in de `is_string`-controle ook `'home'`).
-- [ ] **6.2 Case.** Voeg `case 'home': $auth->showHome(); break;` toe.
-- [ ] **6.3 `AuthController::showHome()`.** Is iemand ingelogd, dan `$this->redirectByRole($_SESSION['role'] ?? 'student')`; anders `require` van `views/pages/home.php`.
-- [ ] **6.4 Uitloggen.** Laat `AuthController::logout()` doorsturen naar `/` in plaats van naar `index.php?action=login`.
-- [ ] **6.5 View `pages/home.php`.** Met `ob_start()`, `$hideHeaderFooter = true`, `$title = APP_NAME` en `require` van de layout, zoals de andere views. Alle tekst via `e()` of als vaste HTML.
-- [ ] **6.6 Topbalk van de pagina:** logo en `APP_NAME` links, rechts een knop "Inloggen" (`/?action=login`) en, als `ALLOW_SELF_REGISTRATION` aan staat, "Account aanmaken".
-- [ ] **6.7 Hero** op `--brand-900`, witte tekst, twee kolommen vanaf `lg`:
+- [x] **6.1 Standaard-action.** Zet in `htdocs/index.php` `$action = $_GET['action'] ?? 'home'` (en in de `is_string`-controle ook `'home'`).
+- [x] **6.2 Case.** Voeg `case 'home': $auth->showHome(); break;` toe.
+- [x] **6.3 `AuthController::showHome()`.** Is iemand ingelogd, dan `$this->redirectByRole($_SESSION['role'] ?? 'student')`; anders `require` van `views/pages/home.php`.
+- [x] **6.4 Uitloggen.** Laat `AuthController::logout()` doorsturen naar `/` in plaats van naar `index.php?action=login`.
+- [x] **6.5 View `pages/home.php`.** Met `ob_start()`, `$hideHeaderFooter = true`, `$title = APP_NAME` en `require` van de layout, zoals de andere views. Alle tekst via `e()` of als vaste HTML.
+- [x] **6.6 Topbalk van de pagina:** logo en `APP_NAME` links, rechts een knop "Inloggen" (`/?action=login`) en, als `ALLOW_SELF_REGISTRATION` aan staat, "Account aanmaken".
+- [x] **6.7 Hero** op `--brand-900`, witte tekst, twee kolommen vanaf `lg`:
   - Links de kop *"Open vragen toetsen, met AI als eerste beoordelaar"*, één zin uitleg (*"Docenten stellen open vragen en een rubric op. De AI geeft per antwoord een onderbouwde voorbeoordeling; de docent beslist."*) en de knoppen "Inloggen" (primair, wit) en "Hoe het werkt" (anker naar 6.8, outline wit).
   - Rechts een illustratie in HTML/CSS (geen afbeelding): een witte kaart met een voorbeeldvraag, een kort studentantwoord en drie criteria met zachte badges (`Voldaan`, `Deels`, `Voldaan`) en onderaan "Voorstel: Goed · wacht op docent".
-- [ ] **6.8 "Hoe het werkt"** (`id="hoe-het-werkt"`): drie genummerde stappen naast elkaar (onder elkaar op mobiel), elk met een icoon in een rondje van `--brand-50`:
+- [x] **6.8 "Hoe het werkt"** (`id="hoe-het-werkt"`): drie genummerde stappen naast elkaar (onder elkaar op mobiel), elk met een icoon in een rondje van `--brand-50`:
   1. *Toets en rubric maken.* De docent maakt een toets met open vragen; de AI-vraagontwerper helpt een rubric op te stellen.
   2. *Antwoorden.* Studenten maken de toets, ingelogd of als gast via een link.
   3. *Voorbeoordelen en beslissen.* De AI beoordeelt per criterium en onderbouwt dat met citaten; de docent controleert en bepaalt het eindcijfer.
-- [ ] **6.9 Functies:** een raster van zes kaarten (3 × 2 vanaf `lg`, 2 × 3 vanaf `md`, onder elkaar op mobiel), elk met een icoon, een kop en één zin: beoordelen op een rubric; punten of niveaus met een eigen puntenschema; agentic beoordelen met controle van citaten; de AI-vraagontwerper; AI en docent vergelijken; koppelen met een andere website (integratie-API en webhooks).
-- [ ] **6.10 Blok "De docent beslist"** op `--brand-50`: de AI beoordeelt alleen voor; het eindcijfer komt altijd van een mens; de beheerder kiest de AI-modellen, die via Ollama draaien, ook op een eigen server. **Laat de formulering over de modellen controleren door Maurice**, zodat ze klopt met de manier waarop de app gebruikt wordt.
-- [ ] **6.11 "Voor wie":** vier korte regels met icoon: docenten, studenten, beoordelaars, externe partijen.
-- [ ] **6.12 Contact:** *"Vragen of interesse? Neem contact op met <CONTACT_NAME>."* met een knop naar `CONTACT_URL` (`target="_blank" rel="noopener"`) en, als `CONTACT_EMAIL` niet leeg is, een `mailto:`-link. Alles via `e()`.
-- [ ] **6.13 Footer van de pagina:** `© <jaar> APP_NAME · CONTACT_NAME · Privacy & Cookies`.
-- [ ] **6.14 CSS** voor de landingspagina in een eigen blok in `style.css` met prefix `.landing-`. Geen inline styles.
-- [ ] **6.15 Controle zonder sessie:** de pagina werkt in een privévenster, zonder fouten in de console, en toont geen gegevens uit de database.
+- [x] **6.9 Functies:** een raster van zes kaarten (3 × 2 vanaf `lg`, 2 × 3 vanaf `md`, onder elkaar op mobiel), elk met een icoon, een kop en één zin: beoordelen op een rubric; punten of niveaus met een eigen puntenschema; agentic beoordelen met controle van citaten; de AI-vraagontwerper; AI en docent vergelijken; koppelen met een andere website (integratie-API en webhooks).
+- [x] **6.10 Blok "De docent beslist"** op `--brand-50`: de AI beoordeelt alleen voor; het eindcijfer komt altijd van een mens; de beheerder kiest de AI-modellen, die via Ollama draaien, ook op een eigen server. **Laat de formulering over de modellen controleren door Maurice**, zodat ze klopt met de manier waarop de app gebruikt wordt.
+- [x] **6.11 "Voor wie":** vier korte regels met icoon: docenten, studenten, beoordelaars, externe partijen.
+- [x] **6.12 Contact:** *"Vragen of interesse? Neem contact op met <CONTACT_NAME>."* met een knop naar `CONTACT_URL` (`target="_blank" rel="noopener"`) en, als `CONTACT_EMAIL` niet leeg is, een `mailto:`-link. Alles via `e()`.
+- [x] **6.13 Footer van de pagina:** `© <jaar> APP_NAME · CONTACT_NAME · Privacy & Cookies`.
+- [x] **6.14 CSS** voor de landingspagina in een eigen blok in `style.css` met prefix `.landing-`. Geen inline styles.
+- [x] **6.15 Controle zonder sessie:** de pagina werkt in een privévenster, zonder fouten in de console, en toont geen gegevens uit de database.
   *Klaar als:* `/` uitgelogd de landingspagina toont en ingelogd doorstuurt naar het juiste dashboard voor elke rol; uitloggen op de landingspagina uitkomt; gastlinks (`?action=guest&token=…`) en startlinks (`?action=integration_launch…`) nog precies zo werken. Commit: `Add public landing page`.
 
 ## Fase 7: Componenten opschonen

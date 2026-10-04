@@ -31,7 +31,9 @@
     --bs-link-color-rgb: 31, 95, 175;
     --bs-link-hover-color: var(--brand-700);
     --bs-link-hover-color-rgb: 25, 76, 140;
-    --bs-body-bg: var(--bg);
+    /* Bootstrap 5.3 gebruikt --bs-body-bg ook als achtergrond van kaarten, invoervelden,
+       tabellen, dropdowns en modals; die moeten wit zijn. De pagina krijgt --bg via body. */
+    --bs-body-bg: var(--surface);
     --bs-body-color: var(--text);
     --bs-secondary-color: var(--muted);
     --bs-border-color: var(--border);
@@ -614,4 +616,218 @@ body {
 .auth-back a:hover {
     color: var(--text);
     text-decoration: underline;
+}
+
+/* ------------------------------------------------------------------
+ * Landingspagina (pages/home.php)
+ * ------------------------------------------------------------------ */
+.landing-topbar {
+    background-color: var(--surface);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 1020;
+}
+
+.landing-topbar-inner {
+    min-height: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.landing-brand {
+    display: flex;
+    align-items: center;
+    gap: .6rem;
+    color: var(--brand-900);
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.landing-brand:hover {
+    color: var(--brand-900);
+}
+
+.landing-topbar-actions {
+    display: flex;
+    gap: .5rem;
+}
+
+.landing-hero {
+    background-color: var(--brand-900);
+    color: var(--on-brand);
+    padding: 4rem 0;
+}
+
+.landing-hero-title {
+    font-size: calc(1.6rem + 1.5vw);
+    font-weight: 700;
+    line-height: 1.15;
+    margin-bottom: 1rem;
+}
+
+@media (min-width: 1200px) {
+    .landing-hero-title {
+        font-size: 2.75rem;
+    }
+}
+
+.landing-hero-lead {
+    font-size: 1.15rem;
+    color: rgba(255, 255, 255, .85);
+    margin-bottom: 2rem;
+    max-width: 36rem;
+}
+
+.landing-btn-primary {
+    color: var(--brand-700);
+    font-weight: 600;
+}
+
+.landing-demo {
+    background-color: var(--surface);
+    color: var(--text);
+    border-radius: .75rem;
+    padding: 1.5rem;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, .25);
+    max-width: 480px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.landing-demo-label {
+    font-size: .75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--muted);
+}
+
+.landing-demo-question {
+    font-weight: 600;
+    margin: .25rem 0 .75rem;
+}
+
+.landing-demo-answer {
+    background-color: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: .5rem;
+    padding: .75rem;
+    font-size: .9rem;
+    margin-bottom: 1rem;
+}
+
+.landing-demo-criteria {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 1rem;
+}
+
+.landing-demo-criteria li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    padding: .45rem 0;
+    border-bottom: 1px solid var(--border);
+    font-size: .9rem;
+}
+
+.landing-demo-footer {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    font-size: .9rem;
+    color: var(--muted);
+}
+
+.landing-demo-footer strong {
+    color: var(--brand-700);
+}
+
+.landing-section {
+    padding: 4rem 0;
+}
+
+.landing-section-alt {
+    background-color: var(--surface);
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+}
+
+.landing-section-title {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--brand-900);
+    margin-bottom: 2rem;
+}
+
+.landing-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background-color: var(--brand-50);
+    color: var(--brand-600);
+    font-size: 1.25rem;
+    flex-shrink: 0;
+}
+
+.landing-step-number {
+    margin: 1rem 0 .25rem;
+    font-size: .75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--muted);
+}
+
+.landing-decides {
+    background-color: var(--brand-50);
+    border-radius: .75rem;
+    padding: 2rem;
+}
+
+.landing-checklist {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.landing-checklist li {
+    display: flex;
+    gap: .75rem;
+    padding: .4rem 0;
+}
+
+.landing-checklist .bi {
+    color: var(--success);
+    margin-top: .15rem;
+}
+
+.landing-audience {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.landing-contact {
+    text-align: center;
+    font-size: 1.15rem;
+}
+
+.landing-footer {
+    padding: 1.5rem 0;
+    border-top: 1px solid var(--border);
+    font-size: .8rem;
+    color: var(--muted);
+    text-align: center;
+}
+
+.landing-footer a {
+    color: var(--muted);
 }

@@ -30,6 +30,16 @@ class AuthController {
     exit;
   }
   
+  /**
+   * Openbare landingspagina op /. Wie ingelogd is, gaat door naar het eigen dashboard.
+   */
+  public function showHome() {
+    if (isset($_SESSION['user_id'])) {
+        $this->redirectByRole($_SESSION['role'] ?? 'student');
+    }
+    require __DIR__ . '/../views/pages/home.php';
+  }
+
   public function showLogin() {
     if (isset($_SESSION['user_id'])) {
         $this->redirectByRole($_SESSION['role'] ?? 'student');
@@ -91,7 +101,7 @@ class AuthController {
         AuditLog::log('logout');
     }
     destroySession();
-    header('Location: index.php?action=login');
+    header('Location: /');
     exit;
   }
 

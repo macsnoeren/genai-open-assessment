@@ -39,9 +39,9 @@ require_once __DIR__ . '/../app/controllers/AnswerAssessmentController.php';
 require_once __DIR__ . '/../app/controllers/IntegrationController.php';
 require_once __DIR__ . '/../app/controllers/GradingSchemeController.php';
 
-$action = $_GET['action'] ?? 'login';
+$action = $_GET['action'] ?? 'home';
 if (!is_string($action)) {
-    $action = 'login';
+    $action = 'home';
 }
 
 $auth = new AuthController();
@@ -56,6 +56,10 @@ $integrationController = new IntegrationController();
 $gradingSchemeController = new GradingSchemeController();
 
 switch ($action) {
+ case 'home':
+   $auth->showHome();
+   break;
+
  case 'login':
    $auth->showLogin();
    break;
