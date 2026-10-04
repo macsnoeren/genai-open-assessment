@@ -198,6 +198,63 @@ class Database {
         $pdo->exec("CREATE INDEX IF NOT EXISTS idx_integration_events_due
                     ON integration_events (delivered_at, next_attempt_at)");
     }
+
+    // Beoordelen met niveaus en puntenschema's. Zelfde definitie als in setup/schema.sql.
+    $stmt = $pdo->query("SELECT name FROM sqlite_master WHERE type='table' AND name='grading_schemes'");
+    if (!$stmt->fetch()) {
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS grading_schemes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                points_voldoende INTEGER NOT NULL,
+                points_goed INTEGER NOT NULL,
+                points_uitstekend INTEGER NOT NULL,
+                owner_id INTEGER,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE (points_voldoende, points_goed, points_uitstekend),
+                CHECK (points_voldoende > 0 AND points_voldoende < points_goed AND points_goed < points_uitstekend AND points_uitstekend <= 100),
+                FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE SET NULL
+            )
+        ");
+        $pdo->exec("INSERT OR IGNORE INTO grading_schemes (name, points_voldoende, points_goed, points_uitstekend, owner_id)
+                    VALUES ('Standaard (3/4/5)', 3, 4, 5, NULL)");
+    }
+
+    // Bestaande rijen krijgen veilige defaults: toetsen en prompts blijven points,
+    // alle nieuwe kolommen voor niveaus en de handmatige aanpassing blijven NULL.
+    $levelColumns = [
+        'exams' => [
+            'grading_scale' => "TEXT NOT NULL DEFAULT 'points'",
+            'grading_scheme_id' => 'INTEGER REFERENCES grading_schemes(id) ON DELETE RESTRICT',
+            'show_grade_label' => 'INTEGER DEFAULT 0',
+        ],
+        'student_answers' => [
+            'teacher_level' => 'TEXT',
+        ],
+        'student_exams' => [
+            'grade_override' => 'REAL',
+            'grade_override_label' => 'TEXT',
+            'grade_override_reason' => 'TEXT',
+            'grade_override_by' => 'INTEGER REFERENCES users(id) ON DELETE SET NULL',
+            'grade_override_at' => 'DATETIME',
+            'grade_override_basis' => 'REAL',
+        ],
+        'answer_assessments' => [
+            'final_level' => 'TEXT',
+        ],
+        'prompts' => [
+            'grading_scale' => "TEXT NOT NULL DEFAULT 'points'",
+        ],
+    ];
+    foreach ($levelColumns as $table => $columns) {
+        $existing = $pdo->query("PRAGMA table_info($table)")->fetchAll(PDO::FETCH_COLUMN, 1);
+        foreach ($columns as $column => $definition) {
+            if (!in_array($column, $existing, true)) {
+                $pdo->exec("ALTER TABLE $table ADD COLUMN $column $definition");
+            }
+        }
+    }
   }
   
     private static function createDefaultUser() {

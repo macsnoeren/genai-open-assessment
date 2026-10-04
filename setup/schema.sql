@@ -10,6 +10,24 @@ CREATE TABLE IF NOT EXISTS users (
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Puntenschema's: zetten de niveaus van een levels-toets om in punten (zie Grading).
+-- Onvoldoende is altijd 0 punten. Een combinatie van punten bestaat maar één keer.
+CREATE TABLE IF NOT EXISTS grading_schemes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,                   -- Naam, bijvoorbeeld "Standaard (3/4/5)"
+    points_voldoende INTEGER NOT NULL,    -- Punten voor voldoende
+    points_goed INTEGER NOT NULL,         -- Punten voor goed
+    points_uitstekend INTEGER NOT NULL,   -- Punten voor uitstekend (ook de noemer van het cijfer)
+    owner_id INTEGER,                     -- Docent die het schema maakte; NULL = systeemschema (alleen de admin wijzigt het)
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (points_voldoende, points_goed, points_uitstekend),
+    CHECK (points_voldoende > 0 AND points_voldoende < points_goed AND points_goed < points_uitstekend AND points_uitstekend <= 100),
+    FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE SET NULL
+);
+INSERT OR IGNORE INTO grading_schemes (name, points_voldoende, points_goed, points_uitstekend, owner_id)
+VALUES ('Standaard (3/4/5)', 3, 4, 5, NULL);
+
 -- Toetsen (voorheen exams): hoofd-entiteit voor een toets.
 CREATE TABLE IF NOT EXISTS exams (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -21,11 +39,16 @@ CREATE TABLE IF NOT EXISTS exams (
     ai_grading_enabled INTEGER DEFAULT 0, -- AI beoordeling aan/uit (0=uit, 1=aan)
     shared INTEGER DEFAULT 0, -- Gedeeld met andere docenten (0=nee, 1=ja): inzien en beoordelen, niet wijzigen
     published INTEGER DEFAULT 0, -- Zichtbaar voor ingelogde studenten (0=nee, 1=ja)
+    grading_scale TEXT NOT NULL DEFAULT 'points', -- points (score 0-10 per antwoord) | levels (niveau per antwoord); zie Grading::SCALE_*
+    grading_scheme_id INTEGER, -- Puntenschema bij levels (NULL bij points)
+    show_grade_label INTEGER DEFAULT 0, -- Eindcijfer als woord tonen (0=nee, 1=ja), alleen bij levels
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     -- Voorkom dat een docent wordt verwijderd als er nog toetsen aan gekoppeld zijn.
     FOREIGN KEY (docent_id) REFERENCES users(id) ON DELETE RESTRICT,
-    FOREIGN KEY (prompt_id) REFERENCES prompts(id) ON DELETE SET NULL
+    FOREIGN KEY (prompt_id) REFERENCES prompts(id) ON DELETE SET NULL,
+    -- Een puntenschema dat een toets gebruikt, kan niet worden verwijderd.
+    FOREIGN KEY (grading_scheme_id) REFERENCES grading_schemes(id) ON DELETE RESTRICT
 );
 
 -- Vragen per toets.
@@ -50,9 +73,17 @@ CREATE TABLE IF NOT EXISTS student_exams (
     access_token TEXT UNIQUE, -- Token voor de cookie om sessie te herstellen
     started_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     completed_at DATETIME,
+    -- Handmatig aangepast eindcijfer (zie Grading::attemptResult()); alle NULL = geen aanpassing
+    grade_override REAL,              -- Cijfer 0-10 (één decimaal), bij een toets zonder woordbeoordeling
+    grade_override_label TEXT,        -- Woord (onvoldoende|voldoende|goed|uitstekend), bij een toets met woordbeoordeling
+    grade_override_reason TEXT,       -- Verplichte reden (alleen zichtbaar voor docenten en beoordelaars)
+    grade_override_by INTEGER,        -- Wie het cijfer aanpaste
+    grade_override_at DATETIME,       -- Wanneer
+    grade_override_basis REAL,        -- Berekend cijfer op het moment van aanpassen (voor de waarschuwing als dat later verandert)
     -- Als een student of toets wordt verwijderd, worden de pogingen ook verwijderd.
     FOREIGN KEY(student_id) REFERENCES users(id) ON DELETE CASCADE,
-    FOREIGN KEY(exam_id) REFERENCES exams(id) ON DELETE CASCADE
+    FOREIGN KEY(exam_id) REFERENCES exams(id) ON DELETE CASCADE,
+    FOREIGN KEY(grade_override_by) REFERENCES users(id) ON DELETE SET NULL
 );
 
 -- Studentantwoorden: de daadwerkelijke antwoorden van een student op vragen per toetspoging.
@@ -63,7 +94,8 @@ CREATE TABLE IF NOT EXISTS student_answers (
     answer TEXT,
     ai_feedback TEXT,
     ai_updated_at DATETIME,
-    teacher_score INTEGER,
+    teacher_score INTEGER,  -- Docentscore 0-10 (toets met grading_scale points)
+    teacher_level TEXT,     -- Docentniveau onvoldoende|voldoende|goed|uitstekend (toets met grading_scale levels)
     teacher_feedback TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -101,6 +133,7 @@ CREATE TABLE IF NOT EXISTS prompts (
     title TEXT NOT NULL,
     description TEXT,
     prompt_text TEXT NOT NULL,
+    grading_scale TEXT NOT NULL DEFAULT 'points', -- points | levels: een toets kiest alleen een prompt met dezelfde schaal
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
@@ -152,7 +185,8 @@ CREATE TABLE IF NOT EXISTS answer_assessments (
     rounds TEXT,                           -- JSON: [{assessment, validation}] per ronde (1-3)
     decision TEXT,                         -- JSON: beslissing van de orchestrator (deterministisch)
     run_log TEXT,                          -- JSON: modellen, tijdsduren, injection-vermoeden, start- en eindtijd
-    final_score INTEGER,                   -- AI-score van de agentic beoordeling (0, 1, 5 of 10), uit decision
+    final_score INTEGER,                   -- AI-score van de agentic beoordeling (0, 1, 5 of 10), uit decision (grading_scale points)
+    final_level TEXT,                      -- AI-niveau van de agentic beoordeling, uit decision (grading_scale levels)
     human_review_needed INTEGER NOT NULL DEFAULT 0, -- 1 = de AI is onzeker; menselijke controle nodig (uit decision)
     error_message TEXT,                    -- Reden waarom de worker opgaf (status failed)
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,

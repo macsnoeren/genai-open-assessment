@@ -75,3 +75,10 @@ const INTEGRATION_WEBHOOK_ALLOW_PRIVATE = false;
 // omgevingsvariabele, zodat er nooit per ongeluk true wordt gecommit.
 // Nooit zetten in productie.
 define('INTEGRATION_ALLOW_HTTP', getenv('INTEGRATION_ALLOW_HTTP') === '1');
+
+// Beoordelen met niveaus (grading_scale levels, zie ARCHITECTURE.md en docs/rollout-level-grading.md).
+// Overgangsvlag: zolang die uit staat, gaan levels-toetsen NIET naar de AI-worker en de
+// assessment-worker; docenten beoordelen die dan zelf. Zet hem pas op true als de nieuwe
+// worker (die grading_scale begrijpt) draait. Toetsen met points merken hier niets van.
+const LEVELS_AI_ENABLED = false;
+const MAX_GRADE_OVERRIDE_REASON = 1000;  // tekens: reden bij een handmatig aangepast eindcijfer
