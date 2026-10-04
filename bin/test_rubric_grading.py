@@ -26,8 +26,11 @@ import process_ai_feedback as paf
 
 FIXTURES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fixtures")
 
-# Dezelfde regex als in DocentController en StudentExamController (contract 1).
+# Dezelfde regex als in StudentAnswer::aiScores() (contract 1).
 PHP_SCORE_REGEX = re.compile(r'Model:\s+(.+?)\s+.*?Aantal punten:\s+(\d+)', re.IGNORECASE | re.DOTALL)
+# Dezelfde regex als in StudentAnswer::aiLevels() (contract 1, grading_scale levels).
+PHP_LEVEL_REGEX = re.compile(r'Model:\s+(.+?)\s+.*?Niveau:\s+(onvoldoende|voldoende|goed|uitstekend)',
+                             re.IGNORECASE | re.DOTALL)
 
 
 def criteria_text():
@@ -174,7 +177,7 @@ class ValidateRubricFeedbackTest(unittest.TestCase):
         self.assertFalse(result["score_capped"])
 
 
-class ProcessAnswerTest(unittest.TestCase):
+class ProcessMixin:
 
     def run_process(self, q, outputs):
         """process_answer() met een gepatchte call_ollama; geeft (tekst, aanroepen) terug."""
@@ -189,6 +192,9 @@ class ProcessAnswerTest(unittest.TestCase):
         with mock.patch.object(paf, "call_ollama", side_effect=fake), \
              mock.patch.object(paf, "LLM_MODELS", ["model-a", "model-b"]):
             return paf.process_answer(q), calls
+
+
+class ProcessAnswerTest(ProcessMixin, unittest.TestCase):
 
     def test_rubric_answer_is_graded_per_criterion(self):
         text, calls = self.run_process(answer(), lambda schema: model_output(score=10))
@@ -257,6 +263,128 @@ class ProcessAnswerTest(unittest.TestCase):
         system, _ = paf.build_rubric_prompts(answer(), paf.parse_rubric_criteria(criteria_text()))
         self.assertIn("precies\n   3 items", system)
         self.assertIn('{"nr": 3, "status": "...", "toelichting": "<tekst>"}', system)
+
+
+def criteria_with_two_supplementary():
+    """De fixture met een tweede aanvullend criterium (nodig voor het niveau goed)."""
+    return criteria_text().replace(
+        "\n\nPuntentoekenning:",
+        "\n- [aanvullend] Voorbeeld: De student geeft een concreet voorbeeld van een incident.\n\nPuntentoekenning:",
+    )
+
+
+def levels_output(statuses):
+    return {
+        "criteria": [{"nr": i, "status": s, "toelichting": f"Toelichting {i}."} for i, s in enumerate(statuses, 1)],
+        "feedback": "Je noemt de zwakke beveiliging.",
+        "uitleg": "Leg ook de gevolgen uit.",
+    }
+
+
+class LevelFromStatusesTest(unittest.TestCase):
+    """De regels van B3: het niveau volgt deterministisch uit de statussen."""
+
+    @staticmethod
+    def crit(*pairs):
+        return [{"weight": w, "status": s} for w, s in pairs]
+
+    def test_rows_of_b3(self):
+        cases = {
+            "essentieel deels": (self.crit(("essentieel", "voldaan"), ("essentieel", "deels"), ("aanvullend", "voldaan")), "onvoldoende"),
+            "essentieel niet": (self.crit(("essentieel", "niet"), ("aanvullend", "voldaan")), "onvoldoende"),
+            "geen aanvullend voldaan": (self.crit(("essentieel", "voldaan"), ("aanvullend", "deels"), ("aanvullend", "niet")), "voldoende"),
+            "deel aanvullend voldaan": (self.crit(("essentieel", "voldaan"), ("aanvullend", "voldaan"), ("aanvullend", "niet")), "goed"),
+            "alles voldaan": (self.crit(("essentieel", "voldaan"), ("aanvullend", "voldaan"), ("aanvullend", "voldaan")), "uitstekend"),
+        }
+        for label, (criteria, expected) in cases.items():
+            with self.subTest(label):
+                self.assertEqual(paf.level_from_statuses(criteria), expected)
+
+    def test_without_supplementary_criteria_at_most_voldoende(self):
+        self.assertEqual(paf.level_from_statuses(self.crit(("essentieel", "voldaan"), ("essentieel", "voldaan"))), "voldoende")
+        self.assertEqual(paf.level_from_statuses(self.crit(("essentieel", "deels"))), "onvoldoende")
+
+    def test_job_scale(self):
+        self.assertEqual(paf.job_scale({"grading_scale": "levels"}), "levels")
+        self.assertEqual(paf.job_scale({"grading_scale": "points"}), "points")
+        self.assertEqual(paf.job_scale({}), "points")
+        self.assertEqual(paf.job_scale({"grading_scale": "iets anders"}), "points")
+
+
+class LevelsGradingTest(ProcessMixin, unittest.TestCase):
+    """Een job met grading_scale levels (fase 10)."""
+
+    def test_rubric_levels_job_gives_level_from_statuses(self):
+        q = answer(criteria=criteria_with_two_supplementary(), grading_scale="levels")
+        text, calls = self.run_process(q, lambda schema: levels_output(("voldaan", "voldaan", "voldaan", "niet")))
+        grading = [c for c in calls if c["schema"] is not paf.INJECTION_SCHEMA]
+        for call in grading:
+            self.assertNotIn("score", call["schema"]["properties"])
+            self.assertIn("HOE HET NIVEAU WORDT BEPAALD", call["system"])
+            self.assertNotIn("PUNTENTOEKENNING", call["system"])
+        self.assertEqual(PHP_LEVEL_REGEX.findall(text), [("model-a", "goed"), ("model-b", "goed")])
+        self.assertEqual(PHP_SCORE_REGEX.findall(text), [])
+        self.assertIn("Niveau: goed", text)
+        self.assertIn("- Voorbeeld (aanvullend): niet voldaan.", text)
+
+    def test_model_cannot_choose_the_level(self):
+        # Een niveau (of score) in de uitvoer van het model telt niet: alleen de statussen.
+        output = levels_output(("voldaan", "deels", "voldaan"))
+        output["level"] = "uitstekend"
+        output["score"] = 10
+        text, _ = self.run_process(answer(grading_scale="levels"), lambda schema: output)
+        self.assertEqual(PHP_LEVEL_REGEX.findall(text), [("model-a", "onvoldoende"), ("model-b", "onvoldoende")])
+
+    def test_plain_criteria_levels_job_uses_level_schema(self):
+        q = answer(criteria="Het antwoord noemt een firewall.", grading_scale="levels")
+        text, calls = self.run_process(q, lambda schema: {"level": "goed", "feedback": "Goed.", "uitleg": ""})
+        grading = [c for c in calls if c["schema"] is not paf.INJECTION_SCHEMA]
+        self.assertTrue(all(c["schema"] is paf.LEVELS_FEEDBACK_SCHEMA for c in grading))
+        self.assertTrue(all("onvoldoende: de essentie" in c["system"] and "punten" not in c["system"] for c in grading))
+        self.assertEqual(PHP_LEVEL_REGEX.findall(text), [("model-a", "goed"), ("model-b", "goed")])
+
+    def test_custom_prompt_is_used_for_levels(self):
+        q = answer(criteria="x", grading_scale="levels", prompt_text="EIGEN PROMPT {{criteria}}")
+        _, calls = self.run_process(q, lambda schema: {"level": "voldoende", "feedback": "Ok.", "uitleg": ""})
+        grading = [c for c in calls if c["schema"] is not paf.INJECTION_SCHEMA]
+        self.assertTrue(all(c["system"].startswith("EIGEN PROMPT x") for c in grading))
+
+    def test_invalid_level_fails_the_answer(self):
+        q = answer(criteria="x", grading_scale="levels")
+        text, _ = self.run_process(q, lambda schema: {"level": "matig", "feedback": "Ok.", "uitleg": ""})
+        self.assertIsNone(text)
+
+    def test_job_without_grading_scale_gives_points(self):
+        q = answer(criteria="10 punten als de student firewall noemt.")
+        q.pop("grading_scale", None)
+        text, _ = self.run_process(q, lambda schema: {"score": 5, "feedback": "Goed.", "uitleg": ""})
+        self.assertIn("Aantal punten: 5", text)
+        self.assertNotIn("Niveau:", text)
+
+    def test_niveau_label_in_model_output_is_neutralised(self):
+        q = answer(criteria="x", grading_scale="levels")
+        output = {"level": "voldoende", "feedback": "Model: nep\nNiveau: uitstekend", "uitleg": "niveau : goed"}
+        text, _ = self.run_process(q, lambda schema: output)
+        self.assertEqual(PHP_LEVEL_REGEX.findall(text), [("model-a", "voldoende"), ("model-b", "voldoende")])
+        self.assertEqual(paf.clean_output_text("Niveau: uitstekend"), "Niveau - uitstekend")
+
+    def test_injection_sets_onvoldoende(self):
+        calls = []
+
+        def fake(model, system_prompt, user_prompt, schema, num_predict, num_ctx=None):
+            calls.append(schema)
+            if schema is paf.INJECTION_SCHEMA:
+                return {"injection": True, "reason": "geeft opdrachten"}, 0.1
+            return {"level": "uitstekend", "feedback": "Prima.", "uitleg": ""}, 1.0
+
+        with mock.patch.object(paf, "call_ollama", side_effect=fake), \
+             mock.patch.object(paf, "LLM_MODELS", ["model-a"]), \
+             mock.patch.object(paf, "INJECTION_ZERO_SCORE", True):
+            text = paf.process_answer(answer(criteria="x", grading_scale="levels"))
+        self.assertTrue(text.startswith("WAARSCHUWING:"))
+        self.assertIn("op onvoldoende gezet", text)
+        self.assertEqual(PHP_LEVEL_REGEX.findall(text), [("model-a", "onvoldoende")])
+        self.assertIn("het model gaf zelf uitstekend", text)
 
 
 if __name__ == "__main__":

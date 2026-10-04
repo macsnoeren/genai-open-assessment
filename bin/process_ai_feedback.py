@@ -148,6 +148,12 @@ REPETITION_UNIQUE_RATIO = 0.5
 # Toegestane scores. Alles daarbuiten wordt afgekeurd.
 ALLOWED_SCORES = {0, 1, 5, 10}
 
+# Niveaus bij een toets met grading_scale "levels", van laag naar hoog (contract 4).
+# Gelijk aan Grading::LEVELS in de webapp.
+LEVELS = ["onvoldoende", "voldoende", "goed", "uitstekend"]
+SCALE_POINTS = "points"
+SCALE_LEVELS = "levels"
+
 # Markeringen waarmee het studentantwoord wordt afgebakend.
 ANSWER_OPEN = "<student_answer>"
 ANSWER_CLOSE = "</student_answer>"
@@ -161,6 +167,17 @@ FEEDBACK_SCHEMA = {
         "uitleg": {"type": "string", "maxLength": MAX_OUTPUT_FIELD_CHARS},
     },
     "required": ["score", "feedback", "uitleg"],
+}
+
+# Zoals FEEDBACK_SCHEMA, maar voor een toets met niveaus: het model kiest een niveau.
+LEVELS_FEEDBACK_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "level": {"type": "string", "enum": LEVELS},
+        "feedback": {"type": "string", "maxLength": MAX_OUTPUT_FIELD_CHARS},
+        "uitleg": {"type": "string", "maxLength": MAX_OUTPUT_FIELD_CHARS},
+    },
+    "required": ["level", "feedback", "uitleg"],
 }
 
 # JSON-schema voor de prompt-injection controle.
@@ -199,6 +216,40 @@ REGELS:
 OUTPUTFORMAAT JSON exact (verplicht):
 {
     "score": <0-10>,
+    "feedback": "<tekst>",
+    "uitleg": "<tekst>"
+}
+"""
+
+# Standaardprompt bij een toets met niveaus (zonder prompt van de toets). Noemt
+# bewust geen punten: de punten volgen later uit het puntenschema van de toets.
+DEFAULT_LEVELS_PROMPT = """Je bent een automatisch beoordelingssysteem.
+Je geeft GEEN analyse, onderbouwing of extra tekst buiten het gevraagde JSON.
+
+TAKEN:
+- Beoordeel het antwoord van de student.
+- Kies precies één niveau: onvoldoende, voldoende, goed of uitstekend.
+- onvoldoende: de essentie van het juiste antwoord ontbreekt of is onjuist.
+- voldoende: de essentie van het juiste antwoord is er, maar niet meer dan dat.
+- goed: de essentie is er en de student laat meer zien dan alleen de essentie.
+- uitstekend: de essentie is er en de student laat alles zien wat de criteria vragen.
+- Geef korte feedback aan de student in de je-vorm.
+- Geef een korte uitleg wat beter kan in de je-vorm.
+
+GESTELDE VRAAG AAN STUDENT:
+{{question_text}}
+
+HET JUISTE ANTWOORD EN CRITERIA:
+{{criteria}}
+
+REGELS:
+- Geef ALLEEN de onderstaande output.
+- Gebruik exact deze labels.
+- Voeg niets toe.
+
+OUTPUTFORMAAT JSON exact (verplicht):
+{
+    "level": "<onvoldoende|voldoende|goed|uitstekend>",
     "feedback": "<tekst>",
     "uitleg": "<tekst>"
 }
@@ -346,7 +397,7 @@ def clean_output_text(text) -> str:
     """
     if not isinstance(text, str):
         return ""
-    text = re.sub(r'(Model|Tijdsduur|Aantal punten|Feedback)\s*:', r'\1 -', text, flags=re.IGNORECASE)
+    text = re.sub(r'(Model|Tijdsduur|Aantal punten|Niveau|Feedback)\s*:', r'\1 -', text, flags=re.IGNORECASE)
     text = re.sub(r'\s+', ' ', text).strip()
     if len(text) <= MAX_FEEDBACK_CHARS:
         return text
@@ -395,6 +446,41 @@ def validate_feedback(parsed: Dict) -> Optional[Dict]:
     return {"score": score, "feedback": feedback, "uitleg": uitleg}
 
 
+def job_scale(q: Dict) -> str:
+    """
+    Schaal van een job uit de API: "levels" of "points". Een webapp zonder het
+    veld grading_scale (oude versie) of met een onbekende waarde: "points".
+    """
+    return SCALE_LEVELS if q.get("grading_scale") == SCALE_LEVELS else SCALE_POINTS
+
+
+def _validate_texts(parsed: Dict) -> Optional[Dict]:
+    """De tekstvelden feedback en uitleg, opgeschoond; None als feedback leeg is."""
+    feedback = limit_sentences(clean_output_text(parsed.get("feedback")))
+    uitleg = limit_sentences(clean_output_text(parsed.get("uitleg")))
+    if not feedback:
+        return None
+    return {"feedback": feedback, "uitleg": uitleg}
+
+
+def validate_level_feedback(parsed: Dict) -> Optional[Dict]:
+    """
+    Zoals validate_feedback(), maar voor een toets met niveaus: "level" moet in
+    LEVELS staan. Geeft {"level", "feedback", "uitleg"} of None.
+    """
+    if not isinstance(parsed, dict):
+        return None
+    level = parsed.get("level")
+    if isinstance(level, str):
+        level = level.strip().lower()
+    if level not in LEVELS:
+        return None
+    texts = _validate_texts(parsed)
+    if texts is None:
+        return None
+    return {"level": level, **texts}
+
+
 def build_prompts(q: Dict, injection_suspected: bool = False) -> Tuple[str, str]:
     """
     Bouwt het systeembericht (instructies, vraag, criteria) en het
@@ -402,13 +488,15 @@ def build_prompts(q: Dict, injection_suspected: bool = False) -> Tuple[str, str]
 
     Het studentantwoord komt NOOIT in het systeembericht terecht. Een
     {{student_answer}} placeholder in een custom prompt wordt vervangen door
-    een verwijzing naar het gebruikersbericht.
+    een verwijzing naar het gebruikersbericht. Zonder prompt van de toets geldt
+    DEFAULT_SYSTEM_PROMPT (points) of DEFAULT_LEVELS_PROMPT (levels, B9).
     """
     question_text = str(q.get('question_text') or "")
     criteria = str(q.get('criteria') or "")
     answer = str(q.get('answer') or "")
 
-    template = q.get('prompt_text') or DEFAULT_SYSTEM_PROMPT
+    default = DEFAULT_LEVELS_PROMPT if job_scale(q) == SCALE_LEVELS else DEFAULT_SYSTEM_PROMPT
+    template = q.get('prompt_text') or default
 
     system_prompt = template
     system_prompt = system_prompt.replace('{{question_text}}', question_text)
@@ -592,6 +680,76 @@ OUTPUTFORMAAT JSON exact (verplicht):
 """
 
 
+# Rubric-prompt bij een toets met niveaus. Het model beoordeelt alleen per
+# criterium; het niveau volgt daarna deterministisch uit de statussen
+# (level_from_statuses(), B3). De niveauteksten zijn alleen toelichting.
+RUBRIC_LEVELS_SYSTEM_PROMPT = """Je bent een automatisch beoordelingssysteem voor open toetsvragen.
+Je beoordeelt het antwoord van een student met de rubric die de docent heeft vastgesteld.
+Je geeft GEEN analyse, onderbouwing of extra tekst buiten het gevraagde JSON.
+
+GESTELDE VRAAG AAN STUDENT:
+{question_text}
+
+MODELANTWOORD VAN DE DOCENT (een voorbeeld van een goed antwoord, geen verplichte formulering):
+{model_answer}
+
+BEOORDELINGSCRITERIA:
+{criteria}
+
+OOK CORRECT (andere juiste antwoorden of invalshoeken):
+{alternatives}
+{level_texts}
+HOE HET NIVEAU WORDT BEPAALD (dat doet het systeem, niet jij):
+- onvoldoende: niet alle essentiële criteria zijn voldaan ("deels" telt als niet voldaan);
+- voldoende: alle essentiële criteria voldaan, geen enkel aanvullend criterium voldaan;
+- goed: alle essentiële criteria voldaan en een deel van de aanvullende criteria;
+- uitstekend: alle essentiële en alle aanvullende criteria voldaan.
+Je oordeel per criterium bepaalt dus het niveau. Wees daarom zorgvuldig en eerlijk per criterium.
+
+WERKWIJZE:
+1. Beoordeel het antwoord per criterium, in de volgorde hierboven. "criteria" bevat precies
+   {count} items: één voor elk criterium (nr 1 t/m {count}), ook voor een criterium dat het antwoord
+   niet behandelt (status "niet") en ook voor aanvullende criteria.
+   - status "voldaan": het antwoord voldoet aan het criterium;
+   - status "deels": het antwoord gaat in de goede richting, maar is onvolledig, te vaag of bevat een fout;
+   - status "niet": het criterium ontbreekt in het antwoord of is onjuist.
+   - toelichting: één korte zin waarom, in de je-vorm.
+2. Beoordeel op inhoud, niet op formulering. Andere woorden, eigen voorbeelden of een juiste
+   invalshoek uit "OOK CORRECT" tellen even zwaar als het modelantwoord.
+3. feedback: korte feedback aan de student in de je-vorm: wat goed is en wat ontbreekt, in termen
+   van de criteria.
+4. uitleg: wat de student concreet kan verbeteren, in de je-vorm.
+
+OUTPUTFORMAAT JSON exact (verplicht):
+{{"criteria": [{criteria_example}],
+ "feedback": "<tekst>",
+ "uitleg": "<tekst>"}}
+"""
+
+
+def level_from_statuses(criteria: List[Dict]) -> str:
+    """
+    Het niveau uit de status per criterium (B3, deterministisch):
+    - onvoldoende: niet alle essentiële criteria "voldaan" (ook "deels" telt als niet voldaan);
+    - voldoende: alle essentiële voldaan, geen enkel aanvullend criterium voldaan;
+    - goed: alle essentiële voldaan, minstens één aanvullend criterium voldaan, maar niet allemaal;
+    - uitstekend: alle essentiële en alle aanvullende criteria voldaan.
+    Een rubric zonder aanvullende criteria komt hooguit op voldoende uit.
+
+    :param criteria: [{"weight": "essentieel"|"aanvullend", "status": "voldaan"|"deels"|"niet"}, ...]
+    """
+    essential = [c for c in criteria if c.get("weight") == "essentieel"]
+    supplementary = [c for c in criteria if c.get("weight") != "essentieel"]
+    if any(c.get("status") != "voldaan" for c in essential):
+        return "onvoldoende"
+    met = sum(1 for c in supplementary if c.get("status") == "voldaan")
+    if not supplementary or met == 0:
+        return "voldoende"
+    if met == len(supplementary):
+        return "uitstekend"
+    return "goed"
+
+
 # Aantal extra pogingen als het oordeel per criterium onvolledig of ongeldig is
 # (geldige JSON, maar niet door validate_rubric_feedback()).
 RUBRIC_RETRY_ATTEMPTS = 1
@@ -599,24 +757,30 @@ RUBRIC_RETRY_ATTEMPTS = 1
 RUBRIC_CORRECTION = """
 Je vorige beoordeling is afgekeurd. "criteria" moet precies {count} items bevatten: één voor elk
 criterium (nr 1 t/m {count}, elk nummer één keer), met status "voldaan", "deels" of "niet". Een
-criterium dat het antwoord niet behandelt, krijgt status "niet". De score is 0, 1, 5 of 10.
+criterium dat het antwoord niet behandelt, krijgt status "niet".{score_rule}
 Geef nu UITSLUITEND het volledige JSON-object opnieuw.
 """
+RUBRIC_CORRECTION_SCORE_RULE = " De score is 0, 1, 5 of 10."
 
 
-def build_rubric_prompts(q: Dict, rubric: Dict, injection_suspected: bool = False) -> Tuple[str, str]:
+def build_rubric_prompts(q: Dict, rubric: Dict, injection_suspected: bool = False,
+                         scale: str = SCALE_POINTS) -> Tuple[str, str]:
     """
     Zoals build_prompts(), maar met de rubric-prompt: de vraag, het modelantwoord,
     de genummerde criteria, de alternatieven en de puntentoekenning in het
     systeembericht. Een custom prompt van de toets wordt hier niet gebruikt:
     die bevat een eigen puntentoekenning die met de rubric kan botsen.
+
+    Bij scale "levels" (RUBRIC_LEVELS_SYSTEM_PROMPT) vraagt de prompt alleen een
+    oordeel per criterium en geen score; de niveauteksten van een rubric in het
+    niveauformaat staan erbij als toelichting.
     """
     criteria = "\n".join(
         f"{i}. [{c['weight']}] {c['name']}: {c['description']}"
         for i, c in enumerate(rubric["criteria"], 1)
     )
     alternatives = "\n".join(f"- {alt}" for alt in rubric["alternatives"]) or "(geen)"
-    system_prompt = RUBRIC_SYSTEM_PROMPT.format(
+    common = dict(
         question_text=str(q.get('question_text') or ""),
         model_answer=rubric["model_answer"] or "(niet opgegeven)",
         criteria=criteria,
@@ -626,17 +790,35 @@ def build_rubric_prompts(q: Dict, rubric: Dict, injection_suspected: bool = Fals
             for i in range(1, len(rubric["criteria"]) + 1)
         ),
         alternatives=alternatives,
-        **{f"level_{level}": rubric["levels"][level] for level in RUBRIC_LEVELS},
     )
+    if scale == SCALE_LEVELS:
+        level_texts = ""
+        if rubric.get("levels_format") == SCALE_LEVELS:
+            level_texts = "\nNIVEAUS (toelichting van de docent):\n" + "\n".join(
+                f"{level.capitalize()}: {rubric['levels'][level]}" for level in reversed(LEVELS)
+            ) + "\n"
+        system_prompt = RUBRIC_LEVELS_SYSTEM_PROMPT.format(level_texts=level_texts, **common)
+    else:
+        system_prompt = RUBRIC_SYSTEM_PROMPT.format(
+            **common,
+            **{f"level_{level}": rubric["levels"][level] for level in RUBRIC_LEVELS},
+        )
     system_prompt += SAFETY_SUFFIX
     return system_prompt, build_user_prompt(str(q.get('answer') or ""), injection_suspected)
 
 
-def rubric_feedback_schema(criteria_count: int) -> Dict:
+def rubric_feedback_schema(criteria_count: int, scale: str = SCALE_POINTS) -> Dict:
     """
     JSON-schema voor een rubric-beoordeling. "criteria" staat vóór "score",
     zodat het model eerst per criterium oordeelt en dan pas de score kiest.
+    Bij scale "levels" is er geen score: het niveau volgt uit de statussen.
     """
+    base = FEEDBACK_SCHEMA
+    if scale == SCALE_LEVELS:
+        base = {
+            "properties": {k: v for k, v in FEEDBACK_SCHEMA["properties"].items() if k != "score"},
+            "required": [k for k in FEEDBACK_SCHEMA["required"] if k != "score"],
+        }
     return {
         "type": "object",
         "properties": {
@@ -654,13 +836,13 @@ def rubric_feedback_schema(criteria_count: int) -> Dict:
                     "required": ["nr", "status", "toelichting"],
                 },
             },
-            **FEEDBACK_SCHEMA["properties"],
+            **base["properties"],
         },
-        "required": ["criteria", *FEEDBACK_SCHEMA["required"]],
+        "required": ["criteria", *base["required"]],
     }
 
 
-def validate_rubric_feedback(parsed: Dict, rubric: Dict) -> Optional[Dict]:
+def validate_rubric_feedback(parsed: Dict, rubric: Dict, scale: str = SCALE_POINTS) -> Optional[Dict]:
     """
     Zoals validate_feedback(), plus het oordeel per criterium: elk criterium
     precies één keer met een geldige status, anders None.
@@ -668,8 +850,13 @@ def validate_rubric_feedback(parsed: Dict, rubric: Dict) -> Optional[Dict]:
     Geeft het model 10 punten terwijl een essentieel criterium niet volledig
     voldaan is, dan wordt de score 5: de rubric eist voor 10 punten alle
     essentiële criteria. "score_capped" meldt dat in de feedback.
+
+    Bij scale "levels" is er geen score: "level" komt uit level_from_statuses().
     """
-    result = validate_feedback(parsed)
+    if scale == SCALE_LEVELS:
+        result = _validate_texts(parsed) if isinstance(parsed, dict) else None
+    else:
+        result = validate_feedback(parsed)
     if result is None:
         return None
 
@@ -696,6 +883,9 @@ def validate_rubric_feedback(parsed: Dict, rubric: Dict) -> Optional[Dict]:
         for i, c in enumerate(rubric["criteria"], 1)
     ]
     result["score_capped"] = False
+    if scale == SCALE_LEVELS:
+        result["level"] = level_from_statuses(result["criteria"])
+        return result
     essential_missing = any(c["weight"] == "essentieel" and c["status"] != "voldaan" for c in result["criteria"])
     if result["score"] == 10 and essential_missing:
         result["score"] = 5
@@ -904,11 +1094,13 @@ def get_feedback_from_model(
     :param model_name: Naam van het LLM-model (Ollama)
     :param injection_suspected: True als de voorcontrole prompt injection vermoedt
     :param rubric: uitkomst van parse_rubric_criteria(); dan wordt per criterium beoordeeld
-    :return: Dict met gevalideerde score en feedback (bij een rubric ook "criteria") of None bij fout
+    :return: Dict met gevalideerde score (bij grading_scale "levels": level) en feedback
+             (bij een rubric ook "criteria") of None bij fout
     """
+    scale = job_scale(q)
     if rubric:
-        system_prompt, user_prompt = build_rubric_prompts(q, rubric, injection_suspected)
-        schema = rubric_feedback_schema(len(rubric["criteria"]))
+        system_prompt, user_prompt = build_rubric_prompts(q, rubric, injection_suspected, scale)
+        schema = rubric_feedback_schema(len(rubric["criteria"]), scale)
         prompt = user_prompt
         duration = 0.0
         # Cloud-modellen dwingen minItems niet af en laten een criterium dat het
@@ -917,19 +1109,27 @@ def get_feedback_from_model(
             parsed, call_duration = call_ollama(model_name, system_prompt, prompt, schema,
                                                 num_predict=NUM_PREDICT_FEEDBACK, num_ctx=RUBRIC_NUM_CTX)
             duration += call_duration
-            validated = validate_rubric_feedback(parsed, rubric) if parsed is not None else None
+            validated = validate_rubric_feedback(parsed, rubric, scale) if parsed is not None else None
             if parsed is None or validated is not None:
                 break
             if attempt < RUBRIC_RETRY_ATTEMPTS:
                 print(f"[{model_name}] Oordeel per criterium onvolledig of ongeldig: {parsed}; nieuwe poging met correctie.")
-                prompt = user_prompt + RUBRIC_CORRECTION.format(count=len(rubric["criteria"]))
+                prompt = user_prompt + RUBRIC_CORRECTION.format(
+                    count=len(rubric["criteria"]),
+                    score_rule="" if scale == SCALE_LEVELS else RUBRIC_CORRECTION_SCORE_RULE,
+                )
     else:
         if q.get('prompt_text'):
             print(f"[{model_name}] Gebruikt custom prompt uit database.")
         system_prompt, user_prompt = build_prompts(q, injection_suspected)
-        parsed, duration = call_ollama(model_name, system_prompt, user_prompt, FEEDBACK_SCHEMA,
+        levels = scale == SCALE_LEVELS
+        parsed, duration = call_ollama(model_name, system_prompt, user_prompt,
+                                       LEVELS_FEEDBACK_SCHEMA if levels else FEEDBACK_SCHEMA,
                                        num_predict=NUM_PREDICT_FEEDBACK)
-        validated = validate_feedback(parsed) if parsed is not None else None
+        if parsed is None:
+            validated = None
+        else:
+            validated = validate_level_feedback(parsed) if levels else validate_feedback(parsed)
 
     if parsed is None:
         return None
@@ -1018,6 +1218,7 @@ def process_answer(q: Dict) -> Optional[str]:
     answer = str(q.get('answer') or "")
     blocks = []
     injection_suspected = False
+    levels = job_scale(q) == SCALE_LEVELS
 
     rubric = parse_rubric_criteria(q.get('criteria')) if RUBRIC_GRADING else None
     if rubric:
@@ -1032,7 +1233,8 @@ def process_answer(q: Dict) -> Optional[str]:
                 "WAARSCHUWING: dit antwoord bevat mogelijk instructies aan de AI "
                 "(prompt injection). Controleer het antwoord en de AI-scores handmatig.\n"
                 f"Reden ({INJECTION_CHECK_MODEL}): {check['reason']}"
-                + ("\nDe AI-scores hieronder zijn daarom op 0 gezet." if INJECTION_ZERO_SCORE else "")
+                + (("\nDe AI-niveaus hieronder zijn daarom op onvoldoende gezet." if levels
+                    else "\nDe AI-scores hieronder zijn daarom op 0 gezet.") if INJECTION_ZERO_SCORE else "")
             )
 
     for model in LLM_MODELS:
@@ -1044,21 +1246,33 @@ def process_answer(q: Dict) -> Optional[str]:
             print(f"Model {model} faalde voor antwoord {q['student_answer_id']}.")
             return None
 
-        score = result['score']
         feedback = result['feedback']
-        if injection_suspected and INJECTION_ZERO_SCORE:
-            feedback = (
-                f"[Score op 0 gezet vanwege vermoedelijke prompt injection; "
-                f"het model gaf zelf {score} punten] {feedback}"
-            )
-            score = 0
+        if levels:
+            level = result['level']
+            if injection_suspected and INJECTION_ZERO_SCORE:
+                feedback = (
+                    f"[Niveau op onvoldoende gezet vanwege vermoedelijke prompt injection; "
+                    f"het model gaf zelf {level}] {feedback}"
+                )
+                level = "onvoldoende"
+            # Bij grading_scale "levels" leest de webapp "Niveau:" (StudentAnswer::aiLevels())
+            result_line = f"Niveau: {level}\n"
+        else:
+            score = result['score']
+            if injection_suspected and INJECTION_ZERO_SCORE:
+                feedback = (
+                    f"[Score op 0 gezet vanwege vermoedelijke prompt injection; "
+                    f"het model gaf zelf {score} punten] {feedback}"
+                )
+                score = 0
+            result_line = f"Aantal punten: {score}\n"
 
         # Let op: dit formaat wordt in de webapp met een regex geparsed
-        # (Model: ... Aantal punten: ...). Houd de labels intact.
+        # (Model: ... Aantal punten: ... of Model: ... Niveau: ...). Houd de labels intact.
         block = (
             f"Model: {model}\n"
             f"Tijdsduur: {result['duration']:.2f}s\n"
-            f"Aantal punten: {score}\n"
+            f"{result_line}"
             f"Feedback: {feedback}"
         )
         if result.get("criteria"):

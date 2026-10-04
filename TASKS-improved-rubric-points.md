@@ -219,16 +219,16 @@ Alle rekenregels staan op één plek, zodat de aggregatie niet opnieuw op meerde
 
 ## Fase 10: AI-worker (`bin/process_ai_feedback.py`)
 
-- [ ] **10.1 Constanten:** `LEVELS = ["onvoldoende", "voldoende", "goed", "uitstekend"]` en `LEVELS_FEEDBACK_SCHEMA` (zoals `FEEDBACK_SCHEMA`, maar met `level` als enum in plaats van `score`).
-- [ ] **10.2 Schaal lezen:** `job_scale(q) -> str` geeft `q.get("grading_scale")`, of `"points"` als die ontbreekt of onbekend is.
-- [ ] **10.3 `validate_level_feedback()`:** zoals `validate_feedback()`, maar `level` moet in `LEVELS` staan.
-- [ ] **10.4 `DEFAULT_LEVELS_PROMPT`:** zoals `DEFAULT_SYSTEM_PROMPT`, met de vier niveaus en hun betekenis: onvoldoende = de essentie ontbreekt; voldoende = de essentie is er; goed en uitstekend = de student laat meer zien. Geen punten noemen.
-- [ ] **10.5 `level_from_statuses(criteria) -> str`:** de regels van B3. Schrijf eerst de test (10.10).
-- [ ] **10.6 Rubric-pad bij `levels`:** het model geeft alleen statussen per criterium en feedback, geen score. Het niveau komt uit `level_from_statuses()`. Pas `rubric_feedback_schema()` en `build_rubric_prompts()` aan met een parameter voor de schaal; het `points`-pad blijft gelijk.
-- [ ] **10.7 Pad zonder rubric bij `levels`:** het model kiest het niveau met `LEVELS_FEEDBACK_SCHEMA` en `DEFAULT_LEVELS_PROMPT`, of met de prompt van de toets (B9).
-- [ ] **10.8 Uitvoer in `process_answer()`:** bij `levels` `Niveau: <niveau>` in plaats van `Aantal punten: N`. Een vermoedelijke injectie met `INJECTION_ZERO_SCORE` geeft `onvoldoende`.
-- [ ] **10.9 `clean_output_text()`:** voeg `Niveau` toe aan de geneutraliseerde labels (tegen spoofing).
-- [ ] **10.10 Tests in `bin/test_rubric_grading.py`:** `level_from_statuses()` voor elke rij van B3, plus een rubric zonder aanvullende criteria (hooguit voldoende); een `levels`-job met een gemockte `call_ollama` geeft `Niveau: goed`; een job zonder `grading_scale` geeft `Aantal punten:` zoals voorheen; en `Niveau:` in modeluitvoer wordt geneutraliseerd.
+- [x] **10.1 Constanten:** `LEVELS = ["onvoldoende", "voldoende", "goed", "uitstekend"]` en `LEVELS_FEEDBACK_SCHEMA` (zoals `FEEDBACK_SCHEMA`, maar met `level` als enum in plaats van `score`).
+- [x] **10.2 Schaal lezen:** `job_scale(q) -> str` geeft `q.get("grading_scale")`, of `"points"` als die ontbreekt of onbekend is.
+- [x] **10.3 `validate_level_feedback()`:** zoals `validate_feedback()`, maar `level` moet in `LEVELS` staan.
+- [x] **10.4 `DEFAULT_LEVELS_PROMPT`:** zoals `DEFAULT_SYSTEM_PROMPT`, met de vier niveaus en hun betekenis: onvoldoende = de essentie ontbreekt; voldoende = de essentie is er; goed en uitstekend = de student laat meer zien. Geen punten noemen.
+- [x] **10.5 `level_from_statuses(criteria) -> str`:** de regels van B3. Schrijf eerst de test (10.10).
+- [x] **10.6 Rubric-pad bij `levels`:** het model geeft alleen statussen per criterium en feedback, geen score. Het niveau komt uit `level_from_statuses()`. Pas `rubric_feedback_schema()` en `build_rubric_prompts()` aan met een parameter voor de schaal; het `points`-pad blijft gelijk.
+- [x] **10.7 Pad zonder rubric bij `levels`:** het model kiest het niveau met `LEVELS_FEEDBACK_SCHEMA` en `DEFAULT_LEVELS_PROMPT`, of met de prompt van de toets (B9).
+- [x] **10.8 Uitvoer in `process_answer()`:** bij `levels` `Niveau: <niveau>` in plaats van `Aantal punten: N`. Een vermoedelijke injectie met `INJECTION_ZERO_SCORE` geeft `onvoldoende`.
+- [x] **10.9 `clean_output_text()`:** voeg `Niveau` toe aan de geneutraliseerde labels (tegen spoofing).
+- [x] **10.10 Tests in `bin/test_rubric_grading.py`:** `level_from_statuses()` voor elke rij van B3, plus een rubric zonder aanvullende criteria (hooguit voldoende); een `levels`-job met een gemockte `call_ollama` geeft `Niveau: goed`; een job zonder `grading_scale` geeft `Aantal punten:` zoals voorheen; en `Niveau:` in modeluitvoer wordt geneutraliseerd.
   *Klaar als:* `cd bin && python3 -m unittest test_rubric_grading -v` slaagt en de Python-syntaxcheck ook. Commit: `Grade with levels in AI worker`.
 
 ## Fase 11: Assessment-agents (`bin/assessment_agents.py`)
