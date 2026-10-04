@@ -15,7 +15,8 @@ door aan de volgende:
 1. EvidenceAgent: zoekt per rubriccriterium letterlijke citaten in het antwoord
    en houdt die gescheiden van de interpretatie.
 2. AssessmentAgent: beoordeelt elk criterium met de rubric en de evidence-analyse
-   en kiest daarna een score met de puntentoekenning.
+   en kiest daarna een score met de puntentoekenning (bij grading_scale "levels":
+   het niveau dat uit de statussen volgt).
 3. ValidationAgent: controleert de voorlopige beoordeling kritisch (zeven
    controles), mag corrigeren en levert een eindoordeel met confidence.
 
@@ -38,9 +39,9 @@ from datetime import datetime
 from typing import Callable, Dict, List, Optional
 
 import config
-from process_ai_feedback import (call_ollama, parse_rubric_criteria, detect_prompt_injection,
-                                 INJECTION_CHECK_MODEL, INJECTION_FLAG_NOTE, MAX_ANSWER_CHARS,
-                                 NUM_PREDICT_MAX, RUBRIC_NUM_CTX)
+from process_ai_feedback import (call_ollama, parse_rubric_criteria, detect_prompt_injection, job_scale,
+                                 level_from_statuses, INJECTION_CHECK_MODEL, INJECTION_FLAG_NOTE, MAX_ANSWER_CHARS,
+                                 NUM_PREDICT_MAX, RUBRIC_NUM_CTX, SCALE_LEVELS, SCALE_POINTS)
 from design_agents import Agent, _block, DESIGN_MODEL, STALE, clean_text
 
 # =========================
@@ -79,6 +80,10 @@ MAX_ROUNDS = 3
 MAX_REASONS = 10
 WEIGHTS = ["essentieel", "aanvullend"]
 LEVELS = ["10", "5", "1", "0"]
+# Niveauteksten van een rubric in het niveauformaat (kopje "Niveaus:", contract 7)
+LEVEL_NAMES = ["uitstekend", "goed", "voldoende", "onvoldoende"]
+# Uitkomst bij grading_scale "levels" (contract 4); gelijk aan Grading::LEVELS in PHP
+RESULT_LEVELS = ["onvoldoende", "voldoende", "goed", "uitstekend"]
 EVIDENCE_FOUND = ["ja", "gedeeltelijk", "nee"]
 STATUSES = ["voldaan", "deels", "niet"]
 CONFIDENCES = ["hoog", "middel", "laag"]
@@ -139,6 +144,17 @@ def _score(value) -> Optional[int]:
     return score if score in SCORES else None
 
 
+def _scale_score(value, scale: str):
+    """Uitkomst per schaal: een score uit SCORES (points) of een niveau uit RESULT_LEVELS (levels)."""
+    return _enum(value, RESULT_LEVELS) if scale == SCALE_LEVELS else _score(value)
+
+
+def _score_schema(scale: str) -> Dict:
+    if scale == SCALE_LEVELS:
+        return {"type": "string", "enum": RESULT_LEVELS}
+    return {"type": "integer", "enum": SCORES}
+
+
 def _quotes(value) -> List[str]:
     out = []
     for quote in _list(value):
@@ -151,7 +167,10 @@ def _quotes(value) -> List[str]:
 
 
 def validate_rubric(rubric) -> Optional[Dict]:
-    """Rubric in contractvorm (met nr en stringsleutels). Spiegel van AnswerAssessment::normalizeRubric()."""
+    """
+    Rubric in contractvorm (met nr, levels_format en stringsleutels). Spiegel van
+    AnswerAssessment::normalizeRubric().
+    """
     if not isinstance(rubric, dict):
         return None
     items = rubric.get("criteria")
@@ -169,9 +188,11 @@ def validate_rubric(rubric) -> Optional[Dict]:
             return None
         criteria.append({"nr": nr, "name": name, "weight": weight, "description": description})
 
+    # levels_format: puntenformaat (10/5/1/0) of niveauformaat (uitstekend/goed/voldoende/onvoldoende)
+    levels_format = SCALE_LEVELS if rubric.get("levels_format") == SCALE_LEVELS else SCALE_POINTS
     raw_levels = rubric.get("levels") if isinstance(rubric.get("levels"), dict) else {}
     levels = {}
-    for level in LEVELS:
+    for level in (LEVEL_NAMES if levels_format == SCALE_LEVELS else LEVELS):
         text = clean_text(raw_levels.get(level))
         if not text:
             return None
@@ -189,6 +210,7 @@ def validate_rubric(rubric) -> Optional[Dict]:
     return {
         "model_answer": model_answer.strip()[:MAX_MODEL_ANSWER] if isinstance(model_answer, str) else "",
         "criteria": criteria,
+        "levels_format": levels_format,
         "levels": levels,
         "alternatives": alternatives,
     }
@@ -205,6 +227,7 @@ def numbered_rubric(parsed: Optional[Dict]) -> Optional[Dict]:
     return validate_rubric({
         "model_answer": parsed.get("model_answer", ""),
         "criteria": [{"nr": i, **c} for i, c in enumerate(parsed.get("criteria", []), 1)],
+        "levels_format": parsed.get("levels_format", SCALE_POINTS),
         "levels": {str(level): text for level, text in parsed.get("levels", {}).items()},
         "alternatives": parsed.get("alternatives", []),
     })
@@ -235,7 +258,7 @@ def _quotes_schema() -> Dict:
     return {"type": "array", "maxItems": MAX_QUOTES, "items": _text(MAX_QUOTE)}
 
 
-def evidence_schema(count: int) -> Dict:
+def evidence_schema(count: int, scale: str = SCALE_POINTS) -> Dict:
     return {
         "type": "object",
         "properties": {
@@ -252,8 +275,11 @@ def evidence_schema(count: int) -> Dict:
     }
 
 
-def assessment_schema(count: int) -> Dict:
-    """"criteria" staat vóór "score": eerst per criterium oordelen, dan pas de score kiezen."""
+def assessment_schema(count: int, scale: str = SCALE_POINTS) -> Dict:
+    """
+    "criteria" staat vóór "score": eerst per criterium oordelen, dan pas de score kiezen.
+    Bij scale "levels" is score een niveau.
+    """
     return {
         "type": "object",
         "properties": {
@@ -264,7 +290,7 @@ def assessment_schema(count: int) -> Dict:
                 "evidence_used": _quotes_schema(),
                 "confidence": {"type": "string", "enum": CONFIDENCES},
             }, ["status", "assessment", "reasoning", "evidence_used", "confidence"]),
-            "score": {"type": "integer", "enum": SCORES},
+            "score": _score_schema(scale),
             "confidence": {"type": "string", "enum": CONFIDENCES},
             "feedback": _text(),
         },
@@ -272,7 +298,7 @@ def assessment_schema(count: int) -> Dict:
     }
 
 
-def validation_schema(count: int) -> Dict:
+def validation_schema(count: int, scale: str = SCALE_POINTS) -> Dict:
     return {
         "type": "object",
         "properties": {
@@ -318,7 +344,7 @@ def validation_schema(count: int) -> Dict:
                 "type": "object",
                 "properties": {
                     "criteria": _criteria_array(count, {"status": {"type": "string", "enum": STATUSES}}, ["status"]),
-                    "score": {"type": "integer", "enum": SCORES},
+                    "score": _score_schema(scale),
                 },
                 "required": ["criteria", "score"],
             },
@@ -334,7 +360,7 @@ def validation_schema(count: int) -> Dict:
 # =========================
 
 
-def validate_evidence(parsed, count: int) -> Optional[Dict]:
+def validate_evidence(parsed, count: int, scale: str = SCALE_POINTS) -> Optional[Dict]:
     mapping = criterion_map(parsed.get("criteria"), count) if isinstance(parsed, dict) else None
     if mapping is None:
         return None
@@ -355,7 +381,7 @@ def validate_evidence(parsed, count: int) -> Optional[Dict]:
     return {"criteria": criteria, "summary": clean_text(parsed.get("summary")) or ""}
 
 
-def validate_assessment(parsed, count: int) -> Optional[Dict]:
+def validate_assessment(parsed, count: int, scale: str = SCALE_POINTS) -> Optional[Dict]:
     mapping = criterion_map(parsed.get("criteria"), count) if isinstance(parsed, dict) else None
     if mapping is None:
         return None
@@ -373,7 +399,7 @@ def validate_assessment(parsed, count: int) -> Optional[Dict]:
             "evidence_used": _quotes(c.get("evidence_used")),
             "confidence": confidence,
         })
-    score = _score(parsed.get("score"))
+    score = _scale_score(parsed.get("score"), scale)
     confidence = _enum(parsed.get("confidence"), CONFIDENCES)
     if score is None or confidence is None:
         return None
@@ -381,7 +407,7 @@ def validate_assessment(parsed, count: int) -> Optional[Dict]:
             "feedback": clean_text(parsed.get("feedback")) or ""}
 
 
-def validate_validation(parsed, count: int) -> Optional[Dict]:
+def validate_validation(parsed, count: int, scale: str = SCALE_POINTS) -> Optional[Dict]:
     if not isinstance(parsed, dict):
         return None
     checks = {}
@@ -418,7 +444,7 @@ def validate_validation(parsed, count: int) -> Optional[Dict]:
 
     final = parsed.get("final_assessment")
     mapping = criterion_map(final.get("criteria"), count) if isinstance(final, dict) else None
-    score = _score(final.get("score")) if isinstance(final, dict) else None
+    score = _scale_score(final.get("score"), scale) if isinstance(final, dict) else None
     confidence = _enum(parsed.get("confidence"), CONFIDENCES)
     if mapping is None or score is None or confidence is None:
         return None
@@ -488,8 +514,21 @@ def _as_json(value) -> str:
     return json.dumps(value, ensure_ascii=False, indent=2)
 
 
-def format_rubric(rubric: Dict) -> str:
-    """De rubric als leesbare tekst met genummerde criteria."""
+# Uitleg van B3 voor de agents bij grading_scale "levels".
+LEVEL_RULES = """Het niveau volgt uit de statussen van de criteria (alleen "voldaan" telt, "deels" niet):
+- onvoldoende: niet alle essentiële criteria zijn voldaan;
+- voldoende: alle essentiële criteria voldaan, geen enkel aanvullend criterium voldaan;
+- goed: alle essentiële criteria voldaan en een deel (niet alle) van de aanvullende criteria;
+- uitstekend: alle essentiële en alle aanvullende criteria voldaan.
+Een rubric zonder aanvullende criteria komt hooguit op voldoende uit."""
+
+
+def format_rubric(rubric: Dict, scale: str = SCALE_POINTS) -> str:
+    """
+    De rubric als leesbare tekst met genummerde criteria. Bij scale "levels" staan
+    de niveauregels (B3) erin in plaats van de puntentoekenning; de niveauteksten
+    van een rubric in het niveauformaat staan erbij als toelichting.
+    """
     count = len(rubric["criteria"])
     lines = [f"Beoordelingscriteria ({count}, genummerd 1 t/m {count}):"]
     lines += [f"{c['nr']}. [{c['weight']}] {c['name']}: {c['description']}" for c in rubric["criteria"]]
@@ -497,6 +536,12 @@ def format_rubric(rubric: Dict) -> str:
               rubric["model_answer"] or "(niet opgegeven)"]
     lines += ["", "Ook correct (andere juiste antwoorden of invalshoeken):"]
     lines += [f"- {alt}" for alt in rubric["alternatives"]] or ["(geen)"]
+    if scale == SCALE_LEVELS:
+        lines += ["", "Niveaus (alleen deze vier bestaan: onvoldoende, voldoende, goed, uitstekend):", LEVEL_RULES]
+        if rubric.get("levels_format") == SCALE_LEVELS:
+            lines += ["", "Toelichting van de docent per niveau:"]
+            lines += [f"{level.capitalize()}: {rubric['levels'][level]}" for level in LEVEL_NAMES]
+        return "\n".join(lines)
     lines += ["", "Puntentoekenning (alleen deze vier scores bestaan):",
               f"10 punten: {rubric['levels']['10']}",
               f"5 punten: {rubric['levels']['5']}",
@@ -517,11 +562,12 @@ def build_user_message(job: Dict, rubric: Dict, **extra) -> str:
     Zet alle invoer als gelabelde blokken in het gebruikersbericht. extra:
     evidence, assessment (de vorige of voorlopige beoordeling), validation
     (bevindingen bij een extra ronde) en injection_suspected (bool).
+    De schaal komt uit de job (grading_scale, standaard points).
     Het studentantwoord staat altijd als laatste blok, gevolgd door een herinnering.
     """
     parts = [
         _block("vraag", str(job.get("question_text") or ""), _TAG_PATTERN),
-        _block("rubric", format_rubric(rubric), _TAG_PATTERN),
+        _block("rubric", format_rubric(rubric, job_scale(job)), _TAG_PATTERN),
     ]
     if extra.get("evidence"):
         parts.append(_block("evidence", _as_json(extra["evidence"]), _TAG_PATTERN))
@@ -673,6 +719,47 @@ OUTPUTFORMAAT (JSON):
  "explanation": "..."}}
 """
 
+
+
+def _levels_variant(prompt: str, replacements: List[tuple]) -> str:
+    """Niveauvariant van een prompt; elke vervanging moet precies passen (anders een fout bij het laden)."""
+    for old, new in replacements:
+        if old not in prompt:
+            raise ValueError(f"Prompttekst niet gevonden voor de niveauvariant: {old[:60]!r}")
+        prompt = prompt.replace(old, new)
+    return prompt
+
+
+# Niveauvarianten (grading_scale "levels"): het niveau volgt uit de statussen (B3).
+EVIDENCE_LEVELS_PROMPT = _levels_variant(EVIDENCE_PROMPT, [
+    ('"Ook correct" en puntentoekenning)', '"Ook correct" en de niveauregels)'),
+])
+
+ASSESSMENT_LEVELS_PROMPT = _levels_variant(ASSESSMENT_PROMPT, [
+    ("""5. Kies daarna de score met de puntentoekenning: alleen 0, 1, 5 of 10. Voor 10 punten moeten alle
+   essentiële criteria voldaan zijn; aanvullende criteria zijn daarvoor NIET nodig. Een niet voldaan
+   aanvullend criterium verlaagt de score dus niet.""",
+     """5. Het niveau volgt uit de statussen: geef in "score" het niveau dat bij je statussen hoort, met deze
+   regels (alleen "voldaan" telt, "deels" niet):
+   - onvoldoende: niet alle essentiële criteria zijn voldaan;
+   - voldoende: alle essentiële criteria voldaan, geen enkel aanvullend criterium voldaan;
+   - goed: alle essentiële criteria voldaan en een deel (niet alle) van de aanvullende criteria;
+   - uitstekend: alle essentiële en alle aanvullende criteria voldaan.
+   Kies dus geen niveau op gevoel: het systeem rekent het niveau na uit je statussen."""),
+    ('"score": 5, "confidence": "middel"', '"score": "voldoende", "confidence": "middel"'),
+])
+
+VALIDATION_LEVELS_PROMPT = _levels_variant(VALIDATION_PROMPT, [
+    ("- consistent: passen de statussen, de score en de feedback bij elkaar en bij de puntentoekenning?",
+     "- consistent: passen de statussen, het niveau en de feedback bij elkaar en bij de niveauregels in <rubric>?"),
+    ("""  inclusief je correcties) en de score volgens de puntentoekenning (0, 1, 5 of 10). Voor 10 punten
+  moeten alle essentiële criteria voldaan zijn; aanvullende criteria zijn daarvoor NIET nodig. Een
+  ontbrekend aanvullend criterium is dus nooit een reden om een 10 te verlagen.""",
+     """  inclusief je correcties) en in "score" het niveau dat uit die statussen volgt volgens de niveauregels
+  in <rubric> (onvoldoende, voldoende, goed of uitstekend). Alleen "voldaan" telt; "deels" niet."""),
+    ('(één per criterium)], "score": 5}', '(één per criterium)], "score": "voldoende"}'),
+])
+
 # Extra instructie als de uitvoer wel JSON was maar niet door de validatie kwam
 # (meestal een ontbrekend of dubbel criterium; cloud-modellen dwingen minItems niet af).
 CORRECTION = """
@@ -693,8 +780,10 @@ class AssessmentAgentBase(Agent):
     """
     num_predict = NUM_PREDICT_ASSESSMENT
     num_ctx = ASSESSMENT_NUM_CTX
-    schema_for: Callable[[int], Dict] = staticmethod(lambda count: {})
-    validate: Callable[[Dict, int], Optional[Dict]] = staticmethod(lambda parsed, count: None)
+    schema_for: Callable[[int, str], Dict] = staticmethod(lambda count, scale: {})
+    validate: Callable[[Dict, int, str], Optional[Dict]] = staticmethod(lambda parsed, count, scale: None)
+    # System prompt per schaal (points, levels); zonder levels-variant de gewone prompt
+    prompts: Dict[str, str] = {}
 
     def __init__(self, model: Optional[str] = None):
         super().__init__(model or ASSESSMENT_MODEL)
@@ -704,9 +793,10 @@ class AssessmentAgentBase(Agent):
         return call_ollama(self.model, self.system_prompt, user_message, self.schema,
                            num_predict=self.num_predict, num_ctx=self.num_ctx)
 
-    def run(self, user_message: str, count: int = 0) -> Optional[Dict]:
-        self.schema = self.schema_for(count)
-        self.validator = lambda parsed: self.validate(parsed, count)
+    def run(self, user_message: str, count: int = 0, scale: str = SCALE_POINTS) -> Optional[Dict]:
+        self.system_prompt = self.prompts.get(scale) or type(self).system_prompt
+        self.schema = self.schema_for(count, scale)
+        self.validator = lambda parsed: self.validate(parsed, count, scale)
         result = super().run(user_message)
         duration = self.last_duration
         if result is None:
@@ -720,6 +810,7 @@ class AssessmentAgentBase(Agent):
 class EvidenceAgent(AssessmentAgentBase):
     name = "Evidence"
     system_prompt = EVIDENCE_PROMPT
+    prompts = {SCALE_POINTS: EVIDENCE_PROMPT, SCALE_LEVELS: EVIDENCE_LEVELS_PROMPT}
     schema_for = staticmethod(evidence_schema)
     validate = staticmethod(validate_evidence)
 
@@ -727,6 +818,7 @@ class EvidenceAgent(AssessmentAgentBase):
 class AssessmentAgent(AssessmentAgentBase):
     name = "Assessment"
     system_prompt = ASSESSMENT_PROMPT
+    prompts = {SCALE_POINTS: ASSESSMENT_PROMPT, SCALE_LEVELS: ASSESSMENT_LEVELS_PROMPT}
     schema_for = staticmethod(assessment_schema)
     validate = staticmethod(validate_assessment)
 
@@ -734,6 +826,7 @@ class AssessmentAgent(AssessmentAgentBase):
 class ValidationAgent(AssessmentAgentBase):
     name = "Validation"
     system_prompt = VALIDATION_PROMPT
+    prompts = {SCALE_POINTS: VALIDATION_PROMPT, SCALE_LEVELS: VALIDATION_LEVELS_PROMPT}
     schema_for = staticmethod(validation_schema)
     validate = staticmethod(validate_validation)
 
@@ -761,11 +854,18 @@ def _agreement(weight: str, evidence_status: str, assessment_status: str, final_
     return "klein_verschil"
 
 
-def decide(rubric: Dict, answer: str, evidence: Dict, rounds: List[Dict], injection_suspected: bool) -> Dict:
+def decide(rubric: Dict, answer: str, evidence: Dict, rounds: List[Dict], injection_suspected: bool,
+           scale: str = SCALE_POINTS) -> Dict:
     """
     Beslist over het resultaat van de agents (contract 8, "decision"). Kijkt
     naar de laatste ronde; eerdere rondes tellen alleen mee in extra_rounds.
     Elke reden voor menselijke beoordeling krijgt een Nederlandse zin in reasons.
+
+    Bij scale "levels" is het niveau level_from_statuses() op de statussen van de
+    laatste validatie (B3); het niveau dat de agents noemen, telt niet. Wijkt dat
+    af, dan komt er een reden bij. Een essentieel criterium op "deels" is een
+    grensgeval voldoende/onvoldoende (menselijke beoordeling). decision krijgt
+    "level" en score None.
     """
     last = rounds[-1]
     evidence_by_nr = {c["nr"]: c for c in evidence["criteria"]}
@@ -809,9 +909,14 @@ def decide(rubric: Dict, answer: str, evidence: Dict, rounds: List[Dict], inject
     if len(rounds) > 1 and any(c["agreement"] == "conflict" for c in criteria):
         reasons.append(f"Het conflict bleef bestaan na {len(rounds) - 1} extra ronde(s).")
 
+    essential = [final_by_nr[c["nr"]] for c in rubric["criteria"] if c["weight"] == "essentieel"]
+    if scale == SCALE_LEVELS:
+        level = _decide_level(rubric, final_by_nr, last, reasons)
+        return _decision(criteria, None, False, level, rubric, evidence_by_nr, assessment_by_nr, last,
+                         injection_suspected, reasons, rounds)
+
     # Score van de laatste validatie, met dezelfde cap als de rubric-beoordeling:
     # 10 vereist alle essentiële criteria volledig voldaan.
-    essential = [final_by_nr[c["nr"]] for c in rubric["criteria"] if c["weight"] == "essentieel"]
     score = last["validation"]["final_assessment"]["score"]
     score_capped = False
     if score == 10 and any(status != "voldaan" for status in essential):
@@ -832,6 +937,32 @@ def decide(rubric: Dict, answer: str, evidence: Dict, rounds: List[Dict], inject
         reasons.append(f"Assessment en Validation geven een andere score: {assessment_score} tegenover "
                        f"{last['validation']['final_assessment']['score']}.")
 
+    return _decision(criteria, score, score_capped, None, rubric, evidence_by_nr, assessment_by_nr, last,
+                     injection_suspected, reasons, rounds)
+
+
+def _decide_level(rubric: Dict, final_by_nr: Dict[int, str], last: Dict, reasons: List[str]) -> str:
+    """Het niveau bij scale "levels" (B3) en de redenen die daarbij horen (zie decide())."""
+    level = level_from_statuses([{"weight": c["weight"], "status": final_by_nr[c["nr"]]} for c in rubric["criteria"]])
+    for c in rubric["criteria"]:
+        if c["weight"] == "essentieel" and final_by_nr[c["nr"]] == "deels":
+            reasons.append(f"Grensgeval voldoende/onvoldoende: essentieel criterium {c['nr']} ({c['name']}) "
+                           "is deels voldaan.")
+    validation_level = last["validation"]["final_assessment"]["score"]
+    if validation_level != level:
+        reasons.append(f"De Validation Agent noemt niveau {validation_level}, maar uit de statussen volgt {level}; "
+                       f"het berekende niveau ({level}) geldt.")
+    assessment_level = last["assessment"]["score"]
+    if assessment_level != validation_level:
+        reasons.append(f"Assessment en Validation geven een ander niveau: {assessment_level} tegenover "
+                       f"{validation_level}.")
+    return level
+
+
+def _decision(criteria: List[Dict], score: Optional[int], score_capped: bool, level: Optional[str], rubric: Dict,
+              evidence_by_nr: Dict, assessment_by_nr: Dict, last: Dict, injection_suspected: bool,
+              reasons: List[str], rounds: List[Dict]) -> Dict:
+    """De gemeenschappelijke rest van decide(): confidence, overige redenen en de beslissing."""
     # Confidence: de laagste van de validatie en van de essentiële criteria
     confidences = [last["validation"]["confidence"]]
     for c in rubric["criteria"]:
@@ -846,7 +977,7 @@ def decide(rubric: Dict, answer: str, evidence: Dict, rounds: List[Dict], inject
     if injection_suspected:
         reasons.append("Het antwoord bevat mogelijk instructies aan de AI (prompt injection).")
 
-    return {
+    decision = {
         "criteria": criteria,
         "score": score,
         "score_capped": score_capped,
@@ -855,6 +986,9 @@ def decide(rubric: Dict, answer: str, evidence: Dict, rounds: List[Dict], inject
         "reasons": reasons[:MAX_REASONS],
         "extra_rounds": len(rounds) - 1,
     }
+    if level is not None:
+        decision["level"] = level
+    return decision
 
 
 def has_conflict(decision: Dict) -> bool:
@@ -905,6 +1039,8 @@ class AssessmentOrchestrator:
             return self._finish(job, error=NO_RUBRIC_ERROR)
         count = len(rubric["criteria"])
         answer = str(job.get("answer") or "")
+        # points | levels; een job van een webapp zonder het veld gaat uit van points
+        scale = job_scale(job)
 
         injection_suspected = False
         if INJECTION_CHECK_MODEL:
@@ -912,7 +1048,7 @@ class AssessmentOrchestrator:
             injection_suspected = bool(check and check["injection"])
         context = {"injection_suspected": injection_suspected}
 
-        evidence = self.evidence_agent.run(build_user_message(job, rubric, **context), count)
+        evidence = self.evidence_agent.run(build_user_message(job, rubric, **context), count, scale)
         if evidence is None:
             return False
         durations = {"evidence": round(self.evidence_agent.last_duration, 1), "rounds": []}
@@ -922,18 +1058,18 @@ class AssessmentOrchestrator:
         while True:
             extra = {"assessment": previous["assessment"], "validation": previous["validation"]} if previous else {}
             assessment = self.assessment_agent.run(
-                build_user_message(job, rubric, evidence=evidence, **extra, **context), count)
+                build_user_message(job, rubric, evidence=evidence, **extra, **context), count, scale)
             if assessment is None:
                 return False
             validation = self.validation_agent.run(
-                build_user_message(job, rubric, evidence=evidence, assessment=assessment, **context), count)
+                build_user_message(job, rubric, evidence=evidence, assessment=assessment, **context), count, scale)
             if validation is None:
                 return False
             rounds.append({"assessment": assessment, "validation": validation})
             durations["rounds"].append({"assessment": round(self.assessment_agent.last_duration, 1),
                                         "validation": round(self.validation_agent.last_duration, 1)})
 
-            decision = decide(rubric, answer, evidence, rounds, injection_suspected)
+            decision = decide(rubric, answer, evidence, rounds, injection_suspected, scale)
             if not has_conflict(decision) or len(rounds) > self.max_extra_rounds:
                 break
             print(f"Beoordeling {job_id}: conflict tussen de agents, extra ronde {len(rounds)}.")
@@ -953,6 +1089,7 @@ class AssessmentOrchestrator:
                 "finished_at": _now(),
             },
         }
-        print(f"Beoordeling {job_id}: score {decision['score']}, confidence {decision['confidence']}, "
+        outcome = f"niveau {decision['level']}" if scale == SCALE_LEVELS else f"score {decision['score']}"
+        print(f"Beoordeling {job_id}: {outcome}, confidence {decision['confidence']}, "
               f"menselijke beoordeling nodig: {'ja' if decision['human_review_needed'] else 'nee'}.")
         return self._finish(job, result=result)

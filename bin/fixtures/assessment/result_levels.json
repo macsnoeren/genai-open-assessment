@@ -105,7 +105,7 @@
             "confidence": "hoog"
           }
         ],
-        "score": 5,
+        "score": "onvoldoende",
         "confidence": "middel",
         "feedback": "Je beschrijft goed wat een aanvaller met de machines kan doen en dat dit gevaarlijk is voor medewerkers. Je legt alleen niet uit waarom een PLC zo makkelijk binnen te dringen is, bijvoorbeeld door ontbrekende authenticatie of versleuteling."
       },
@@ -165,7 +165,7 @@
               "status": "voldaan"
             }
           ],
-          "score": 5
+          "score": "onvoldoende"
         },
         "confidence": "middel",
         "explanation": "De beoordeling is goed onderbouwd. Criterium 1 is deels voldaan; daarmee is 5 punten de juiste score."
@@ -199,12 +199,15 @@
         "unverified_quotes": 0
       }
     ],
-    "score": 5,
+    "score": null,
     "score_capped": false,
     "confidence": "middel",
-    "human_review_needed": false,
-    "reasons": [],
-    "extra_rounds": 0
+    "human_review_needed": true,
+    "reasons": [
+      "Grensgeval voldoende/onvoldoende: essentieel criterium 1 (Zwakke beveiliging van de PLC) is deels voldaan."
+    ],
+    "extra_rounds": 0,
+    "level": "onvoldoende"
   },
   "run_log": {
     "models": {

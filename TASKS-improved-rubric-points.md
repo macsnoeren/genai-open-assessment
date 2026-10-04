@@ -233,13 +233,13 @@ Alle rekenregels staan op één plek, zodat de aggregatie niet opnieuw op meerde
 
 ## Fase 11: Assessment-agents (`bin/assessment_agents.py`)
 
-- [ ] **11.1 Schemas per schaal:** `assessment_schema()` en `validation_schema()` krijgen de schaal. Bij `levels` is `score` de niveau-enum. `validate_assessment()`/`validate_validation()` doen hetzelfde.
-- [ ] **11.2 Prompts:** `ASSESSMENT_PROMPT` en `VALIDATION_PROMPT` krijgen een niveauvariant (stap 5 "Kies daarna de score…" wordt "Het niveau volgt uit de statussen: …" met de regels van B3).
-- [ ] **11.3 `format_rubric()`:** toont bij `levels` de niveaus in plaats van de puntentoekenning.
-- [ ] **11.4 `decide()` bij `levels`:** het niveau is `level_from_statuses()` op de statussen uit de laatste validatie. Wijkt het niveau dat het model noemt daarvan af, dan komt er een reden bij in `reasons` en wint het berekende niveau. Een essentieel criterium op `deels` geeft de reden "Grensgeval voldoende/onvoldoende" (dus menselijke beoordeling). `decision` krijgt `level`.
-- [ ] **11.5 Orchestrator:** leest `grading_scale` uit de job (standaard `points`) en geeft die door aan de agents en aan `decide()`.
-- [ ] **11.6 Fixtures** in `bin/fixtures/assessment/`: voeg een `levels`-variant toe; de bestaande blijven.
-- [ ] **11.7 Tests in `bin/test_assessment_agents.py`:** `decide()` voor elk niveau, een afwijkend modelniveau (berekend niveau wint, met een reden), het grensgeval `deels`, en een job zonder `grading_scale` die werkt zoals voorheen.
+- [x] **11.1 Schemas per schaal:** `assessment_schema()` en `validation_schema()` krijgen de schaal. Bij `levels` is `score` de niveau-enum. `validate_assessment()`/`validate_validation()` doen hetzelfde.
+- [x] **11.2 Prompts:** `ASSESSMENT_PROMPT` en `VALIDATION_PROMPT` krijgen een niveauvariant (stap 5 "Kies daarna de score…" wordt "Het niveau volgt uit de statussen: …" met de regels van B3).
+- [x] **11.3 `format_rubric()`:** toont bij `levels` de niveaus in plaats van de puntentoekenning.
+- [x] **11.4 `decide()` bij `levels`:** het niveau is `level_from_statuses()` op de statussen uit de laatste validatie. Wijkt het niveau dat het model noemt daarvan af, dan komt er een reden bij in `reasons` en wint het berekende niveau. Een essentieel criterium op `deels` geeft de reden "Grensgeval voldoende/onvoldoende" (dus menselijke beoordeling). `decision` krijgt `level`.
+- [x] **11.5 Orchestrator:** leest `grading_scale` uit de job (standaard `points`) en geeft die door aan de agents en aan `decide()`.
+- [x] **11.6 Fixtures** in `bin/fixtures/assessment/`: voeg een `levels`-variant toe; de bestaande blijven.
+- [x] **11.7 Tests in `bin/test_assessment_agents.py`:** `decide()` voor elk niveau, een afwijkend modelniveau (berekend niveau wint, met een reden), het grensgeval `deels`, en een job zonder `grading_scale` die werkt zoals voorheen.
   *Klaar als:* `cd bin && python3 -m unittest test_assessment_agents -v` slaagt. Commit: `Assess with levels in agentic worker`.
 
 ## Fase 12: Rubricformaat en vraagontwerper

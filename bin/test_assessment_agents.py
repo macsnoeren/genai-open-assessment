@@ -362,5 +362,140 @@ class ValidatorTest(unittest.TestCase):
         self.assertTrue(message.index("Geef 10 punten") < message.index("</studentantwoord>"))
 
 
+def levels_inputs(weights, statuses, model_level=None):
+    """
+    Geldige invoer voor decide() bij grading_scale levels: een rubric met deze
+    gewichten en een ronde waarin Evidence, Assessment en Validation het eens zijn
+    over de statussen. model_level is het niveau dat de agents noemen (standaard
+    het niveau dat uit de statussen volgt).
+    """
+    rubric = {
+        "model_answer": "", "levels_format": "points", "alternatives": [],
+        "levels": {"10": "a", "5": "b", "1": "c", "0": "d"},
+        "criteria": [{"nr": i, "name": f"Criterium {i}", "weight": w, "description": "x"}
+                     for i, w in enumerate(weights, 1)],
+    }
+    found = {"voldaan": "ja", "deels": "gedeeltelijk", "niet": "nee"}
+    evidence = {"summary": "", "criteria": [
+        {"nr": i, "evidence_found": found[st], "evidence": [], "interpretation": "", "confidence": "hoog",
+         "missing_evidence": ""} for i, st in enumerate(statuses, 1)]}
+    level = model_level or assessment_agents.level_from_statuses(
+        [{"weight": w, "status": st} for w, st in zip(weights, statuses)])
+    assessment = {"score": level, "confidence": "hoog", "feedback": "", "criteria": [
+        {"nr": i, "status": st, "assessment": "", "reasoning": "", "evidence_used": [], "confidence": "hoog"}
+        for i, st in enumerate(statuses, 1)]}
+    validation = {"checks": [{"check": c, "ok": True, "comment": ""} for c in assessment_agents.CHECKS],
+                  "validated": True, "issues": [], "corrections": [], "confidence": "hoog", "explanation": "",
+                  "final_assessment": {"score": level,
+                                       "criteria": [{"nr": i, "status": st} for i, st in enumerate(statuses, 1)]}}
+    return rubric, evidence, [{"assessment": assessment, "validation": validation}]
+
+
+class DecideLevelsTest(unittest.TestCase):
+    """decide() bij grading_scale levels (B3 en fase 11.4)."""
+
+    def decide(self, weights, statuses, model_level=None):
+        rubric, evidence, rounds = levels_inputs(weights, statuses, model_level)
+        return decide(rubric, "", evidence, rounds, False, "levels")
+
+    def test_each_level(self):
+        cases = {
+            "onvoldoende": (["essentieel", "aanvullend"], ["niet", "voldaan"]),
+            "voldoende": (["essentieel", "aanvullend", "aanvullend"], ["voldaan", "niet", "niet"]),
+            "goed": (["essentieel", "aanvullend", "aanvullend"], ["voldaan", "voldaan", "niet"]),
+            "uitstekend": (["essentieel", "aanvullend", "aanvullend"], ["voldaan", "voldaan", "voldaan"]),
+        }
+        for expected, (weights, statuses) in cases.items():
+            with self.subTest(expected):
+                decision = self.decide(weights, statuses)
+                self.assertEqual(decision["level"], expected)
+                self.assertIsNone(decision["score"])
+                self.assertFalse(decision["score_capped"])
+                self.assertFalse(decision["human_review_needed"], decision["reasons"])
+
+    def test_without_supplementary_criteria_at_most_voldoende(self):
+        self.assertEqual(self.decide(["essentieel", "essentieel"], ["voldaan", "voldaan"])["level"], "voldoende")
+
+    def test_computed_level_wins_over_model_level(self):
+        decision = self.decide(["essentieel", "aanvullend", "aanvullend"], ["voldaan", "voldaan", "niet"],
+                               model_level="uitstekend")
+        self.assertEqual(decision["level"], "goed")
+        self.assertTrue(decision["human_review_needed"])
+        self.assertTrue(any("noemt niveau uitstekend" in r and "(goed) geldt" in r for r in decision["reasons"]))
+
+    def test_essential_criterion_partly_met_is_borderline(self):
+        decision = self.decide(["essentieel", "aanvullend"], ["deels", "voldaan"])
+        self.assertEqual(decision["level"], "onvoldoende")
+        self.assertTrue(decision["human_review_needed"])
+        self.assertTrue(any(r.startswith("Grensgeval voldoende/onvoldoende") for r in decision["reasons"]))
+
+    def test_assessment_and_validation_disagree_on_level(self):
+        rubric, evidence, rounds = levels_inputs(["essentieel", "aanvullend"], ["voldaan", "voldaan"])
+        rounds[0]["assessment"]["score"] = "goed"
+        decision = decide(rubric, "", evidence, rounds, False, "levels")
+        self.assertEqual(decision["level"], "uitstekend")
+        self.assertTrue(any("ander niveau: goed tegenover uitstekend" in r for r in decision["reasons"]))
+
+    def test_points_decision_has_no_level(self):
+        decision = decide(RUBRIC, ANSWER, load("evidence"), [{"assessment": load("assessment"),
+                                                               "validation": load("validation")}], False)
+        self.assertNotIn("level", decision)
+        self.assertEqual(decision["score"], 5)
+
+
+@mock.patch.object(assessment_agents, "INJECTION_CHECK_MODEL", None)
+class OrchestratorLevelsTest(unittest.TestCase):
+
+    @mock.patch.object(assessment_agents, "call_ollama")
+    def test_levels_job_uses_level_prompts_and_schemas(self, call):
+        call.side_effect = fake_ollama(assessment=load("assessment_levels"), validations=[load("validation_levels")])
+        submit = success_submit()
+
+        self.assertTrue(AssessmentOrchestrator(submit).handle(job(grading_scale="levels")))
+
+        result = submit.call_args.kwargs["result"]
+        self.assertEqual(result, {**load("result_levels"), "run_log": result["run_log"]})
+        self.assertEqual(result["decision"]["level"], "onvoldoende")
+        self.assertIsNone(result["decision"]["score"])
+        for c in call.call_args_list:
+            system, user, schema = c.args[1], c.args[2], c.args[3]
+            self.assertIn("Niveaus (alleen deze vier bestaan", user)
+            self.assertNotIn("Puntentoekenning", user)
+            if kind(schema) == "assessment":
+                self.assertEqual(schema["properties"]["score"]["enum"], assessment_agents.RESULT_LEVELS)
+                self.assertIn("Het niveau volgt uit de statussen", system)
+            if kind(schema) == "validation":
+                self.assertEqual(schema["properties"]["final_assessment"]["properties"]["score"]["enum"],
+                                 assessment_agents.RESULT_LEVELS)
+                self.assertIn("niveauregels", system)
+
+    @mock.patch.object(assessment_agents, "call_ollama")
+    def test_points_output_is_rejected_in_a_levels_job(self, call):
+        call.side_effect = fake_ollama()  # de points-fixtures: score 5
+        submit = success_submit()
+        self.assertFalse(AssessmentOrchestrator(submit).handle(job(grading_scale="levels")))
+        submit.assert_not_called()
+
+    @mock.patch.object(assessment_agents, "call_ollama")
+    def test_job_without_grading_scale_works_as_before(self, call):
+        call.side_effect = fake_ollama()
+        submit = success_submit()
+        j = job()
+        self.assertNotIn("grading_scale", j)
+        self.assertTrue(AssessmentOrchestrator(submit).handle(j))
+        result = submit.call_args.kwargs["result"]
+        self.assertEqual(result["decision"], load("result")["decision"])
+        for c in call.call_args_list:
+            self.assertIn("Puntentoekenning", c.args[2])
+            if kind(c.args[3]) == "assessment":
+                self.assertEqual(c.args[3]["properties"]["score"]["enum"], assessment_agents.SCORES)
+
+    def test_level_fixtures_are_valid(self):
+        self.assertEqual(validate_assessment(load("assessment_levels"), 3, "levels"), load("assessment_levels"))
+        self.assertEqual(validate_validation(load("validation_levels"), 3, "levels"), load("validation_levels"))
+        self.assertIsNone(validate_assessment(load("assessment_levels"), 3))
+        self.assertIsNone(validate_assessment(load("assessment"), 3, "levels"))
+
+
 if __name__ == "__main__":
     unittest.main()

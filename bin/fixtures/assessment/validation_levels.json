@@ -1,0 +1,61 @@
+{
+  "checks": [
+    {
+      "check": "evidence_present",
+      "ok": true,
+      "comment": "Alle gebruikte citaten staan letterlijk in het antwoord."
+    },
+    {
+      "check": "interpretation",
+      "ok": true,
+      "comment": "De interpretaties blijven dicht bij de tekst."
+    },
+    {
+      "check": "rubric_applied",
+      "ok": true,
+      "comment": "Elk criterium is met de rubric beoordeeld; er zijn geen criteria toegevoegd."
+    },
+    {
+      "check": "consistent",
+      "ok": true,
+      "comment": "De score 5 past bij één volledig voldaan essentieel criterium."
+    },
+    {
+      "check": "alternative_reading",
+      "ok": true,
+      "comment": "Ook welwillend gelezen noemt de student geen oorzaak van de zwakke beveiliging."
+    },
+    {
+      "check": "missing_or_conflicting",
+      "ok": true,
+      "comment": "Geen tegenstrijdig bewijs gevonden."
+    },
+    {
+      "check": "confidence",
+      "ok": true,
+      "comment": "Middel is passend: criterium 1 is een grensgeval tussen deels en niet."
+    }
+  ],
+  "validated": true,
+  "issues": [],
+  "corrections": [],
+  "final_assessment": {
+    "criteria": [
+      {
+        "nr": 1,
+        "status": "deels"
+      },
+      {
+        "nr": 2,
+        "status": "voldaan"
+      },
+      {
+        "nr": 3,
+        "status": "voldaan"
+      }
+    ],
+    "score": "onvoldoende"
+  },
+  "confidence": "middel",
+  "explanation": "De beoordeling is goed onderbouwd. Criterium 1 is deels voldaan; daarmee is 5 punten de juiste score."
+}
