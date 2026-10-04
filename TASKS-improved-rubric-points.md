@@ -275,10 +275,10 @@ Alle rekenregels staan op één plek, zodat de aggregatie niet opnieuw op meerde
 
 ## Fase 15: Afronding
 
-- [ ] **15.1** De PHP- en Python-syntaxcheck en alle drie de mocktestsuites slagen.
-- [ ] **15.2** Rooktest met een **nieuwe** database (`docker compose down -v`) en met een **bestaande** database met oude `points`-toetsen: die moeten er precies zo uitzien als vroeger.
-- [ ] **15.3** Een volledige ronde met de vlag aan en een cloud-model (bijvoorbeeld `gpt-oss:120b-cloud`, **geen lokaal model**): een `levels`-toets met een rubric maken, als student maken, de AI-niveaus en het cijfer controleren, een niveau aanpassen en het eindcijfer handmatig aanpassen.
-- [ ] **15.4** Loop de [merge-checklist in CLAUDE.md](CLAUDE.md#checklist-voor-een-merge-naar-main) na.
+- [x] **15.1** De PHP- en Python-syntaxcheck en alle drie de mocktestsuites slagen.
+- [x] **15.2** Rooktest met een **nieuwe** database (`docker compose down -v`) en met een **bestaande** database met oude `points`-toetsen: die moeten er precies zo uitzien als vroeger.
+- [x] **15.3** Een volledige ronde met de vlag aan en een cloud-model (bijvoorbeeld `gpt-oss:120b-cloud`, **geen lokaal model**): een `levels`-toets met een rubric maken, als student maken, de AI-niveaus en het cijfer controleren, een niveau aanpassen en het eindcijfer handmatig aanpassen.
+- [x] **15.4** Loop de [merge-checklist in CLAUDE.md](CLAUDE.md#checklist-voor-een-merge-naar-main) na.
 - [ ] **15.5** De PR-beschrijving vermeldt de uitrolvolgorde (webapp met `LEVELS_AI_ENABLED = false`, worker, vlag aan) en dat er op de workermachine geen `config.py`-wijziging nodig is.
 
 ---
