@@ -952,6 +952,66 @@ nog afgeleverd).
 
 
 -------------------------------------------------------------------------------
+WIJZIGING 2026-10-04 (branch dev-rubric-levels): beoordelen met niveaus
+-------------------------------------------------------------------------------
+Geen nieuwe bevindingen; wel nieuwe muterende acties en een uitbreiding van het
+ai_feedback-formaat. Wat er is gedaan om de bestaande maatregelen te behouden:
+
+L-01  Puntenschema's (GradingSchemeController): store/update/delete_grading_scheme
+      beginnen met validateCsrfToken() (alleen POST, anders 405) en
+      requireRole('docent'). Wijzigen en verwijderen alleen als
+      GradingScheme::canManage() (maker of admin; het systeemschema alleen de
+      admin), anders 403, ook bij een handmatige POST. Invoer via requestString/
+      requestInt, daarna Grading::validateScheme(); de database bewaakt het met
+      een CHECK en UNIQUE. Wijzigen kan niet meer als een toets met een
+      ingeleverde poging het schema gebruikt (cijfers zouden ongemerkt
+      veranderen); verwijderen niet als een toets het gebruikt (ook ON DELETE
+      RESTRICT). Verwijderen gaat via een link met data-confirm (POST + CSRF).
+      Audit: grading_scheme_create/update (oud/nieuw)/delete.
+L-02  Eindcijfer handmatig aanpassen (override_final_grade,
+      clear_final_grade_override in DocentController): validateCsrfToken(),
+      requireRole('beoordelaar'), de poging uit de database (anders 404) en
+      checkGradingPermission() op de toets van die poging (een docent zonder
+      toegang krijgt 403). Of het een cijfer of een woord is, bepaalt de toets in
+      de database, niet de POST. Reden verplicht (1-MAX_GRADE_OVERRIDE_REASON
+      tekens), cijfer 0-10 met hooguit één decimaal, woord uit een vaste lijst.
+      Audit: final_grade_override (oud, nieuw, reden, berekend cijfer) en
+      final_grade_override_clear. De student ziet alleen het uiteindelijke cijfer
+      of woord, niet de reden en niet dat het is aangepast; de redirect gaat
+      alleen naar een vaste keuze (view_student_answers of grade_student_exam).
+L-03  Docentniveau (save_teacher_feedback): de schaal komt uit de database
+      (StudentAnswer::findWithExam()), nooit uit de POST; een niveau buiten de
+      vaste lijst geeft 400. Hetzelfde geldt voor alle andere plekken met een
+      schaal: de toets bij exam_update (schaal niet te wijzigen na een
+      ingeleverde poging: 400), de run bij submit_assessment_result
+      (AnswerAssessment::scaleForRun()), het ontwerp bij submit_design_result
+      (QuestionDesign::scaleForDesign()) en de poging bij
+      integration_attempt_review (een score bij een levels-toets of een
+      ongeldig niveau: 400). Een prompt met een andere schaal dan de toets
+      geeft 400.
+L-04  ai_feedback (contract 1): bij levels schrijft de worker "Niveau: <niveau>".
+      clean_output_text() in de worker neutraliseert nu ook het label "Niveau:"
+      in modeluitvoer (en criteriumnamen), zodat een model of een student via de
+      feedbacktekst geen extra niveau kan spoofen; StudentAnswer::aiLevels()
+      accepteert alleen de vier vaste niveaus. Een vermoeden van prompt
+      injection zet het niveau met INJECTION_ZERO_SCORE op onvoldoende.
+L-05  Overgangsvlag LEVELS_AI_ENABLED (standaard false): zolang een oude worker
+      draait, gaan levels-toetsen niet naar de workers (een oude worker zou ze
+      als points beoordelen). Zie docs/rollout-level-grading.md.
+L-06  CSV-export van de vergelijking bij niveaus: alle tekstkolommen via
+      csvSafe(); de grafiekdata gaat via json_encode met JSON_HEX_*. Alle nieuwe
+      views gebruiken e() en inline scripts hebben een nonce (geen inline
+      handlers).
+
+Verificatie: php -l, de drie mocktestsuites en een rooktest in Docker (o.a. een
+tweede docent krijgt 403 bij wijzigen/verwijderen van een schema, ook via een
+handmatige POST; GET op store_grading_scheme, delete_grading_scheme,
+override_final_grade en clear_final_grade_override geeft 405; een ongeldig
+niveau en een schaalwijziging na een ingeleverde poging geven 400; een docent
+zonder toegang krijgt 403 bij override_final_grade).
+
+
+-------------------------------------------------------------------------------
 VOORGESTELDE VOLGORDE VOOR DE VOLGENDE RONDE
 -------------------------------------------------------------------------------
 1. S-01, S-02, S-06  (integriteit van toetsresultaten; kleine, gerichte fixes)

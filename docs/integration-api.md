@@ -91,8 +91,10 @@ Alle endpoints staan op `<API-endpoint>?action=<naam>`.
 De toetsen die je mag gebruiken (gekoppeld en met AI-beoordeling aan).
 
 ```json
-{"exams": [{"exam_id": 5, "title": "PLC basis", "question_count": 2}]}
+{"exams": [{"exam_id": 5, "title": "PLC basis", "question_count": 2, "grading_scale": "points"}]}
 ```
+
+`grading_scale` (toegevoegd) is `points` (een score per antwoord, zoals hieronder beschreven) of `levels` (een niveau per antwoord, zie [Toetsen met niveaus](#toetsen-met-niveaus)).
 
 ### `POST integration_attempt_start`
 
@@ -139,6 +141,7 @@ De volledige samenvatting van één poging. Dit is de **bron van waarheid**.
   "started_at": "2026-10-03T12:01:10Z", "submitted_at": "2026-10-03T12:20:41Z", "reviewed_at": null,
   "updated_at": "2026-10-03T12:21:30Z",
   "ai_score": 6.5, "teacher_score": null,
+  "grading_scale": "points", "grade": null, "grade_label": null, "grade_overridden": false,
   "answers": [{
     "question_id": 11, "nr": 1, "question_text": "...", "answer": "...",
     "ai": {"source": "agentic", "score": 5, "feedback": "...", "confidence": "hoog",
@@ -162,11 +165,33 @@ De volledige samenvatting van één poging. Dit is de **bron van waarheid**.
 | `confidence`, `reasons` | De laagste confidence van de antwoorden en de redenen (met vraagnummer); vanaf `graded` |
 | `ai_score` | Gemiddelde AI-score van de antwoorden (0–10, één decimaal), vanaf `graded`. **Een AI-voorstel, geen cijfer** |
 | `teacher_score` | Gemiddelde menselijke score (0–10), of `null` |
+| `grading_scale` | `points` of `levels` (toegevoegd) |
+| `grade` | Het eindcijfer van de docent (0–10, één decimaal) zoals de toetsapplicatie het toont, inclusief een handmatige aanpassing door een docent; `null` zolang er geen is, of als het eindcijfer een woord is (toegevoegd) |
+| `grade_label` | Het eindcijfer als woord (`onvoldoende`, `voldoende`, `goed`, `uitstekend`) als de toets een woordbeoordeling heeft, anders `null` (toegevoegd) |
+| `grade_overridden` | `true` als een docent het eindcijfer handmatig heeft aangepast. De reden zie je niet (toegevoegd) |
 | `answers[].ai` | `null` zolang het antwoord niet beoordeeld is. `source: agentic` (drie AI-agents met een rubric; met `criteria`) of `source: models` (één of meer AI-modellen; met `model_scores` en als `feedback` de ruwe tekst van de modellen) |
 | `answers[].teacher` | De menselijke beoordeling (van een docent hier, of van jouw review), of `null` |
 | `started_at` | Moment van de eerste start via de startlink |
 
 Een AI-score per antwoord is 0, 1, 5 of 10 (bij `models` het gemiddelde van de modellen).
+
+#### Toetsen met niveaus
+
+Bij `grading_scale: "levels"` krijgt elk antwoord een niveau: `onvoldoende`, `voldoende`, `goed` of `uitstekend`. De JSON verschilt dan op deze punten (de rest is gelijk):
+
+- `answers[].ai` heeft `level` in plaats van `score`. Bij `source: models` staat het niveau per model in `model_levels` (in plaats van `model_scores`); `level` is dan het **laagste** niveau van de modellen.
+- `answers[].teacher` is `{"level": "goed", "feedback": "..."}`.
+- `ai_score` en `teacher_score` zijn `null`. Het eindcijfer staat in `grade` (en `grade_label`): `10 × de som van de punten / (aantal vragen × punten voor uitstekend)`, met een puntenschema dat de docent kiest (onvoldoende is altijd 0 punten). `grade` is er pas als een mens elk antwoord een niveau heeft gegeven, of als een docent het eindcijfer handmatig heeft vastgesteld.
+
+```json
+{"grading_scale": "levels", "ai_score": null, "teacher_score": null,
+ "grade": 6.0, "grade_label": "voldoende", "grade_overridden": false,
+ "answers": [{"question_id": 21, "nr": 1, "question_text": "...", "answer": "...",
+   "ai": {"source": "models", "level": "onvoldoende", "model_levels": {"gpt-oss:20b": "onvoldoende", "gpt-oss:120b": "voldoende"},
+          "feedback": "Model: gpt-oss:20b\nTijdsduur: ...\nNiveau: onvoldoende\n...", "confidence": "laag",
+          "review_needed": true, "reasons": ["Modellen zijn het oneens over voldoende of onvoldoende"]},
+   "teacher": {"level": "voldoende", "feedback": "..."}}]}
+```
 
 ### `GET integration_attempts&filter=open|needs_review|all&limit=1..100`
 
@@ -197,9 +222,10 @@ Meldt een menselijke beoordeling terug. Alleen bij status `graded` of `reviewed`
 | Veld | Regels |
 |---|---|
 | `reviewer` | Optioneel, maximaal 100 tekens; komt in de audit log |
-| `grades` | Optioneel. Per vraag van deze poging hooguit één keer: `score` een geheel getal 0–10, `feedback` optioneel (maximaal 5000 tekens; zonder `feedback` blijft de bestaande feedback staan) |
+| `grades` | Optioneel. Per vraag van deze poging hooguit één keer: `score` een geheel getal 0–10 (bij een toets met niveaus in plaats daarvan `level`: `onvoldoende`, `voldoende`, `goed` of `uitstekend`), `feedback` optioneel (maximaal 5000 tekens; zonder `feedback` blijft de bestaande feedback staan) |
 
-- Met `grades` worden de scores de **docentscores** in de toetsapplicatie (het eindcijfer is daar het gemiddelde van de docentscores). Je hoeft niet alle vragen mee te sturen.
+- Met `grades` worden de scores de **docentscores** in de toetsapplicatie (het eindcijfer is daar het gemiddelde van de docentscores; bij niveaus het cijfer uit de niveaus en het puntenschema). Je hoeft niet alle vragen mee te sturen.
+- Bij een toets met niveaus geeft een `score` (of een ongeldig niveau) `400` met `Invalid level in grades[i]`; bij een toets met punten geeft een `level` `400` met `Invalid score in grades[i]`.
 - Zonder `grades` markeert het endpoint de poging alleen als afgehandeld.
 - Daarna is de status `reviewed`. Een tweede review overschrijft de eerste (de audit log bewaart beide).
 - Antwoord: `200 {"status": "success"}`.
@@ -214,7 +240,7 @@ De status wordt elke keer berekend uit de actuele gegevens; hij wordt niet apart
 | `in_progress` | Gestart, nog niet ingeleverd |
 | `grading` | Ingeleverd; nog niet elk antwoord heeft een AI-resultaat |
 | `graded` | Elk antwoord heeft een AI-resultaat |
-| `reviewed` | Een mens heeft beoordeeld: via `integration_attempt_review`, of een docent gaf hier elk antwoord een score |
+| `reviewed` | Een mens heeft beoordeeld: via `integration_attempt_review`, of een docent gaf hier elk antwoord een score (bij een toets met niveaus: een niveau) |
 
 **Confidence per antwoord** (`hoog` > `middel` > `laag`). De regels zijn vast en deterministisch:
 
@@ -228,9 +254,18 @@ De status wordt elke keer berekend uit de actuele gegevens; hij wordt niet apart
 | Twee of meer modellen, scores aan beide kanten van de grens (laagste ≤ 1 en hoogste ≥ 5) | `laag` ("Modellen zijn het oneens") | altijd |
 | Twee of meer modellen, kleinere verschillen | `middel` ("Kleine verschillen tussen modellen") | onder de drempel |
 
+**Bij een toets met niveaus** gelden voor de modellen deze regels (agentic, geen niveau en mogelijke instructies aan de AI zoals hierboven, met "Geen AI-niveau"):
+
+| Bron | Confidence | `review_needed` als |
+|---|---|---|
+| Eén model | `middel` ("Slechts één model") | onder de drempel |
+| Twee of meer modellen, allemaal hetzelfde niveau | `hoog` | nooit door deze bron |
+| Twee of meer modellen, het ene `onvoldoende` en een ander `voldoende` of hoger | `laag` ("Modellen zijn het oneens over voldoende of onvoldoende") | altijd |
+| Twee of meer modellen, andere verschillen | `middel` ("Kleine verschillen tussen modellen") | onder de drempel |
+
 **Per poging** geldt de laagste confidence van de antwoorden, en `review_needed` is waar als één antwoord het nodig heeft. De drempel stelt de beheerder per koppeling in; standaard is dat `hoog`, dus alles wat niet `hoog` is, gaat naar een mens.
 
-> **De AI beslist niets definitief.** `ai_score` en `ai` zijn voorstellen. Een `teacher_score` komt altijd van een mens.
+> **De AI beslist niets definitief.** `ai_score` en `ai` zijn voorstellen. Een `teacher_score` (of docentniveau) en `grade` komen altijd van een mens.
 
 ## 6. Webhooks
 

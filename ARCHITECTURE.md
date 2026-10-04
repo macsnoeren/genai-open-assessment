@@ -104,7 +104,7 @@ Belangrijke ontwerpkeuzes:
 │   ├── test_assessment_agents.py # Mocktests voor assessment_agents.py (gemockte call_ollama)
 │   ├── test_rubric_grading.py  # Mocktests voor de rubric-beoordeling in process_ai_feedback.py
 │   ├── fixtures/               # Voorbeelduitvoer van de agents (PLC-voorbeeld) voor tests en curl;
-│   │                           #   fixtures/assessment/ voor agentic beoordelen
+│   │                           #   fixtures/assessment/ voor agentic beoordelen; *_levels.* voor niveaus
 │   ├── config.py.sample        # Sjabloon voor bin/config.py (gitignored)
 │   ├── dataset_import.py       # Importeert de Mohler ASAG-dataset voor validatie-onderzoek
 │   └── README.md
@@ -226,7 +226,7 @@ Alle routes staan in de `switch` van [htdocs/index.php](htdocs/index.php). Per c
 | `AuthController` | `login`, `do_login`, `logout`, `register`, `do_register`, `change_password`, `do_change_password` | publiek / ingelogd |
 | `DocentController` | `docent_dashboard`, `exam_*` (create/store/edit/update/delete/duplicate/public_link), `questions`, `question_*`, `exam_results`, `exam_comparison`, `exam_comparison_export`, `view_student_answers`, `delete_student_exam`, `update_guest_name`, `audit_log` | docent |
 | | `ai_results_reset_answer`, `ai_results_reset_attempt`, `ai_results_reset_exam` (POST; schrijfrecht op de toets: eigenaar of admin, §6.1) | docent |
-| | `grade_student_exam`, `save_teacher_feedback`, `pending_assessments` | beoordelaar |
+| | `grade_student_exam`, `save_teacher_feedback`, `pending_assessments`, `override_final_grade`, `clear_final_grade_override` (POST; `checkGradingPermission()`, §5.2) | beoordelaar |
 | | `clear_audit_log` | admin |
 | `StudentController` | `students`, `student_create`, `student_store`, `student_delete` (gebruikersbeheer, alle rollen) | admin |
 | | `student_edit`, `student_update` (eigen profiel, of iedereen als admin) | ingelogd |
@@ -239,6 +239,7 @@ Alle routes staan in de `switch` van [htdocs/index.php](htdocs/index.php). Per c
 | `ApiKeyController` | `api_keys`, `api_key_create`, `api_key_toggle`, `api_key_delete` | admin |
 | `IntegrationController` | `integrations`, `integration_create`, `integration_store`, `integration_edit`, `integration_update`, `integration_rotate_secret`, `integration_toggle`, `integration_delete`, `integration_view` | admin |
 | `PromptController` | `prompts`, `prompt_*`, `prompt_help` | admin |
+| `GradingSchemeController` | `grading_schemes`, `create_grading_scheme`, `store_grading_scheme`, `edit_grading_scheme`, `update_grading_scheme`, `delete_grading_scheme` (wijzigen en verwijderen alleen de maker of admin, `GradingScheme::canManage()`; §5.2) | docent |
 | (direct in router) | `privacy` | publiek |
 
 > `StudentController` beheert ondanks de naam **alle** gebruikers, niet alleen studenten. De views daarvoor staan in `views/docent/student_*.php`.
@@ -310,6 +311,9 @@ SQLite, bestand `database/database.sqlite` (buiten de webroot en gitignored). Fo
 erDiagram
     users ||--o{ exams : "docent_id (RESTRICT)"
     prompts |o--o{ exams : "prompt_id (SET NULL)"
+    grading_schemes |o--o{ exams : "grading_scheme_id (RESTRICT)"
+    users |o--o{ grading_schemes : "owner_id, NULL = systeem (SET NULL)"
+    users |o--o{ student_exams : "grade_override_by (SET NULL)"
     exams ||--o{ questions : "CASCADE"
     exams ||--o{ student_exams : "CASCADE"
     users |o--o{ student_exams : "student_id, NULL = gast (CASCADE)"
@@ -342,7 +346,16 @@ erDiagram
         int prompt_id FK
         int ai_grading_enabled
         int shared
-        int published }
+        int published
+        text grading_scale "points|levels"
+        int grading_scheme_id FK "alleen bij levels"
+        int show_grade_label "woordbeoordeling" }
+    grading_schemes { int id PK
+        text name
+        int points_voldoende
+        int points_goed
+        int points_uitstekend "UNIQUE met V en G"
+        int owner_id FK "NULL = systeemschema" }
     questions { int id PK
         int exam_id FK
         text question_text
@@ -353,18 +366,26 @@ erDiagram
         int exam_id FK
         text unique_id
         text access_token UK
-        datetime completed_at "NULL = nog bezig" }
+        datetime completed_at "NULL = nog bezig"
+        real grade_override "handmatig cijfer"
+        text grade_override_label "of handmatig woord"
+        text grade_override_reason
+        int grade_override_by FK
+        datetime grade_override_at
+        real grade_override_basis "berekend cijfer toen" }
     student_answers { int id PK
         int student_exam_id FK
         int question_id FK
         text answer
         text ai_feedback "tekstformaat, zie 6.3"
         datetime ai_updated_at
-        int teacher_score "0..10"
+        int teacher_score "0..10 (points)"
+        text teacher_level "niveau (levels)"
         text teacher_feedback }
     prompts { int id PK
         text title
-        text prompt_text "met placeholders" }
+        text prompt_text "met placeholders"
+        text grading_scale "points|levels" }
     api_keys { int id PK
         text name
         text api_key "SHA-256"
@@ -428,7 +449,8 @@ erDiagram
         text rounds "JSON"
         text decision "JSON"
         text run_log "JSON"
-        int final_score "AI-score 0/1/5/10"
+        int final_score "AI-score 0/1/5/10 (points)"
+        text final_level "AI-niveau (levels)"
         int human_review_needed
         text error_message }
 ```
@@ -441,10 +463,10 @@ erDiagram
 | Wacht op AI | ingeleverd, `exams.ai_grading_enabled = 1`, `ai_feedback` leeg, en niet bij agentic beoordelen (zie §6.8) |
 | Agentic (AI) beoordeeld | een run in `answer_assessments` met status `pending` of `done` |
 | AI-beoordeeld | `ai_feedback` gevuld |
-| Wacht op docent | ingeleverd, `teacher_score IS NULL` (zie `pending_assessments`) |
-| Docent-beoordeeld | `teacher_score` gevuld |
+| Wacht op docent | ingeleverd, `teacher_score` en `teacher_level` beide `NULL` (zie `pending_assessments`) |
+| Docent-beoordeeld | `teacher_score` (points) of `teacher_level` (levels) gevuld |
 
-**Status van een koppelingspoging** (`not_started`, `in_progress`, `grading`, `graded`, `reviewed`): wordt **niet opgeslagen** maar elke keer berekend uit `launch_used_at`, `completed_at`, de AI-resultaten per antwoord (`ai_feedback`, `answer_assessments`), `teacher_score` en `reviewed_at`. Zie §6.9.
+**Status van een koppelingspoging** (`not_started`, `in_progress`, `grading`, `graded`, `reviewed`): wordt **niet opgeslagen** maar elke keer berekend uit `launch_used_at`, `completed_at`, de AI-resultaten per antwoord (`ai_feedback`, `answer_assessments`), `teacher_score` (bij levels `teacher_level`) en `reviewed_at`. Zie §6.9.
 
 **Statusmachine van een vraagontwerp** (`question_designs.status`, constanten in `QuestionDesign`; bewust geen `CHECK` in het schema):
 
@@ -482,9 +504,9 @@ Elke start is een **nieuwe rij** (de geschiedenis blijft bewaard); `AnswerAssess
 Bijzonderheden:
 
 - **Wijzigt de prompt van een toets, dan wordt alle AI-feedback van die toets gewist** (`StudentAnswer::clearAiFeedbackByExam`). De worker beoordeelt daarna alles opnieuw.
-- **Dupliceren** kopieert de vragen, pogingen en antwoorden **met** docentscores en **zonder** AI-feedback. De kopie is niet gedeeld en niet gepubliceerd. Vraagontwerpen, agentic beoordelingen en de koppelingsgegevens van pogingen (`integration_attempts`, events) worden bewust niet gekopieerd: een kopie van een koppelingspoging is een gewone gastpoging.
+- **Dupliceren** kopieert de vragen, pogingen en antwoorden **met** docentscores (ook `teacher_level`), de schaal, het puntenschema, de woordbeoordeling en een handmatig eindcijfer (de zes `grade_override*`-kolommen), en **zonder** AI-feedback. De kopie is niet gedeeld en niet gepubliceerd. Vraagontwerpen, agentic beoordelingen en de koppelingsgegevens van pogingen (`integration_attempts`, events) worden bewust niet gekopieerd: een kopie van een koppelingspoging is een gewone gastpoging.
 - **`updateExam()` raakt de agentic beoordelingen niet**: die beoordelen hun eigen snapshot. Een agentic beoordeling schrijft **nooit** `teacher_score` of `teacher_feedback`: dat zijn altijd menselijke beoordelingen.
-- Het eindcijfer is het gemiddelde van de `teacher_score`s. Per AI-bron (elk model uit `ai_feedback`, plus `Agentic AI`) wordt apart een gemiddelde berekend, alleen ter vergelijking. Alle AI-scores komen uit `StudentAnswer::aiScores()`.
+- **Het eindcijfer komt van één plek: `Grading::attemptResult()`** (§5.2), voor beide schalen. Bij points is het berekende cijfer het gemiddelde van de `teacher_score`s, bij levels het cijfer uit de `teacher_level`s en het puntenschema. Per AI-bron (elk model uit `ai_feedback`, plus `Agentic AI`) wordt apart een gemiddelde (points) of cijfer (levels, `Grading::aiGrades()`) berekend, alleen ter vergelijking. Alle AI-scores komen uit `StudentAnswer::aiScores()`, alle AI-niveaus uit `StudentAnswer::aiLevels()`.
 
 ### 5.1 Schemawijzigingen (migraties)
 
@@ -494,6 +516,34 @@ Er is geen migratietool. Er zijn twee paden, en **beide moeten worden bijgewerkt
 2. **Bestaande database:** `Database::migrate()` in [config/database.php](config/database.php). Die draait bij elke verbinding en moet idempotent zijn: eerst controleren (bijvoorbeeld met `PRAGMA table_info(...)`), dan pas `ALTER TABLE` of `CREATE TABLE IF NOT EXISTS`.
 
 Kies voor nieuwe kolommen een default die voor bestaande rijen veilig is. Zo kreeg `published` de waarde `0`, zodat bestaande toetsen niet ongemerkt zichtbaar werden.
+
+### 5.2 Schaal, puntenschema en eindcijfer
+
+Een toets heeft een **schaal** (`exams.grading_scale`, constanten `Grading::SCALE_*`):
+
+- **`points`** (standaard, ook voor alle bestaande toetsen): elk antwoord krijgt een score. De AI geeft 0, 1, 5 of 10, de docent 0 t/m 10 (`teacher_score`). Dit pad werkt zoals het altijd werkte.
+- **`levels`**: elk antwoord krijgt een niveau (`Grading::LEVELS`: `onvoldoende`, `voldoende`, `goed`, `uitstekend`; Nederlandse enum-waarden in database en JSON). De docent zet `teacher_level` (`StudentAnswer::updateTeacherLevel()`, `teacher_score` blijft `NULL`), de AI schrijft `Niveau:` in `ai_feedback` (§6.3) of `answer_assessments.final_level` (§6.8).
+
+De schaal ligt vast zodra de toets een ingeleverde poging heeft (`Exam::hasSubmittedAttempts()`; het formulier toont hem dan alleen, `updateExam()` geeft `400` bij een wijziging). De schaal komt in elke controller en elk API-endpoint **uit de database** (de toets van het antwoord, de run of het ontwerp), nooit uit de POST of de body van de worker. Een prompt heeft ook een schaal (`prompts.grading_scale`, B9): een toets kiest alleen een prompt met dezelfde schaal (`DocentController::readPromptId()`), en de schaal van een prompt die toetsen met de andere schaal gebruiken, kan niet wijzigen.
+
+**Puntenschema's** (`grading_schemes`, `GradingScheme`): punten voor voldoende, goed en uitstekend (gehele getallen, `0 < V < G < U ≤ 100`, `CHECK` in het schema en `Grading::validateScheme()` in PHP); onvoldoende is altijd 0. Een combinatie bestaat één keer (`UNIQUE`). Er is één systeemschema "Standaard (3/4/5)" (`owner_id` NULL, alleen de admin wijzigt het). Elke docent kiest elk schema; wijzigen en verwijderen alleen de maker of de admin (`GradingScheme::canManage()`). Wijzigen kan alleen zolang geen toets met een ingeleverde poging het schema gebruikt (`isLocked()`), verwijderen alleen zonder toetsen (`usageCount()`; daarnaast `ON DELETE RESTRICT`). Een ander schema kiezen voor een toets met resultaten mag: punten worden pas bij het tonen berekend, er wordt niets opnieuw beoordeeld (wel een regel in de audit log).
+
+**Rekenregels** staan allemaal in `app/models/Grading.php`:
+
+| Functie | Regel |
+|---|---|
+| `pointsFor($level, $scheme)` | onvoldoende 0, anders `points_<niveau>` |
+| `grade($levels, $scheme)` | `round(10 × som / (aantal × points_uitstekend), 1)`, half naar boven, minimaal 0; `null` bij een lege lijst of een antwoord zonder niveau. Het aantal is het aantal `student_answers` van de poging (een leeg antwoord telt mee) |
+| `gradeLabel($grade)` | eerst afronden op een geheel getal (half naar boven), dan 0–5 onvoldoende, 6–7 voldoende, 8–9 goed, 10 uitstekend (vast voor alle toetsen) |
+| `aiGrades($answers, $scheme)` | per AI-bron het cijfer over de antwoorden waarvoor die bron een niveau heeft |
+
+**`Grading::attemptResult($studentExamId)` is de enige plek voor het eindresultaat van een poging** (docentweergave, blinde beoordeling, resultatenlijst, student, integratie-API). Vorm, voor beide schalen gelijk: `scale`, `graded`, `total`, `computed` (bij levels pas als elk antwoord een docentniveau heeft; bij points het gemiddelde van de docentscores), `override` (cijfer, woord of `null`), `final` (`override` als die er is, anders `computed`), `label` (het woord bij `show_grade_label`; bij een override met een woord dat woord), `override_outdated` (`grade_override_basis` ≠ `computed`), plus `show_label`, `scheme` en de gegevens van de override voor de docent.
+
+**Woordbeoordeling** (`exams.show_grade_label`, alleen bij levels): de student ziet het woord, de docent het woord en het cijfer.
+
+**Handmatig eindcijfer** (`override_final_grade`, `clear_final_grade_override` in `DocentController`, de gedeelde partial `views/docent/final_grade_override.php`): iedereen die de toets mag nakijken (`checkGradingPermission()`), alleen bij een ingeleverde poging. Bij een toets met woordbeoordeling een woord, anders een cijfer 0–10 met hooguit één decimaal (een komma mag). De reden is verplicht (1–`MAX_GRADE_OVERRIDE_REASON` tekens). `StudentExam::setOverride()` bewaart ook wie, wanneer en het berekende cijfer op dat moment (`grade_override_basis`); is het berekende cijfer later anders, dan ziet de docent een waarschuwing en blijft de aanpassing staan. De student ziet alleen `final` (of `label`), zonder reden en zonder te zien dat het is aangepast. Audit: `final_grade_override` (oud, nieuw, reden, berekend) en `final_grade_override_clear`.
+
+**Overgangsvlag `LEVELS_AI_ENABLED`** (`config/app.php`, standaard `false`): zolang die uit staat, gaan levels-toetsen niet naar de AI-worker (`getPendingAiGrading()`) en niet naar de assessment-worker (`createAutomaticRuns()`, `getPendingJobs()`, en handmatig starten wordt geweigerd). Een oude worker zou ze anders als points beoordelen. Zie [docs/rollout-level-grading.md](docs/rollout-level-grading.md).
 
 ---
 
@@ -510,7 +560,7 @@ sequenceDiagram
     loop elke POLL_INTERVAL seconden
         W->>A: GET ?action=open_student_answers&limit=5<br/>Authorization: Bearer <key>
         A->>A: key verifiëren (SHA-256), heartbeat schrijven
-        A-->>W: {"answers":[{student_answer_id, answer, question_text, criteria, prompt_text}]}
+        A-->>W: {"answers":[{student_answer_id, answer, question_text, criteria, prompt_text, grading_scale}]}
         loop per antwoord
             opt INJECTION_CHECK_MODEL ingesteld
                 W->>O: prompt-injection-controle (JSON-schema)
@@ -543,20 +593,22 @@ sequenceDiagram
 | Opslag van de key | SHA-256-hash in `api_keys`. De ruwe key wordt één keer getoond bij het aanmaken. Oude keys die nog in platte tekst staan, worden bij het eerste gebruik automatisch gehasht. |
 | Fout bij authenticatie | `401`, header `WWW-Authenticate: Bearer`, regel `api_auth_failed` in de audit log |
 | Scope | De zes worker-endpoints hieronder eisen een key met scope `worker`, de integratie-endpoints scope `integration`; anders `403` (`api_scope_denied`) |
-| `GET open_student_answers` | optioneel `limit` (1–100) → `{"answers": [...]}`. Schrijft `database/last_api_ping.txt`. |
+| `GET open_student_answers` | optioneel `limit` (1–100) → `{"answers": [{student_answer_id, answer, question_text, criteria, prompt_text, grading_scale}]}`. `grading_scale` is `points` of `levels` (§5.2); levels-antwoorden alleen met `LEVELS_AI_ENABLED`. Schrijft `database/last_api_ping.txt`. |
 | `POST submit_ai_feedback` | JSON-body `{"student_answer_id": int, "ai_feedback": string}`. Maximaal `MAX_AI_FEEDBACK_LENGTH` tekens. Antwoorden: `200`, `400`, `404`, `405` of `413`. |
-| `GET open_design_jobs` | optioneel `limit` (1–10, standaard 3) → `{"jobs": [{design_id, revision, step: "analysis"\|"assessment", question_text, model_answer, analysis\|null, teacher_answers: [{question, why, answer}], teacher_feedback, previous_rubric\|null}]}`. Schrijft `database/last_design_ping.txt`. Zie §6.6. |
+| `GET open_design_jobs` | optioneel `limit` (1–10, standaard 3) → `{"jobs": [{design_id, revision, step: "analysis"\|"assessment", question_text, model_answer, analysis\|null, teacher_answers: [{question, why, answer}], teacher_feedback, previous_rubric\|null, grading_scale}]}`. Schrijft `database/last_design_ping.txt`. Zie §6.6. |
 | `POST submit_design_result` | JSON-body `{"design_id", "revision", "step", "result": {…}}` of `{…, "error": "reden"}`, maximaal `MAX_DESIGN_RESULT_LENGTH` bytes. Bij `analysis` is `result` de analyse, bij `assessment` `{"assessment": {…}, "validation": {…}}`. Antwoorden: `200 {"status":"success","next_status":"…"}`, `400` (ongeldig, ook als de uitvoer niet door de normalisatie komt), `404`, `405`, `409` (status, stap of revision klopt niet meer: verouderd resultaat) of `413`. |
-| `GET open_assessment_jobs` | optioneel `limit` (1–10, standaard 3) → `{"jobs": [{assessment_id, question_text, criteria, answer}]}` (alle drie uit de snapshot van de run). Schrijft `database/last_assessment_ping.txt`. Zie §6.8. |
+| `GET open_assessment_jobs` | optioneel `limit` (1–10, standaard 3) → `{"jobs": [{assessment_id, question_text, criteria, answer, grading_scale}]}` (de eerste drie uit de snapshot van de run, de schaal van de toets; levels alleen met `LEVELS_AI_ENABLED`). Schrijft `database/last_assessment_ping.txt`. Zie §6.8. |
 | `POST submit_assessment_result` | JSON-body `{"assessment_id", "result": {"rubric", "evidence", "rounds": [{"assessment", "validation"}], "decision", "run_log"}}` of `{"assessment_id", "error": "reden"}`, maximaal `MAX_ASSESSMENT_RESULT_LENGTH` bytes. Antwoorden: `200 {"status":"success"}`, `400` (ongeldig; de melding noemt het onderdeel dat niet door `AnswerAssessment::normalizeResult()` komt), `404`, `405`, `409` (status is niet meer `pending`: verouderd) of `413`. |
-| `GET integration_exams` | **Scope `integration`** (contract 9, §6.9). De gekoppelde toetsen met AI aan: `{"exams": [{exam_id, title, question_count}]}` |
+| `GET integration_exams` | **Scope `integration`** (contract 9, §6.9). De gekoppelde toetsen met AI aan: `{"exams": [{exam_id, title, question_count, grading_scale}]}` |
 | `POST integration_attempt_start` | Body `{exam_id, external_ref, return_url, display_name?}` → `201` (nieuw) of `200` (nieuwe startlink, idempotent per `external_ref`): `{attempt_id, launch_url, expires_at, status}`. Fouten `400`, `404`, `409`, `413`, `429` |
-| `GET integration_attempt&attempt_id=N` | Samenvatting van de poging (status, `review_needed`, confidence, redenen, scores, antwoorden). `404` als hij niet van deze koppeling is |
+| `GET integration_attempt&attempt_id=N` | Samenvatting van de poging (status, `review_needed`, confidence, redenen, scores, `grading_scale`, `grade`, `grade_label`, `grade_overridden`, antwoorden). `404` als hij niet van deze koppeling is |
 | `GET integration_attempts&filter=open\|needs_review\|all&limit=1..100` | `{"attempts": [{attempt_id, external_ref, exam_id, status, review_needed, updated_at}]}` |
-| `POST integration_attempt_review` | Body `{attempt_id, reviewer?, grades?: [{question_id, score 0..10, feedback?}]}` → `200`; `400`, `404`, `409` (nog niet `graded`), `413` |
+| `POST integration_attempt_review` | Body `{attempt_id, reviewer?, grades?: [{question_id, score 0..10 (bij levels: level), feedback?}]}` → `200`; `400`, `404`, `409` (nog niet `graded`), `413` |
 | Foutformaat | `{"error": "..."}` |
 
 De volledige beschrijving van de integratie-API, voor ontwikkelaars van een externe website, staat in [docs/integration-api.md](docs/integration-api.md).
+
+**`grading_scale` in de worker-jobs (contract 2, additief):** een worker die het veld niet kent, werkt zoals vroeger; een worker die het kent maar het niet krijgt (een oude webapp), gaat uit van `points` (`job_scale()` in `process_ai_feedback.py`). Daarom moet de webapp eerst, met `LEVELS_AI_ENABLED = false`, dan de worker, en pas dan de vlag aan.
 
 **Heartbeat:** de layout toont "Parser Actief" als `last_api_ping.txt` jonger is dan 120 seconden. De ontwerppagina meldt dat de AI-ontwerpassistent niet actief is als `last_design_ping.txt` ouder is dan 120 seconden terwijl een ontwerp wacht. De pagina van een agentic beoordeling doet hetzelfde met `last_assessment_ping.txt` en `ASSESSMENT_WORKER_STALE_SECONDS`.
 
@@ -576,27 +628,29 @@ Model: gpt-oss:120b-cloud
 ...
 ```
 
+Bij een toets met niveaus (`grading_scale` `levels`, §5.2) staat in plaats van `Aantal punten: N` de regel `Niveau: onvoldoende|voldoende|goed|uitstekend`.
+
 Bij een rubric-beoordeling (§6.7) volgt onder `Feedback:` een blok `Criteria:` met per criterium een regel `- <naam> (<gewicht>): voldaan|deels voldaan|niet voldaan. <toelichting>`, en eventueel een regel dat de score van 10 naar 5 is verlaagd. De regex leest daar niets uit; criteriumnamen en toelichtingen gaan ook door `clean_output_text()`.
 
 ```php
 preg_match_all('/Model:\s+(.+?)\s+.*?Aantal punten:\s+(\d+)/is', $ai_feedback, $m, PREG_SET_ORDER);
 ```
 
-Deze regex staat op één plek: `StudentAnswer::aiScores()`. Die geeft per antwoord de AI-scores per bron terug (de modellen uit `ai_feedback`, plus de agentic beoordeling als bron `Agentic AI`, §6.8) en wordt gebruikt door `DocentController` (`viewStudentAnswers`, `compareExamResults`, `exportExamComparison`) en `StudentExamController::viewResults`. Daarnaast leest `StudentAnswer::hasInjectionWarning()` of de tekst met `WAARSCHUWING:` begint (voor de confidence van de externe koppeling, §6.9).
+Voor niveaus leest `StudentAnswer::aiLevels()` met `/Model:\s+(.+?)\s+.*?Niveau:\s+(onvoldoende|voldoende|goed|uitstekend)/is`, met het agentic niveau (`AnswerAssessment::agenticLevelSql()`) als bron `Agentic AI`. De scoreregex staat op één plek: `StudentAnswer::aiScores()`. Die geeft per antwoord de AI-scores per bron terug (de modellen uit `ai_feedback`, plus de agentic beoordeling als bron `Agentic AI`, §6.8) en wordt gebruikt door `DocentController` (`viewStudentAnswers`, `compareExamResults`, `exportExamComparison`) en `StudentExamController::viewResults`. Daarnaast leest `StudentAnswer::hasInjectionWarning()` of de tekst met `WAARSCHUWING:` begint (voor de confidence van de externe koppeling, §6.9).
 
 **Regels:**
 
-- Wijzig de labels `Model:`, `Tijdsduur:`, `Aantal punten:` en `Feedback:` alleen samen met de regex in `StudentAnswer::aiScores()`.
-- `clean_output_text()` in de worker maakt deze labels in modeluitvoer onschadelijk (`Model -`), zodat een model of een student via de feedbacktekst geen extra scores kan "injecteren". Laat die stap staan.
+- Wijzig de labels `Model:`, `Tijdsduur:`, `Aantal punten:`, `Niveau:` en `Feedback:` alleen samen met de regexen in `StudentAnswer::aiScores()` en `aiLevels()`.
+- `clean_output_text()` in de worker maakt deze labels (ook `Niveau:`) in modeluitvoer onschadelijk (`Model -`), zodat een model of een student via de feedbacktekst geen extra scores kan "injecteren". Laat die stap staan.
 - Als een antwoord na `MAX_ATTEMPTS` pogingen niet te beoordelen is, slaat de worker een tekst zonder `Model:`-blokken op. Dat antwoord telt dan voor geen enkel model mee.
 - Op termijn is gestructureerde opslag beter (zie §9).
 
 ### 6.4 Prompting en verdediging tegen prompt injection
 
-- **Prompttemplate:** bij rubric-criteria `RUBRIC_SYSTEM_PROMPT` (§6.7). Anders het `prompt_text` van de toets (tabel `prompts`), of `DEFAULT_SYSTEM_PROMPT`. De placeholders `{{question_text}}` en `{{criteria}}` worden ingevuld. `{{student_answer}}` wordt **niet** door het antwoord vervangen maar door een verwijzing naar het gebruikersbericht.
+- **Prompttemplate:** bij rubric-criteria `RUBRIC_SYSTEM_PROMPT` (§6.7; bij levels `RUBRIC_LEVELS_SYSTEM_PROMPT`). Anders het `prompt_text` van de toets (tabel `prompts`, met dezelfde schaal als de toets), of `DEFAULT_SYSTEM_PROMPT` (bij levels `DEFAULT_LEVELS_PROMPT`, zonder punten, met het schema `LEVELS_FEEDBACK_SCHEMA`: `level` als enum). De placeholders `{{question_text}}` en `{{criteria}}` worden ingevuld. `{{student_answer}}` wordt **niet** door het antwoord vervangen maar door een verwijzing naar het gebruikersbericht.
 - **Rolscheiding:** het studentantwoord staat uitsluitend in het *user*-bericht, tussen `<student_answer>`-tags (die tags worden eerst uit het antwoord gefilterd) en afgekapt op `MAX_ANSWER_CHARS`. Na het antwoord volgt een herinnering (`GRADING_REMINDER`, de "sandwich").
 - **Afgedwongen output:** het Ollama-`format` krijgt een JSON-schema mee (score als enum `{0,1,5,10}`, tekstvelden met `maxLength`). Daarna valideert `validate_feedback()` de uitvoer nogmaals, want cloud-modellen houden zich niet altijd aan het schema. Bij ongeldige JSON volgen tot `JSON_RETRY_ATTEMPTS` correctiepogingen. Raakt het tokenbudget op aan het denken, dan wordt `num_predict` verdubbeld (tot `NUM_PREDICT_MAX`).
-- **Voorcontrole (optioneel):** `INJECTION_CHECK_MODEL` beoordeelt eerst of het antwoord instructies aan de AI bevat. Is dat zo, dan krijgt de feedback een waarschuwing en wordt de AI-score met `INJECTION_ZERO_SCORE` op 0 gezet. De originele score blijft zichtbaar in de tekst. De docentscore wordt nooit aangeraakt.
+- **Voorcontrole (optioneel):** `INJECTION_CHECK_MODEL` beoordeelt eerst of het antwoord instructies aan de AI bevat. Is dat zo, dan krijgt de feedback een waarschuwing en wordt de AI-score met `INJECTION_ZERO_SCORE` op 0 gezet (bij levels het niveau op `onvoldoende`). De originele score blijft zichtbaar in de tekst. De docentscore wordt nooit aangeraakt.
 - **Per modelfamilie:** `THINK_LEVELS` en `SAMPLING_OPTIONS` regelen het denkgedrag en gaan herhalingslussen tegen (bijvoorbeeld bij qwen3 en gpt-oss).
 
 ### 6.5 Worker-configuratie
@@ -610,6 +664,7 @@ Een docent voert een vraag en het gewenste antwoord in; drie agents werken die u
 - **Waar het draait:** de webserver roept geen LLM aan. De orchestrator en de agents draaien in een eigen worker-proces (`bin/process_design_jobs.py`), los van de beoordelingsworker, zodat een docent die interactief wacht niet achter de wachtrij met studentantwoorden aansluit. `design_agents.py` bevat geen netwerkcode richting de webapp en hergebruikt `call_ollama()` (met een eigen `num_ctx`) uit `process_ai_feedback.py`.
 - **Agents:** *Analysis* (essentiële elementen, duidelijkheid, mismatch tussen vraag en antwoord, issues, 0–5 verduidelijkende vragen met *waarom*), *Assessment* (1–6 criteria *essentieel*/*aanvullend*, niveaus 10/5/1/0 in termen van de criteria, alternatieve antwoorden) en *Validation* (zes controles, verbeterde rubric, wijzigingen met *waarom*, optioneel een betere vraagtekst). De schaal is holistisch: geen punten per criterium.
 - **Eén doorloop per ronde:** zonder verduidelijkende vragen gaat de orchestrator direct door naar Assessment en Validation (zelfde revision). Er zijn geen automatische lussen.
+- **Schaal:** de job heeft `grading_scale` van de toets. Bij `levels` heeft de rubric de sleutels `level_uitstekend`, `level_goed`, `level_voldoende` en `level_onvoldoende` in plaats van `level_10` … `level_0` (zelfde limieten), vraagt de prompt minstens één aanvullend criterium en legt hij de niveauregels van §6.7 uit; de controle `levels` betekent dan "minstens één aanvullend criterium en de niveaus volgen uit de criteria". De webapp normaliseert met de schaal van de toets uit de database (`QuestionDesign::scaleForDesign()`). `rubricToCriteriaText()` schrijft het formaat van de schaal (`Puntentoekenning:` of `Niveaus:`); ontbreken die niveauteksten (schaal tijdens het ontwerp gewijzigd), dan volgt het formaat de rubric.
 - **Contract 6 (JSON-vormen):** de vormen en limieten (tekstvelden ≤ 800 tekens, lijsten met een maximum, `checks` precies zes) staan aan beide kanten: `validate_*()` in de worker en `QuestionDesign::normalize*()` in PHP. Houd ze gelijk.
 - **Invoer als data:** alle docenttekst gaat als gelabelde blokken (`<vraag>`, `<gewenst_antwoord>`, `<analyse>`, `<antwoorden_docent>`, `<feedback_docent>`, `<vorige_rubric>`, `<rubricvoorstel>`) in het user-bericht; blokmarkeringen in de inhoud worden eerst verwijderd.
 
@@ -674,11 +729,14 @@ Ook correct:                           (optioneel)
 - <tekst>
 ```
 
+Bij een toets met niveaus staat in plaats van `Puntentoekenning:` het kopje `Niveaus:` met `Uitstekend: <tekst>`, `Goed: <tekst>`, `Voldoende: <tekst>` en `Onvoldoende: <tekst>`. De parser herkent beide formaten (`levels_format` `points` of `levels` in het resultaat), maar weigert een mengsel. `AnswerAssessment::looksLikeRubric()` accepteert `Beoordelingscriteria:` plus `Puntentoekenning:` of `Niveaus:`.
+
 - **Herkend:** 1–10 criteria met een geldig gewicht en elk niveau precies één keer. Vervolgregels (een afgebroken regel) horen bij het vorige item, `\r\n` uit een textarea mag. Tekst vóór het eerste kopje, een dubbel kopje of een onbekende regel betekent: geen rubric. Er geldt dan de gewone beoordeling met de tekst als `{{criteria}}`, dus er gaat nooit iets verloren.
 - **Beoordeling:** `RUBRIC_SYSTEM_PROMPT` zet vraag, modelantwoord, genummerde criteria, alternatieven en niveaus in het systeembericht. Het JSON-schema (`rubric_feedback_schema()`) zet `criteria` vóór `score`: het model oordeelt eerst per criterium (`voldaan`/`deels`/`niet`, met toelichting) en kiest dan de score. Een custom prompt van de toets wordt hier niet gebruikt, omdat die een eigen puntentoekenning heeft.
 - **Validatie:** `validate_rubric_feedback()` eist elk criterium precies één keer. Cloud-modellen dwingen `minItems` niet af; bij een onvolledig oordeel volgt `RUBRIC_RETRY_ATTEMPTS` keer een gerichte correctie. Een 10 terwijl een essentieel criterium niet volledig voldaan is, wordt een 5 (de rubric eist alle essentiële criteria voor 10).
+- **Bij levels:** het model geeft alleen een status per criterium en feedback, geen score. Het niveau volgt deterministisch uit de statussen met `level_from_statuses()` (B3): onvoldoende als niet alle essentiële criteria `voldaan` zijn (`deels` telt als niet voldaan); voldoende als alle essentiële voldaan zijn maar geen enkel aanvullend; goed bij een deel van de aanvullende; uitstekend bij alle. Een rubric zonder aanvullende criteria komt dus hooguit op voldoende uit. De niveauteksten zijn toelichting. Een rubric in het niveauformaat bij een points-toets krijgt de vaste puntenregels (`DEFAULT_POINTS_LEVEL_TEXTS`).
 - **Instellingen:** `RUBRIC_GRADING` (uitzetten = altijd de oude beoordeling) en `RUBRIC_NUM_CTX` (ruimer contextvenster, want de rubric is lang).
-- **Tests:** `bin/test_rubric_grading.py` (gemockte `call_ollama`). De fixture `bin/fixtures/criteria_rubric.txt` is de echte uitvoer van `rubricToCriteriaText()`; maak hem opnieuw aan als dat formaat verandert (zie `bin/README.md`).
+- **Tests:** `bin/test_rubric_grading.py` (gemockte `call_ollama`). De fixtures `bin/fixtures/criteria_rubric.txt` en `criteria_rubric_levels.txt` zijn de echte uitvoer van `rubricToCriteriaText()`; maak ze opnieuw aan als dat formaat verandert (zie `bin/README.md`).
 
 ### 6.8 Agentic beoordelen
 
@@ -692,6 +750,7 @@ Drie agents beoordelen een studentantwoord op een vraag met rubric (§6.7), auto
 - **Rubric:** de worker parseert de criteria-snapshot met `parse_rubric_criteria()` en zet die om naar de contractvorm (`numbered_rubric()`: criteria met `nr`, niveaus met stringsleutels). Er is geen tweede parser in PHP. Lukt het parsen niet, dan stuurt de worker meteen een `error` in, zonder LLM-aanroep. De geparste rubric gaat mee terug, zodat vastligt waarmee is beoordeeld.
 - **Agents:** *Evidence* (per criterium 0–3 **letterlijke** citaten, `evidence_found` ja/gedeeltelijk/nee, interpretatie apart, wat ontbreekt, confidence), *Assessment* (per criterium `voldaan`/`deels`/`niet` met redenering en gebruikte citaten, daarna een score uit `{0, 1, 5, 10}` met de puntentoekenning, feedback in de je-vorm) en *Validation* (zeven controles, issues, correcties en een volledig `final_assessment`, confidence). Het schema zet `criteria` vóór `score`. Een agent die ongeldige JSON levert, krijgt één correctiepoging.
 - **Invoer als data:** vraag, rubric, evidence, beoordeling, validatie en studentantwoord gaan als gelabelde blokken in het user-bericht (blokmarkeringen in de inhoud worden verwijderd). Het studentantwoord staat altijd als laatste blok, gevolgd door een herinnering dat het data is. Bij een injection-vermoeden van de voorcontrole (`INJECTION_CHECK_MODEL`) komt daar een waarschuwing bij en is menselijke beoordeling nodig.
+- **Schaal:** de job heeft `grading_scale`. Bij `levels` is `score` in de uitvoer van Assessment en Validation een niveau (enum), krijgen de agents een niveauvariant van hun prompt (het niveau volgt uit de statussen) en toont `format_rubric()` de niveauregels in plaats van de puntentoekenning. `decision` krijgt `level` en `score` is `null`; de webapp schrijft dan `final_level` en laat `final_score` `NULL` (`AnswerAssessment::saveResult()`). De webapp normaliseert met de schaal van de toets van de run uit de database (`AnswerAssessment::scaleForRun()`). De rubric in het resultaat heeft `levels_format`.
 - **Contract 8 (JSON-vormen):** de vormen en limieten (tekst ≤ 800 tekens, citaat ≤ 300, `model_answer` ≤ 4000, criteria 1–10, citaten 0–3, `issues` en `corrections` 0–10, `checks` precies zeven, `rounds` 1–3, `reasons` 0–10, enums) staan aan beide kanten: `validate_*()` in `assessment_agents.py` en `AnswerAssessment::normalize*()` in PHP. Elk criterium moet precies één keer voorkomen; anders is het onderdeel ongeldig.
 
 ```mermaid
@@ -735,6 +794,7 @@ sequenceDiagram
 | `agreement` per criterium | `eens` als Evidence (ja→voldaan, gedeeltelijk→deels, nee→niet), Assessment en Validation gelijk zijn; `conflict` als Assessment en Validation verschillen bij een **essentieel** criterium, of als twee oordelen twee stappen uit elkaar liggen (voldaan tegenover niet); anders `klein_verschil` |
 | `unverified_quotes` | aantal citaten (evidence + `evidence_used`) dat `verify_quotes()` niet letterlijk terugvindt: vergelijking na kleine letters, samengevoegde witruimte, gelijkgetrokken aanhalingstekens en zonder leestekens aan de randen; korter dan 3 tekens telt als niet gevonden. `AnswerAssessment::quoteFound()` gebruikt dezelfde regel voor de markering op de pagina |
 | `score` | de score van de laatste validatie; 10 met een niet volledig voldaan essentieel criterium wordt 5 (`score_capped`) |
+| `level` (alleen levels) | `level_from_statuses()` op de statussen van de laatste validatie (§6.7); het niveau dat de agents noemen, telt niet. Wijkt dat af, dan een reden en wint het berekende niveau. Een essentieel criterium op `deels` geeft de reden "Grensgeval voldoende/onvoldoende" (dus menselijke beoordeling). Een verschil in niveau tussen Assessment en Validation is ook een reden; de scoreregels van points vervallen |
 | `confidence` | de laagste van de validatie en van de Evidence- en Assessment-confidences van de essentiële criteria |
 | extra ronde | bij minstens één `conflict` en zolang er rondes over zijn: Assessment opnieuw met de bevindingen van de validatie, daarna Validation opnieuw |
 | `human_review_needed` | ("menselijke controle nodig": de AI is onzeker; een signaal voor de docent bij zijn eigen beoordeling) waar zodra er een reden is, elk met een Nederlandse zin in `reasons`: een `conflict` (ook na de extra ronde), een niet-geverifieerd citaat bij een criterium dat (deels) voldaan heet, confidence `laag`, `validated = false`, een injection-vermoeden, een score die niet past bij de statussen (alle essentiële criteria voldaan maar minder dan 10; alles niet voldaan maar 5 of meer; 0 terwijl een essentieel criterium voldaan is) of een verschil tussen de score van Assessment en Validation |
@@ -748,7 +808,7 @@ sequenceDiagram
 | Laatste run mislukt (`failed`) | vangnet: terug in `open_student_answers` (gewone AI-beoordeling); niet opnieuw automatisch gestart |
 | Al het andere (vrije criteria, leeg antwoord, …) | `open_student_answers`, zoals altijd |
 
-De voorwaarden staan op één plek: `AnswerAssessment::excludeFromAiGradingSql()` (gebruikt door `StudentAnswer::getPendingAiGrading()`) en `AnswerAssessment::createAutomaticRuns()` delen dezelfde SQL, en de rubric-herkenning (`looksLikeRubric()`, de kopjes `Beoordelingscriteria:` en `Puntentoekenning:`) is dezelfde als bij handmatig starten. Runs worden automatisch gestart op twee momenten: bij het inleveren (`StudentExamController::submitExam()`, alleen die poging) en bij elke poll van `open_assessment_jobs` (hooguit `ASSESSMENT_AUTO_START_BATCH` per keer), zodat ook antwoorden meekomen waarvoor de voorwaarden later gelden. De voorwaarde "geen run" telt `superseded`-runs bewust niet mee: na een reset van de AI-resultaten (§6.1) zijn alle runs van een antwoord `superseded` en moet het weer automatisch agentic starten. Buiten een reset wordt een run alleen `superseded` in `AnswerAssessment::create()`, in dezelfde transactie als een nieuwere run; voor bestaande data verandert er dus niets. Beide schrijven `answer_assessment_auto_start` in de audit log; die telt niet mee voor de rate limit per docent. Het API-contract met de AI-feedbackworker is ongewijzigd: alleen de selectie in `open_student_answers` verandert. Gevolg: zo'n antwoord heeft geen `ai_feedback`; de AI-beoordeling is dan de agentic beoordeling (bron `Agentic AI` in de statistiek, score en feedback voor de student).
+De voorwaarden staan op één plek: `AnswerAssessment::excludeFromAiGradingSql()` (gebruikt door `StudentAnswer::getPendingAiGrading()`) en `AnswerAssessment::createAutomaticRuns()` delen dezelfde SQL, en de rubric-herkenning (`looksLikeRubric()`, de kopjes `Beoordelingscriteria:` en `Puntentoekenning:` of `Niveaus:`) is dezelfde als bij handmatig starten. Levels-toetsen doen alleen mee met `LEVELS_AI_ENABLED` (§5.2). Runs worden automatisch gestart op twee momenten: bij het inleveren (`StudentExamController::submitExam()`, alleen die poging) en bij elke poll van `open_assessment_jobs` (hooguit `ASSESSMENT_AUTO_START_BATCH` per keer), zodat ook antwoorden meekomen waarvoor de voorwaarden later gelden. De voorwaarde "geen run" telt `superseded`-runs bewust niet mee: na een reset van de AI-resultaten (§6.1) zijn alle runs van een antwoord `superseded` en moet het weer automatisch agentic starten. Buiten een reset wordt een run alleen `superseded` in `AnswerAssessment::create()`, in dezelfde transactie als een nieuwere run; voor bestaande data verandert er dus niets. Beide schrijven `answer_assessment_auto_start` in de audit log; die telt niet mee voor de rate limit per docent. Het API-contract met de AI-feedbackworker is ongewijzigd: alleen de selectie in `open_student_answers` verandert. Gevolg: zo'n antwoord heeft geen `ai_feedback`; de AI-beoordeling is dan de agentic beoordeling (bron `Agentic AI` in de statistiek, score en feedback voor de student).
 
 **Robuustheid:** de worker telt pogingen per `assessment_id` en stuurt na `ASSESSMENT_MAX_ATTEMPTS` een `error` in (status `failed`, de docent kan opnieuw starten). Een 409 betekent dat de docent intussen opnieuw startte: het resultaat wordt overgeslagen. Starten is begrensd met `ASSESSMENT_START_MAX_PER_HOUR` per docent (één auditregel `answer_assessment_start` per gestart antwoord, ook bij een bulkstart).
 
@@ -770,7 +830,7 @@ Een andere website (leeromgeving, cursusplatform) laat haar eigen deelnemers een
 | `in_progress` | gestart, `completed_at IS NULL` |
 | `grading` | ingeleverd, nog niet elk antwoord heeft een AI-resultaat |
 | `graded` | elk antwoord heeft een AI-resultaat: een agentic run `done`, of `ai_feedback` gevuld (ook zonder score) |
-| `reviewed` | `reviewed_at` gezet (review-endpoint), of elk antwoord heeft een `teacher_score` |
+| `reviewed` | `reviewed_at` gezet (review-endpoint), of elk antwoord heeft een `teacher_score` (bij levels een `teacher_level`) |
 
 Een mislukte agentic run valt terug op de AI-feedbackworker (§6.8); de poging blijft dan `grading` tot die klaar is.
 
@@ -788,7 +848,9 @@ Een mislukte agentic run valt terug op de AI-feedbackworker (§6.8); de poging b
 | ≥ 2 modellen, min ≤ 1 en max ≥ 5 | `laag` ("Modellen zijn het oneens") | altijd |
 | ≥ 2 modellen, overige verschillen | `middel` | onder de drempel |
 
-Per poging: de laagste confidence, `review_needed` als één antwoord het nodig heeft (alleen bij `graded`; na `reviewed` is het `false`), redenen met het vraagnummer ervoor. De AI-score per antwoord is de agentic `final_score` of het gemiddelde van de modelscores (uit `StudentAnswer::aiScores()`, contract 1); per poging het gemiddelde met één decimaal.
+**Bij een toets met niveaus** (`grading_scale` `levels`) staat per antwoord `level` (agentic `final_level`, of bij de modellen het laagste niveau, met `model_levels`) in plaats van `score`/`model_scores`, en `teacher` heeft `level`. Confidence van de modellen: `hoog` als alle modellen hetzelfde niveau geven; `laag` en altijd review als het ene model onvoldoende geeft en een ander voldoende of hoger ("Modellen zijn het oneens over voldoende of onvoldoende"); `middel` bij andere verschillen of één model. Geen niveau of een injectiewaarschuwing: `laag` en altijd review.
+
+Per poging: de laagste confidence, `review_needed` als één antwoord het nodig heeft (alleen bij `graded`; na `reviewed` is het `false`), redenen met het vraagnummer ervoor. De AI-score per antwoord is de agentic `final_score` of het gemiddelde van de modelscores (uit `StudentAnswer::aiScores()`, contract 1); per poging het gemiddelde met één decimaal. Daarnaast (alleen toegevoegd): `grading_scale`, `grade` (`final` uit `Grading::attemptResult()`, of `null` bij een woord), `grade_label` en `grade_overridden`. Bij levels zijn `ai_score` en `teacher_score` `null`.
 
 **Webhooks (B8), outbox `integration_events`:**
 
@@ -798,7 +860,7 @@ Per poging: de laagste confidence, `review_needed` als één antwoord het nodig 
 - 2xx = afgeleverd. Anders backoff `30 s · 2^(n-1)` (maximaal 1 uur); na `INTEGRATION_WEBHOOK_MAX_ATTEMPTS` mislukte pogingen `next_attempt_at = NULL` en audit `integration_webhook_gave_up`. Aflevering is at-least-once: de ontvanger ontdubbelt op `event_id`. Events van een uitgeschakelde koppeling wachten.
 - De payload bevat geen toetsinhoud: `event_id`, `event`, `attempt_id`, `external_ref`, `status`, `review_needed`, `occurred_at`. Het statusendpoint blijft de bron van waarheid.
 
-**Terugmelden (B10):** `integration_attempt_review` schrijft de meegestuurde scores in één transactie als `teacher_score`/`teacher_feedback` (een mens bij de externe website; audit `teacher_grade` met `source: integration` en de beoordelaar) en zet `reviewed_at`. Zonder `grades` alleen `reviewed_at`. Alleen bij `graded` of `reviewed`.
+**Terugmelden (B10):** `integration_attempt_review` schrijft de meegestuurde scores in één transactie als `teacher_score`/`teacher_feedback` (bij levels `grades[].level` als `teacher_level`; een `score` of ongeldig niveau geeft `400 Invalid level in grades[i]`) (een mens bij de externe website; audit `teacher_grade` met `source: integration` en de beoordelaar) en zet `reviewed_at`. Zonder `grades` alleen `reviewed_at`. Alleen bij `graded` of `reviewed`.
 
 **Instellingen** (`config/app.php`): `INTEGRATION_LAUNCH_TTL`, `INTEGRATION_START_MAX_PER_HOUR` (rate limit per koppeling via de audit log, gebruikersnaam `API:<naam>`), `MAX_INTEGRATION_BODY`, `INTEGRATION_WEBHOOK_TIMEOUT`, `INTEGRATION_WEBHOOK_BATCH`, `INTEGRATION_WEBHOOK_MAX_ATTEMPTS`, `INTEGRATION_WEBHOOK_ALLOW_PRIVATE` (standaard `false`: de webhook-host moet naar publieke adressen wijzen; gecontroleerd bij het opslaan en bij elke aflevering, en curl wordt met `CURLOPT_RESOLVE` op dat adres vastgepind tegen DNS-rebinding) en `INTEGRATION_ALLOW_HTTP` (alleen uit de omgevingsvariabele, alleen voor de Docker-dev: `http` naar `localhost`, `127.0.0.1` en `host.docker.internal`, en daar ook interne adressen).
 
@@ -809,7 +871,7 @@ Per poging: de laagste confidence, `review_needed` als één antwoord het nodig 
 | Omgeving | Hoe |
 |---|---|
 | **Lokaal testen** | `./docker/start.sh` start `php:8.2-apache` op poort 8080 met de documentroot op `htdocs/`. De database staat in volume `db_data`, en de entrypoint draait `init_db.php` als er nog geen database is. **De code wordt bij het bouwen in de image gekopieerd** (geen bind mount), dus na elke wijziging opnieuw bouwen. Met `docker compose down -v` (in `docker/`) begin je met een schone database. Standaardlogin: `admin@school.nl` / `admin123` (bij de eerste login moet het wachtwoord worden gewijzigd). |
-| **Productie (web)** | nginx + PHP-FPM, documentroot `htdocs/`, map `database/` schrijfbaar voor de webgebruiker. Zorg dat de `Authorization`-header PHP bereikt (`fastcgi_param HTTP_AUTHORIZATION $http_authorization;`). Voor de externe koppeling: `php-curl` en uitgaand HTTPS naar de webhookhosts ([docs/rollout-external-integration.md](docs/rollout-external-integration.md)). Werkwijze: [docs/rollout-new-version.md](docs/rollout-new-version.md). |
+| **Productie (web)** | nginx + PHP-FPM, documentroot `htdocs/`, map `database/` schrijfbaar voor de webgebruiker. Zorg dat de `Authorization`-header PHP bereikt (`fastcgi_param HTTP_AUTHORIZATION $http_authorization;`). Voor de externe koppeling: `php-curl` en uitgaand HTTPS naar de webhookhosts ([docs/rollout-external-integration.md](docs/rollout-external-integration.md)). Werkwijze: [docs/rollout-new-version.md](docs/rollout-new-version.md). Beoordelen met niveaus: eerst de webapp met `LEVELS_AI_ENABLED = false`, dan de workers, dan de vlag aan ([docs/rollout-level-grading.md](docs/rollout-level-grading.md)). |
 | **Productie (worker)** | Een aparte machine met Python 3, `requests` en een draaiende Ollama. Voor cloud-modellen eenmalig `ollama signin`. Daarna `python process_ai_feedback.py` in `bin/`, voor de vraagontwerper als tweede proces `python process_design_jobs.py` (zie [docs/rollout-agentic-design.md](docs/rollout-agentic-design.md)) en voor agentic beoordelen als derde proces `python process_assessment_jobs.py` (zie [docs/rollout-agentic-assessment.md](docs/rollout-agentic-assessment.md)). |
 
 Breekt een wijziging het API-contract, het feedbackformaat of de authenticatie, dan moeten webapp en worker **tegelijk** worden bijgewerkt. Bouw daarom een overgangsweg in (zoals `LEGACY_API_KEY_IN_QUERY`) en beschrijf de uitrol, met terugdraaiscenario, in `docs/`.
@@ -862,7 +924,8 @@ Weet dat deze punten bestaan voordat je in de buurt iets wijzigt. Los ze bij voo
 |---|---|---|
 | Geen geautomatiseerde tests | hele repo | Controleren gebeurt handmatig (zie CLAUDE.md) |
 | AI-scores als tekst opgeslagen en met een regex uitgelezen | `StudentAnswer::aiScores()`, zie §6.3 | Formaatwijziging is foutgevoelig. Gestructureerde opslag staat nog open (S-18). |
-| Score-aggregatie gedupliceerd | `DocentController::viewStudentAnswers`, `StudentExamController::viewResults`, `compareExamResults`, `exportExamComparison` | Het uitlezen per antwoord staat in `StudentAnswer::aiScores()`, maar het middelen en de statistiek staan nog op elke plek apart |
+| AI-score-aggregatie (points) deels gedupliceerd | `DocentController::viewStudentAnswers`, `StudentExamController::viewResults`, `compareExamResults`, `exportExamComparison` | Het eindcijfer staat op één plek (`Grading::attemptResult()`, §5.2) en het uitlezen per antwoord in `StudentAnswer::aiScores()`/`aiLevels()`, maar het middelen van de AI-scores per model (points) en de statistiek staan nog op elke plek apart |
+| Toetsen met niveaus en de overgangsvlag | `LEVELS_AI_ENABLED` | Zolang de vlag uit staat, beoordeelt de AI levels-toetsen niet; een levels-toets kan niet naar points (of omgekeerd) zodra er resultaten zijn |
 | Losse SQL in controllers | `StudentController`, `DocentController` (`pendingAssessments`, `auditLog`, vergelijking) | Niet alle data-access zit in de models |
 | Ongebruikte bestanden | views `exam_create.php`, `exam_edit.php`, `question_create.php`, `question_edit.php`, `student_create.php`, `student_edit.php`; model `Student.php` | Niet bewerken in de veronderstelling dat ze live zijn. De actieve formulieren zijn `*_form.php`. |
 | Bestandsnaam wijkt af van de klassenaam | `models/Questions.php` bevat `class Question` | Let op bij `require_once` |

@@ -12,6 +12,16 @@ The `process_ai_feedback.py` script acts as a background worker. It ensures the 
 4. **AI Assessment**: The data is sent to a local Ollama server with an enforced JSON schema. Multiple models can be consulted for comparison. The output is validated: the score must be one of 0, 1, 5 or 10, and the feedback text is length-limited and stripped of labels that the web app's parser relies on.
 5. **Storage**: The validated output (score and feedback) is sent back to the web application via the API (`action=submit_ai_feedback`). Answers that fail `MAX_ATTEMPTS` times are marked as not assessable so the queue does not stall.
 
+### Grading with levels (`grading_scale`)
+Every job from the web app (`open_student_answers`, `open_assessment_jobs`, `open_design_jobs`) carries a field `grading_scale`: `points` (the original behaviour, unchanged) or `levels`. A job without the field (an older web app) is treated as `points` (`job_scale()`). With `levels`:
+
+- **AI feedback worker:** the model gives a level (`onvoldoende`, `voldoende`, `goed`, `uitstekend`) instead of a score. The `ai_feedback` block says `Niveau: <level>` instead of `Aantal punten: N`; the web app reads it with `StudentAnswer::aiLevels()`. Without rubric criteria the model picks the level itself (`LEVELS_FEEDBACK_SCHEMA`, with `DEFAULT_LEVELS_PROMPT` or the exam's prompt). With rubric criteria the model only judges each criterion, and the level follows deterministically from those statuses (`level_from_statuses()`): not all essential criteria met is `onvoldoende` (`deels` counts as not met); all essential met and no supplementary is `voldoende`; some supplementary is `goed`; all is `uitstekend`. A suspected prompt injection with `INJECTION_ZERO_SCORE` sets the level to `onvoldoende`. `clean_output_text()` also neutralises the label `Niveau:` in model output.
+- **Agentic assessment:** `score` in the Assessment and Validation output is a level, `decide()` computes the level with `level_from_statuses()` from the last validation (the computed level wins over the level the model names, with a reason) and adds `level` to the decision; an essential criterion that is only `deels` met is a borderline case that asks for human review.
+- **Question designer:** the rubric has the keys `level_uitstekend`, `level_goed`, `level_voldoende` and `level_onvoldoende` instead of `level_10` … `level_0`, and the prompt asks for at least one supplementary criterion.
+- The rubric text in the criteria may have the heading `Niveaus:` (lines `Uitstekend:` … `Onvoldoende:`) instead of `Puntentoekenning:`; `parse_rubric_criteria()` accepts both layouts (not a mix) for both scales.
+
+**There are no new settings in `config.py`.** Nothing needs to change on the worker machine except deploying the new code. The web app only sends `levels` jobs once `LEVELS_AI_ENABLED` is switched on (see `docs/rollout-level-grading.md`).
+
 ### Prompt injection
 Student answers are untrusted input. The worker mitigates prompt injection in layers: role separation and delimiting (system vs. user message), truncation and an explicit `num_ctx` (so a long answer cannot push the instructions out of the context window), a schema-enforced and validated output, and an optional AI-based screening step. With small local models none of these is watertight on its own; the AI scores remain an aid for the teacher, not a final grade.
 
@@ -97,7 +107,7 @@ Tests (mocked `call_ollama()`, requires a `config.py`):
 ```bash
 python3 -m unittest test_rubric_grading -v
 ```
-`fixtures/criteria_rubric.txt` is the real output of `rubricToCriteriaText()` for the rubric in `fixtures/validation.json`. If that PHP function changes, regenerate it from the repository root:
+`fixtures/criteria_rubric.txt` is the real output of `rubricToCriteriaText()` for the rubric in `fixtures/validation.json`, and `fixtures/criteria_rubric_levels.txt` for the levels rubric in `fixtures/validation_levels.json` (heading `Niveaus:`). If that PHP function changes, regenerate them from the repository root (for the levels fixture add `"levels"` as third argument and use `validation_levels.json`):
 ```bash
 docker run --rm -v "$PWD":/app -w /app php:8.2-cli php -r 'require "app/models/QuestionDesign.php"; $v = json_decode(file_get_contents("bin/fixtures/validation.json"), true); echo QuestionDesign::rubricToCriteriaText("PLC'"'"'s zijn slecht beveiligd; een aanvaller kan het proces verstoren. Zet ze achter een firewall.", $v["rubric"]);' > bin/fixtures/criteria_rubric.txt
 ```
@@ -137,7 +147,7 @@ Tests (mocked `call_ollama()`, nothing is sent to Ollama or the web app; require
 ```bash
 python3 -m unittest test_assessment_agents -v
 ```
-The fixtures in `fixtures/assessment/` belong to the rubric in `fixtures/criteria_rubric.txt` and the half-correct answer in `answer_partial.txt` (all quotes are literal). `result.json` is a complete `result` for `submit_assessment_result`, usable for manual `curl` tests. For live tests use a cloud model such as `gpt-oss:120b-cloud`, not a local model.
+The fixtures in `fixtures/assessment/` belong to the rubric in `fixtures/criteria_rubric.txt` and the half-correct answer in `answer_partial.txt` (all quotes are literal). `result.json` is a complete `result` for `submit_assessment_result`, usable for manual `curl` tests. The `*_levels.json` variants (`assessment_levels.json`, `validation_levels.json`, `result_levels.json`) are the same run for an exam with `grading_scale` `levels` (scores are levels, the decision has `level`). For live tests use a cloud model such as `gpt-oss:120b-cloud`, not a local model.
 
 ## Dataset Import
 Het script `dataset_import.py` kan worden gebruikt om de **Mohler ASAG** dataset (van HuggingFace) te importeren in de database. Dit is nuttig voor testdoeleinden en om de nauwkeurigheid van de AI te valideren tegenover menselijke scores.

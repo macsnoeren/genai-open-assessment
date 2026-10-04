@@ -60,6 +60,7 @@ Je kunt een toets starten via het dashboard of via een **directe link** die je v
 
 ### Resultaten
 Zodra de docent de resultaten heeft vrijgegeven of beoordeeld, kun je via "Mijn toetsen" je antwoorden en de feedback bekijken.
+Bij een toets die met **niveaus** wordt beoordeeld, zie je per vraag het niveau van je docent (onvoldoende, voldoende, goed of uitstekend) en bovenaan je **eindcijfer**, of het **woord** als je docent dat zo heeft ingesteld. Het eindcijfer verschijnt pas als je docent alle vragen heeft beoordeeld.
 
 ---
 
@@ -77,7 +78,9 @@ Op het dashboard zie je een overzicht van al je toetsen, op alfabetische volgord
 ### Toets aanmaken & Instellingen
 Bij het maken of bewerken van een toets zijn de volgende instellingen belangrijk:
 *   **Titel & Omschrijving**: Zichtbaar voor de student.
-*   **AI Prompt**: Selecteer welke systeem-instructie de AI moet gebruiken. (Standaard of een specifieke prompt).
+*   **Beoordeling**: kies **"Scoren met punten"** (elk antwoord krijgt 0 t/m 10, het eindcijfer is het gemiddelde; de oorspronkelijke manier) of **"Beoordelen met niveaus"** (elk antwoord krijgt een niveau, een puntenschema maakt daar een eindcijfer van; zie "Beoordelen met niveaus" hieronder). Zodra er een poging is ingeleverd, ligt de keuze vast: het formulier toont dan *"Kan niet meer wijzigen: er zijn al resultaten"*.
+*   **Puntenschema** en **Toon het eindcijfer als woord**: alleen bij niveaus. Zie hieronder.
+*   **AI Prompt**: Selecteer welke systeem-instructie de AI moet gebruiken. (Standaard of een specifieke prompt). Je ziet alleen prompts voor de gekozen manier van beoordelen (punten of niveaus).
 *   **AI Beoordeling inschakelen**: Vink dit aan als je wilt dat het systeem automatisch feedback genereert zodra een student inlevert.
 *   **Delen met andere docenten**: Andere docenten kunnen de toets dan inzien en beoordelen. Wijzigen, verwijderen en vragenbeheer blijven voorbehouden aan de eigenaar (en Admins).
 *   **Gastlink vernieuwen of uitzetten**: op het dashboard staan naast de gastlink van je eigen toetsen 🔄 (nieuwe link; de oude werkt direct niet meer, bijvoorbeeld als hij te ver is gedeeld) en ⛔ (geen gastlink meer). Met "Gastlink aanzetten" maak je weer een nieuwe. Gasten die al bezig zijn, kunnen gewoon verder.
@@ -89,7 +92,7 @@ Bij het maken of bewerken van een toets zijn de volgende instellingen belangrijk
 Klik op "Vragen" bij een toets.
 *   **Vraag**: De tekst die de student ziet.
 *   **Criteria**: Dit is cruciaal voor de AI. Beschrijf hier expliciet waar een antwoord aan moet voldoen voor 0, 1, 5 of 10 punten. Hoe duidelijker de criteria, hoe beter de AI.
-*   **Rubric-criteria**: Criteria met de opbouw die de AI-vraagontwerper maakt (kopjes `Beoordelingscriteria:` en `Puntentoekenning:`, regels als `- [essentieel] Naam: beschrijving` en `10 punten: …` t/m `0 punten: …`) worden door de AI **per criterium** beoordeeld. Je kunt die opbouw ook zelf gebruiken. Zie "Vraag ontwerpen met AI" hieronder.
+*   **Rubric-criteria**: Criteria met de opbouw die de AI-vraagontwerper maakt (kopjes `Beoordelingscriteria:` en `Puntentoekenning:`, regels als `- [essentieel] Naam: beschrijving` en `10 punten: …` t/m `0 punten: …`) worden door de AI **per criterium** beoordeeld. Bij een toets met niveaus staat in plaats van `Puntentoekenning:` het kopje `Niveaus:` met de regels `Uitstekend: …`, `Goed: …`, `Voldoende: …` en `Onvoldoende: …`. Je kunt die opbouw ook zelf gebruiken. Zie "Vraag ontwerpen met AI" hieronder.
 
 ### Vraag ontwerpen met AI
 Twijfel je of je vraag eenduidig is, of wil je hulp bij de beoordelingscriteria? Klik op de vragenpagina van je toets op **"Vraag ontwerpen met AI"**. Deze knop zie je alleen bij toetsen die je zelf mag wijzigen (eigenaar of Admin).
@@ -97,7 +100,7 @@ Twijfel je of je vraag eenduidig is, of wil je hulp bij de beoordelingscriteria?
 1.  **Invoeren**: Je typt de vraag en het gewenste antwoord (het antwoord dat je van een goede student verwacht) en klikt op "Ontwerp starten".
 2.  **Analyse**: Een eerste AI-stap bepaalt welke onderdelen van je antwoord essentieel zijn, controleert of de vraag duidelijk is en of je gewenste antwoord de vraag echt beantwoordt, en noemt mogelijke beoordelingsproblemen.
 3.  **Verduidelijkende vragen**: Heeft de AI meer informatie nodig (bijvoorbeeld "hoeveel redenen moet een student noemen?"), dan zie je die vragen met bij elke vraag *waarom* het antwoord nodig is. Je mag een vraag leeg laten; de AI maakt dan zelf een redelijke keuze. Zijn er geen vragen nodig, dan gaat het ontwerp meteen door.
-4.  **Voorstel en validatie**: Een tweede AI-stap maakt een rubric: criteria (*essentieel* of *aanvullend*, elk met een toelichting), wat er nodig is voor 10, 5, 1 en 0 punten, en alternatieve correcte antwoorden. Een derde AI-stap controleert dat voorstel kritisch (dekt het je antwoord, zijn de criteria duidelijk en niet te letterlijk, sluiten de punten logisch aan?) en levert een verbeterde versie met uitleg van de wijzigingen.
+4.  **Voorstel en validatie**: Een tweede AI-stap maakt een rubric: criteria (*essentieel* of *aanvullend*, elk met een toelichting), wat er nodig is voor 10, 5, 1 en 0 punten (bij een toets met niveaus: voor uitstekend, goed, voldoende en onvoldoende, met minstens één aanvullend criterium), en alternatieve correcte antwoorden. Een derde AI-stap controleert dat voorstel kritisch (dekt het je antwoord, zijn de criteria duidelijk en niet te letterlijk, sluiten de punten logisch aan?) en levert een verbeterde versie met uitleg van de wijzigingen.
 5.  **Bijsturen**: Niet tevreden? Schrijf bij "Feedback voor de AI" wat er anders moet en klik op "Opnieuw laten uitwerken". Dat kan een beperkt aantal rondes; daarna pas je de rubric zelf aan.
 6.  **Aanpassen en goedkeuren**: Onderaan staan de vraag en de beoordelingscriteria (opgebouwd uit de verbeterde rubric) in tekstvakken. Pas ze naar wens aan en klik op "Goedkeuren en vraag toevoegen". Pas dan komt de vraag in de toets; daarna bewerk je hem zoals elke andere vraag.
 7.  **Beoordeling per criterium**: Zolang de opbouw van de criteria intact blijft (de kopjes, de regels met `[essentieel]` of `[aanvullend]` en de vier regels van de puntentoekenning), beoordeelt de AI elk studentantwoord eerst per criterium (*voldaan*, *deels voldaan* of *niet voldaan*, met een korte toelichting) en kiest pas daarna de score. Dat oordeel staat onder **"Criteria:"** in de AI-feedback. Geeft de AI 10 punten terwijl een essentieel criterium niet volledig voldaan is, dan wordt dat 5 punten. Laat je de opbouw los, dan beoordeelt de AI met je tekst als gewone criteria. Bij een vraag met rubric-criteria gebruikt de AI niet de prompt die aan de toets is gekoppeld.
@@ -107,9 +110,49 @@ Terwijl de AI werkt, ververst de pagina zichzelf. Het kan even duren; draait de 
 > **De AI beslist niets definitief.** De voorstellen zijn hulpmiddelen: jij bepaalt de vraag en de criteria, en zonder jouw goedkeuring verandert er niets aan de toets.
 
 ### Resultaten & Beoordelen
-Klik op "Resultaten" bij een toets voor een lijst met inzendingen.
+Klik op "Resultaten" bij een toets voor een lijst met inzendingen. De kolom **Eindcijfer** toont per poging het eindcijfer (bij niveaus zolang niet alles beoordeeld is: *"x van y beoordeeld"*), met het woord als de toets dat toont en de markering **aangepast** als je het eindcijfer handmatig hebt aangepast.
 *   **Bekijken**: Zie het antwoord van de student, de AI-feedback en eventuele docent-feedback onder elkaar.
-*   **Beoordelen (Blind)**: Een speciale modus om antwoorden na te kijken zonder dat je de naam van de student of de AI-score ziet. Dit bevordert objectiviteit.
+*   **Beoordelen (Blind)**: Een speciale modus om antwoorden na te kijken zonder dat je de naam van de student of de AI-score ziet. Dit bevordert objectiviteit. Bij een toets met niveaus kies je per antwoord *Onvoldoende*, *Voldoende*, *Goed*, *Uitstekend* of *Nog niet beoordeeld*; bij punten vul je een score van 0 t/m 10 in.
+
+### Puntenschema's
+Via **Puntenschema's** in het menu beheer je de schema's waarmee een toets met niveaus punten geeft.
+*   Een schema heeft een naam en punten voor **voldoende**, **goed** en **uitstekend** (gehele getallen, oplopend, hooguit 100). **Onvoldoende is altijd 0 punten.**
+*   Elke combinatie bestaat maar één keer. Voer je een bestaande combinatie in, dan noemt de melding het bestaande schema; kies dat dan gewoon bij je toets.
+*   Er is een systeemschema **"Standaard (3/4/5)"**. Elke docent kan elk schema kiezen en zelf schema's maken. Alleen de maker (en de Admin) kan een eigen schema wijzigen of verwijderen; het systeemschema alleen de Admin.
+*   **Wijzigen** kan alleen zolang geen toets met een ingeleverde poging het schema gebruikt (anders zouden cijfers ongemerkt veranderen: maak dan een nieuw schema). **Verwijderen** kan alleen als geen enkele toets het schema gebruikt.
+
+### Beoordelen met niveaus
+Bij een toets met **"Beoordelen met niveaus"** krijgt elk antwoord een niveau: **onvoldoende**, **voldoende**, **goed** of **uitstekend**. Dat geldt voor jou en voor de AI. Een niveau per vraag is iets anders dan de woordbeoordeling van het eindcijfer (zie hieronder).
+
+**Het eindcijfer** (0–10, één decimaal) volgt uit het puntenschema van de toets:
+
+> eindcijfer = 10 × de som van de punten / (aantal vragen × punten voor uitstekend)
+
+Alles uitstekend geeft dus altijd een 10. Elke vraag telt even zwaar, ook een vraag die de student leeg liet. Het eindcijfer verschijnt pas als **elk** antwoord een docentniveau heeft; tot die tijd zie je *"x van y beoordeeld"*.
+
+**Rekenvoorbeeld** (schema 3/4/5, vier vragen): uitstekend, goed, voldoende en onvoldoende geeft 5 + 4 + 3 + 0 = 12 van de 20 punten, dus een **6,0**. Met schema 7/9/10 geeft alles voldoende een 7,0 en alles goed een 9,0.
+
+**Een ander schema kiezen** mag ook als er al resultaten zijn: de cijfers worden dan opnieuw berekend (er wordt niets opnieuw beoordeeld), en de wijziging staat in de audit log.
+
+**Woordbeoordeling:** met het vinkje **"Toon het eindcijfer als woord"** ziet de student in plaats van het cijfer een woord. Het cijfer wordt eerst afgerond op een heel getal; daarna geldt 0–5 *onvoldoende*, 6–7 *voldoende*, 8–9 *goed* en 10 *uitstekend*. Dat is voor alle toetsen hetzelfde. Jij ziet het woord en het cijfer. In het rekenvoorbeeld hierboven is 6,0 dus *voldoende*.
+
+**De AI bij niveaus:** heeft een vraag rubric-criteria, dan beoordeelt de AI per criterium (*voldaan*, *deels*, *niet*) en volgt het niveau met vaste regels uit die oordelen. Het AI-model kiest het niveau dus niet zelf:
+*   **onvoldoende**: niet alle essentiële criteria zijn voldaan (*deels* telt als niet voldaan);
+*   **voldoende**: alle essentiële criteria voldaan, geen enkel aanvullend criterium;
+*   **goed**: alle essentiële criteria en een deel van de aanvullende criteria voldaan;
+*   **uitstekend**: alle essentiële en alle aanvullende criteria voldaan.
+
+Een rubric zonder aanvullende criteria komt dus hooguit op *voldoende* uit. Zonder rubric kiest de AI het niveau zelf. Op de antwoordenpagina zie je per antwoord de AI-niveaus en in de kaart **Eindcijfer** het AI-cijfer per model (over de antwoorden waarvoor dat model een niveau gaf), alleen ter vergelijking. Bij agentic beoordelen is een essentieel criterium dat *deels* voldaan is een grensgeval: dan vraagt de AI om menselijke controle.
+
+> **Zolang de beheerder de AI voor niveaus niet heeft aangezet** (instelling `LEVELS_AI_ENABLED`, nodig tijdens de overgang naar de nieuwe AI-service), beoordeelt de AI toetsen met niveaus niet en beoordeel je ze zelf.
+
+### Eindcijfer handmatig aanpassen
+Iedereen die de toets mag nakijken (docenten en beoordelaars) kan het eindcijfer van een poging aanpassen. Dat werkt bij punten en bij niveaus.
+*   **Waar:** onder de kaart *Eindcijfer* op de antwoordenpagina ("Bekijken"), en onderaan bij "Beoordelen (Blind)".
+*   **Wat:** een cijfer van 0 t/m 10 met hooguit één decimaal (een komma mag), of, bij een toets met woordbeoordeling, een van de vier woorden. Een **reden is verplicht**.
+*   **Wat er bewaard wordt:** wie, wanneer, de reden en het berekende cijfer op dat moment. Dat zie je bij de aanpassing; met **"Aanpassing verwijderen"** geldt weer het berekende cijfer. Beide acties staan in de audit log.
+*   **Later gewijzigd?** Verandert het berekende cijfer na de aanpassing (bijvoorbeeld omdat je een niveau wijzigt), dan zie je een gele melding *"Het berekende cijfer is gewijzigd sinds de aanpassing (toen x, nu y)"*. De aanpassing blijft staan tot je hem wijzigt of verwijdert.
+*   **De student** ziet alleen het uiteindelijke cijfer (of woord), niet de reden en niet dat het is aangepast.
 
 ### Antwoorden agentic beoordelen
 Bij een vraag met **rubric-criteria** (zie "Vraag ontwerpen met AI") beoordelen drie samenwerkende AI-agents het studentantwoord. Je ziet per criterium welk bewijs er in het antwoord staat, hoe de agents dat lezen en waar ze het (on)eens zijn. Het resultaat is een **AI-beoordeling**, net als de gewone AI-feedback: het staat **los van jouw beoordeling**. De docentscore is altijd een menselijke beoordeling, die je zelf geeft (bijvoorbeeld via "Beoordelen (Blind)"); de agentic beoordeling verandert daar niets aan.
@@ -137,7 +180,7 @@ Zijn de Assessment en de Validation Agent het oneens over een essentieel criteri
 
 **Opnieuw beoordelen:** met **"Opnieuw beoordelen"** start je een nieuwe agentic beoordeling (bijvoorbeeld als die mislukte of als de criteria zijn gewijzigd). De vorige blijft bewaard onder "Alle agentic beoordelingen van dit antwoord".
 
-**AI of mens?** Overal staat erbij wie beoordeelde: *AI-feedback* en *Agentic AI-beoordeling* (label **AI**) komen van de AI, de *Docentbeoordeling* (label **mens**) van jou. Het eindcijfer is altijd het gemiddelde van de docentscores; AI-scores staan er alleen ter vergelijking naast.
+**AI of mens?** Overal staat erbij wie beoordeelde: *AI-feedback* en *Agentic AI-beoordeling* (label **AI**) komen van de AI, de *Docentbeoordeling* (label **mens**) van jou. Het eindcijfer komt altijd uit de docentbeoordeling (bij punten het gemiddelde van de docentscores, bij niveaus via het puntenschema, eventueel handmatig aangepast); AI-scores en AI-niveaus staan er alleen ter vergelijking naast.
 
 > **De AI beslist niets definitief.** De agentic beoordeling is een AI-beoordeling en geen cijfer; de docentscore geef je altijd zelf.
 
@@ -153,7 +196,7 @@ Wil je dat de AI een ingeleverde poging opnieuw beoordeelt, bijvoorbeeld na een 
 ### Pogingen via een externe koppeling
 Een beheerder kan een andere website (bijvoorbeeld een leeromgeving) koppelen, zodat deelnemers daar een toets van deze applicatie maken zonder account (zie "Externe koppelingen" bij de beheerders).
 *   **Herkennen:** bij "Resultaten" staat bij zo'n poging de badge **"Koppeling: <naam>"**; als je erover beweegt, zie je de referentie van de externe website. Op de antwoordenpagina staat bovenaan een melding met de naam van de koppeling en de referentie. Er is geen deelbare resultatenlink: de deelnemer ziet hier geen resultaat, dat bepaalt de externe website.
-*   **Nakijken:** de toets wordt automatisch door de AI nagekeken, net als andere pogingen. Is de AI niet zeker genoeg, dan kijkt een persoon bij de externe website de poging na. Die kan de scores terugmelden: ze verschijnen hier als **docentscore** (Docentbeoordeling, mens).
+*   **Nakijken:** de toets wordt automatisch door de AI nagekeken, net als andere pogingen. Is de AI niet zeker genoeg, dan kijkt een persoon bij de externe website de poging na. Die kan de scores (bij een toets met niveaus: de niveaus) terugmelden: ze verschijnen hier als **docentscore** of **docentniveau** (Docentbeoordeling, mens). De externe website ziet ook het eindcijfer, inclusief een handmatige aanpassing (zonder de reden).
 *   **Jouw docentscore gaat ook naar de externe website.** Een score die je hier geeft, ziet de externe website de volgende keer dat zij het resultaat ophaalt. Geef je elk antwoord van de poging een score, dan krijgt de externe website een seintje dat de poging beoordeeld is.
 *   **Naam wijzigen:** je kunt de naam van de deelnemer aanpassen zoals bij elke gastpoging. De externe website krijgt daar geen seintje van; ze ziet de nieuwe naam pas als ze de poging opnieuw ophaalt.
 *   **Let op:** zet je de AI-beoordeling van een gekoppelde toets uit, dan kunnen er geen nieuwe pogingen meer starten en blijven ingeleverde pogingen op "wordt nagekeken" staan tot je de AI weer aanzet of zelf beoordeelt.
@@ -163,6 +206,7 @@ Klik op **"Vergelijk AI"** op het dashboard.
 Hier zie je hoe goed de AI presteert ten opzichte van jouw beoordeling.
 *   **Grafiek**: Een scatterplot toont de correlatie tussen jouw cijfers en die van de AI.
 *   **Statistieken**: Bekijk de gemiddelde afwijking en correlatiecoëfficiënt.
+*   **Niveaus**: bij een toets met niveaus zie je per AI-bron een **kruistabel** (jouw niveau tegen het AI-niveau), het percentage **exact gelijk** en het percentage **gelijk op voldoende/onvoldoende**. De grafiek heeft dan de niveaus als assen. De CSV bevat per antwoord jouw niveau, het niveau per model en "gelijk" (ja/nee).
 *   **Export**: Download een **PDF-rapport** (inclusief grafieken en de gebruikte prompt) of een CSV-bestand voor eigen analyse.
 
 ![Screenshot van rapportage](images/rapportage.png)
@@ -185,6 +229,7 @@ Hier beheer je de instructies die naar de AI worden gestuurd. Een goede prompt i
     *   `{{criteria}}`: Wordt vervangen door de beoordelingscriteria.
     *   `{{student_answer}}`: Wordt vervangen door het antwoord.
 *   Zorg dat de prompt de AI instrueert om **JSON** terug te geven (zie de Hulp-pagina in de applicatie voor een voorbeeld).
+*   **Schaal:** een prompt hoort bij *punten* (de AI geeft 0, 1, 5 of 10) of bij *niveaus* (de AI kiest onvoldoende, voldoende, goed of uitstekend; noem dan geen punten). Een toets kan alleen een prompt met dezelfde schaal kiezen. De schaal van een prompt die toetsen met de andere schaal gebruiken, kun je niet wijzigen; maak dan een nieuwe prompt.
 
 ### API Keys
 Beheer de toegangssleutels voor de Python-service die op de achtergrond draait.
@@ -225,6 +270,9 @@ A: Controleer of:
 1.  "AI Beoordeling inschakelen" aan staat bij de toets.
 2.  De Python service op de server draait.
 3.  Er een geldige API key is ingesteld.
+
+**V: Waarom zie ik geen AI-niveaus bij mijn toets met niveaus?**
+A: Behalve de punten hierboven: de beheerder moet de AI voor niveaus aanzetten (`LEVELS_AI_ENABLED`) zodra de nieuwe AI-service draait. Tot die tijd beoordeel je zelf.
 
 **V: Hoe werkt de gast-link?**
 A: De link bevat een unieke token. Als een student deze opent, wordt er een cookie geplaatst. Zolang die cookie bestaat (30 dagen), kan de student terugkeren naar zijn/haar toets via dezelfde link.

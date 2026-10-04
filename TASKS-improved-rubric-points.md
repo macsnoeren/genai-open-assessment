@@ -265,13 +265,13 @@ Alle rekenregels staan op één plek, zodat de aggregatie niet opnieuw op meerde
 
 ## Fase 14: Documentatie
 
-- [ ] **14.1 `MANUAL.md`:** puntenschema's maken, schaal en schema kiezen bij een toets, beoordelen per niveau, de woordbeoordeling en het eindcijfer handmatig aanpassen (met het rekenvoorbeeld).
-- [ ] **14.2 `ARCHITECTURE.md`:** het nieuwe datamodel, `Grading::attemptResult()` als enige plek voor het eindcijfer, en contracten 1, 2, 4, 7, 8 en 9.
-- [ ] **14.3 `CLAUDE.md`:** werk de contracten 1, 4, 7, 8 en 9 en de valkuil over de score-aggregatie bij (nu één plek: `Grading`).
-- [ ] **14.4 `docs/integration-api.md`:** de nieuwe velden, `level` bij een review en de confidence-regels voor niveaus.
-- [ ] **14.5 `bin/README.md`:** het veld `grading_scale` en het gedrag bij `levels`. Er zijn geen nieuwe instellingen in `config.py`; vermeld dat expliciet.
-- [ ] **14.6 `docs/rollout-level-grading.md`** volgens het voorbeeld van `docs/rollout-new-version.md`: eerst de webapp met de vlag uit, dan de worker, dan de vlag aan, en hoe je teruggaat.
-- [ ] **14.7 `docs/security-issues.txt`:** de nieuwe muterende actions (schema's, override) met hun autorisatie, en de neutralisatie van het label `Niveau:`.
+- [x] **14.1 `MANUAL.md`:** puntenschema's maken, schaal en schema kiezen bij een toets, beoordelen per niveau, de woordbeoordeling en het eindcijfer handmatig aanpassen (met het rekenvoorbeeld).
+- [x] **14.2 `ARCHITECTURE.md`:** het nieuwe datamodel, `Grading::attemptResult()` als enige plek voor het eindcijfer, en contracten 1, 2, 4, 7, 8 en 9.
+- [x] **14.3 `CLAUDE.md`:** werk de contracten 1, 4, 7, 8 en 9 en de valkuil over de score-aggregatie bij (nu één plek: `Grading`).
+- [x] **14.4 `docs/integration-api.md`:** de nieuwe velden, `level` bij een review en de confidence-regels voor niveaus.
+- [x] **14.5 `bin/README.md`:** het veld `grading_scale` en het gedrag bij `levels`. Er zijn geen nieuwe instellingen in `config.py`; vermeld dat expliciet.
+- [x] **14.6 `docs/rollout-level-grading.md`** volgens het voorbeeld van `docs/rollout-new-version.md`: eerst de webapp met de vlag uit, dan de worker, dan de vlag aan, en hoe je teruggaat.
+- [x] **14.7 `docs/security-issues.txt`:** de nieuwe muterende actions (schema's, override) met hun autorisatie, en de neutralisatie van het label `Niveau:`.
 
 ## Fase 15: Afronding
 
