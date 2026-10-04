@@ -122,16 +122,16 @@ De AI beoordeelt per criterium. **Het niveau volgt deterministisch** uit die sta
 
 Alle rekenregels staan op één plek, zodat de aggregatie niet opnieuw op meerdere plekken gedupliceerd raakt.
 
-- [ ] **2.1 Constanten.** Maak `class Grading` met `SCALE_POINTS = 'points'`, `SCALE_LEVELS = 'levels'` en `LEVELS = ['onvoldoende', 'voldoende', 'goed', 'uitstekend']`, in volgorde van laag naar hoog.
-- [ ] **2.2 Labels.** `levelLabel(string $level): string` ("Onvoldoende" …) en `levelClass(string $level): string` (Bootstrap-badgekleur: danger, warning, info, success).
-- [ ] **2.3 Punten.** `pointsFor(string $level, array $scheme): int`: onvoldoende geeft 0, de rest komt uit `points_<niveau>`.
-- [ ] **2.4 Cijfer.** `grade(array $levels, array $scheme): ?float`: `null` als de lijst leeg is of een `null` bevat, anders `round(10 * som / (aantal * points_uitstekend), 1)`.
+- [x] **2.1 Constanten.** Maak `class Grading` met `SCALE_POINTS = 'points'`, `SCALE_LEVELS = 'levels'` en `LEVELS = ['onvoldoende', 'voldoende', 'goed', 'uitstekend']`, in volgorde van laag naar hoog.
+- [x] **2.2 Labels.** `levelLabel(string $level): string` ("Onvoldoende" …) en `levelClass(string $level): string` (Bootstrap-badgekleur: danger, warning, info, success).
+- [x] **2.3 Punten.** `pointsFor(string $level, array $scheme): int`: onvoldoende geeft 0, de rest komt uit `points_<niveau>`.
+- [x] **2.4 Cijfer.** `grade(array $levels, array $scheme): ?float`: `null` als de lijst leeg is of een `null` bevat, anders `round(10 * som / (aantal * points_uitstekend), 1)`.
   *Klaar als:* met schema 3/4/5 `["uitstekend","goed","voldoende","onvoldoende"]` 6.0 geeft, vier keer uitstekend 10.0, vier keer onvoldoende 0.0, en `["goed", null]` `null`.
-- [ ] **2.5 Woord.** `gradeLabel(float $grade): string`: rond af met `(int)floor($grade + 0.5)`, daarna 0–5 onvoldoende, 6–7 voldoende, 8–9 goed, 10 uitstekend.
+- [x] **2.5 Woord.** `gradeLabel(float $grade): string`: rond af met `(int)floor($grade + 0.5)`, daarna 0–5 onvoldoende, 6–7 voldoende, 8–9 goed, 10 uitstekend.
   *Klaar als:* 5.4 onvoldoende geeft, 5.5 voldoende, 7.4 voldoende, 7.5 goed, 9.4 goed en 9.5 uitstekend.
-- [ ] **2.6 Opmaak.** `formatGrade(float $grade): string` geeft een Nederlandse notatie met één decimaal ("7,5").
-- [ ] **2.7 Schema valideren.** `validateScheme(string $name, $v, $g, $u): ?string` geeft een Nederlandse foutmelding of `null`. Regels: naam 1–100 tekens, gehele getallen, `0 < v < g < u ≤ 100`.
-- [ ] **2.8 Niveau valideren.** `isLevel($value): bool`.
+- [x] **2.6 Opmaak.** `formatGrade(float $grade): string` geeft een Nederlandse notatie met één decimaal ("7,5").
+- [x] **2.7 Schema valideren.** `validateScheme(string $name, $v, $g, $u): ?string` geeft een Nederlandse foutmelding of `null`. Regels: naam 1–100 tekens, gehele getallen, `0 < v < g < u ≤ 100`.
+- [x] **2.8 Niveau valideren.** `isLevel($value): bool`.
   *Klaar als (hele fase):* de syntaxcheck slaagt en de controles uit 2.4 en 2.5 kloppen (via het `docker run`-commando bovenaan). Commit: `Add grading calculation helpers`.
 
 ## Fase 3: Puntenschema's beheren
