@@ -69,7 +69,7 @@ Belangrijke ontwerpkeuzes:
 ├── htdocs/                  # DOCUMENT ROOT: alleen dit is publiek bereikbaar
 │   ├── index.php            # Front controller voor alle HTML-pagina's (?action=...)
 │   ├── api/index.php        # Front controller voor de JSON-API (worker)
-│   ├── style.css            # Huisstijl bovenop Bootstrap (CSS-variabelen in :root)
+│   ├── style.css            # Huisstijl bovenop Bootstrap: alle kleuren als tokens in :root (§3.4)
 │   ├── images/, site.webmanifest
 ├── app/
 │   ├── controllers/         # Eén klasse per domein; publieke methode = één action
@@ -77,15 +77,17 @@ Belangrijke ontwerpkeuzes:
 │   ├── models/              # Statische data-access-klassen (PDO, prepared statements)
 │   │                        #   (o.a. Integration, IntegrationAttempt, IntegrationEvent, §6.9)
 │   ├── views/
-│   │   ├── layouts/main.php # Enige layout: navbar, flash-berichten, modal, cookiebanner, JS-helpers
+│   │   ├── layouts/main.php # Enige layout (standen staff/simple/bare): flash-berichten, modal, cookiemelding, JS-helpers
+│   │   ├── layouts/partials/ # sidebar, topbar, simple_nav, user_menu, breadcrumbs (§3.4)
 │   │   ├── auth/            # Login, registratie, wachtwoord wijzigen
 │   │   ├── docent/          # Docent-, beoordelaar- en admin-schermen
 │   │   ├── student/         # Student- en gastschermen
-│   │   └── pages/           # Statische pagina's (privacy)
+│   │   └── pages/           # Statische pagina's: landingspagina (home) en privacy
 │   └── helpers/
 │       ├── security.php     # e(), abort(), requestInt/String(), headers + CSP, foutafhandeling
 │       ├── csrf.php         # CSRF-token genereren/valideren (POST-only)
-│       └── auth.php         # requireLogin(), requireRole(), sessie, wachtwoordbeleid
+│       ├── auth.php         # requireLogin(), requireRole(), sessie, wachtwoordbeleid
+│       └── navigation.php   # navItems() (het menu), navCounter(), workerStatus(), userInitials() (§3.4)
 ├── config/
 │   ├── app.php              # Beveiligings- en limietconstanten
 │   └── database.php         # Database-klasse: PDO-singleton, lichte migraties, default admin
@@ -166,6 +168,9 @@ De API (`htdocs/api/index.php`) volgt hetzelfde patroon, maar met `registerError
 | `cspNonce()` | Nonce voor inline `<script>` |
 | `csvSafe($v)` | Bescherming tegen formula injection in CSV-exports |
 | `appBaseUrl()`, `isHttps()` | Links opbouwen, ook achter een reverse proxy |
+| `navItems()`, `navItemsForRole()`, `navIsActive()`, `currentAction()` | Het menu van de layout (§3.4) |
+| `navCounter('pending')` | Teller bij Beoordelen (§3.4) |
+| `workerStatus()`, `userInitials()` | Status van de AI-worker, initialen in het gebruikersmenu |
 
 **Models** (`app/models/*.php`): klassen met **alleen statische methodes**. Elke methode haalt `Database::connect()` op (singleton-PDO), gebruikt prepared statements en geeft associatieve arrays terug (`PDO::FETCH_ASSOC`). Geen ORM, geen entiteit-objecten.
 
@@ -194,7 +199,7 @@ Gebruikersfouten die geen `abort()` rechtvaardigen gaan via een flash-bericht: `
 
 ```php
 <?php ob_start(); ?>
-<h2><?= e($title) ?></h2>
+<div class="page-header"><h1 class="h3 mb-1"><?= e($title) ?></h1></div>
 <form action="/?action=<?= e($action) ?>" method="post">
     <?= csrfInput() ?>
     ...
@@ -206,7 +211,7 @@ $breadcrumbs = ['Dashboard' => '/?action=docent_dashboard', $title => ''];
 require __DIR__ . '/../layouts/main.php';
 ```
 
-Variabelen die de layout gebruikt: `$content`, `$title`, `$breadcrumbs` (label ⇒ url, lege url = huidige pagina), `$hideHeaderFooter` (bv. tijdens de toetsafname) en `$isGuest`.
+Variabelen die de layout gebruikt: `$content`, `$title` (wordt `<titel> · APP_NAME`), `$breadcrumbs` (label ⇒ url, lege url = huidige pagina), `$hideHeaderFooter` (bv. tijdens de toetsafname), `$fullWidth` (bij `$hideHeaderFooter`: geen container, voor de landingspagina) en `$isGuest` (geen knop Inloggen). Zie §3.4 voor de standen van de layout.
 
 Voor aanmaken en bewerken wordt **één formulier** gedeeld (`*_form.php`). De controller zet `$action` (`exam_store` of `exam_update`), `$title` en het object (`null` bij nieuw).
 
@@ -215,7 +220,7 @@ Voor aanmaken en bewerken wordt **één formulier** gedeeld (`*_form.php`). De c
 - **`data-confirm="Vraag?"` op een `<a>`** toont een bevestigingsmodal en verstuurt de link daarna als **POST met CSRF-token**. Zo werken alle verwijder-, toggle- en dupliceerlinks. Een gewone GET naar een muterende action geeft 405.
 - `data-confirm` op een submitknop toont de modal vóór het verzenden.
 - `data-copy-target="<id>"` kopieert de waarde van een input naar het klembord. `data-select-on-click` selecteert de inhoud.
-- De CSP staat **geen inline event handlers** (`onclick=...`) toe en geen scripts zonder nonce. Externe scripts mogen alleen van `cdn.jsdelivr.net` of `cdnjs.cloudflare.com`, en altijd met `integrity` (SRI).
+- De CSP staat **geen inline event handlers** (`onclick=...`) toe en geen scripts zonder nonce. Externe scripts mogen alleen van `cdn.jsdelivr.net` of `cdnjs.cloudflare.com`, en altijd met `integrity` (SRI). Externe stylesheets (Bootstrap, Bootstrap Icons) komen van `cdn.jsdelivr.net`, ook met `integrity`.
 
 ### 3.3 Routes
 
@@ -223,7 +228,7 @@ Alle routes staan in de `switch` van [htdocs/index.php](htdocs/index.php). Per c
 
 | Controller | Actions | Minimale rol |
 |---|---|---|
-| `AuthController` | `login`, `do_login`, `logout`, `register`, `do_register`, `change_password`, `do_change_password` | publiek / ingelogd |
+| `AuthController` | `home` (standaard-action: `/` zonder action; openbare landingspagina, ingelogd door naar het eigen dashboard), `login`, `do_login`, `logout` (daarna naar `/`), `register`, `do_register`, `change_password`, `do_change_password` | publiek / ingelogd |
 | `DocentController` | `docent_dashboard`, `exam_*` (create/store/edit/update/delete/duplicate/public_link), `questions`, `question_*`, `exam_results`, `exam_comparison`, `exam_comparison_export`, `view_student_answers`, `delete_student_exam`, `update_guest_name`, `audit_log` | docent |
 | | `ai_results_reset_answer`, `ai_results_reset_attempt`, `ai_results_reset_exam` (POST; schrijfrecht op de toets: eigenaar of admin, §6.1) | docent |
 | | `grade_student_exam`, `save_teacher_feedback`, `pending_assessments`, `override_final_grade`, `clear_final_grade_override` (POST; `checkGradingPermission()`, §5.2) | beoordelaar |
@@ -244,13 +249,35 @@ Alle routes staan in de `switch` van [htdocs/index.php](htdocs/index.php). Per c
 
 > `StudentController` beheert ondanks de naam **alle** gebruikers, niet alleen studenten. De views daarvoor staan in `views/docent/student_*.php`.
 
+### 3.4 Layout, navigatie en huisstijl
+
+**Drie standen.** `layouts/main.php` kiest bovenin `$layoutMode`:
+
+| Stand | Voor wie | Opbouw |
+|---|---|---|
+| `staff` | docent, admin en beoordelaar (zonder `force_password_change`) | zijbalk links (`partials/sidebar.php`, onder de `lg`-breedte een Bootstrap `offcanvas-lg` met hamburger) en een witte topbalk (`partials/topbar.php`) met breadcrumbs, de status van de AI-worker (alleen docent en admin) en het gebruikersmenu. Geen footer: copyright en privacy staan onderaan de zijbalk. |
+| `simple` | student, uitgelogde bezoeker, wie eerst het wachtwoord moet wijzigen | witte topnavigatie (`partials/simple_nav.php`) met de student-items (geen items bij `force_password_change`), het gebruikersmenu of een knop Inloggen, breadcrumbs boven de inhoud en een footer van één regel. Nooit een workerstatus. |
+| `bare` | pagina's met `$hideHeaderFooter`: login, gastlogin, startlink, toets maken en de landingspagina | eigen opzet, alleen de kleuren en de scripts van de layout |
+
+Het gebruikersmenu (`partials/user_menu.php`) en de breadcrumbs (`partials/breadcrumbs.php`) worden door beide standen gedeeld. De bevestigingsmodal, het kopieerscript en de cookiemelding staan in alle standen onderaan de layout.
+
+**Navigatie op één plek.** `navItems()` in `app/helpers/navigation.php` is alleen data: per item `group`, `label`, `action`, `icon` (Bootstrap Icons), `roles`, `also` (onderliggende actions die het item actief maken) en optioneel `counter`. `navItemsForRole()` filtert en groepeert, `navIsActive()` bepaalt het actieve item op basis van `currentAction()` (zonder action: `home`). Het actieve item krijgt `aria-current="page"`.
+
+**Teller bij Beoordelen.** `navCounter('pending')` telt de ingeleverde pogingen waarvan nog niet alle antwoorden een docentscore of -niveau hebben, met **dezelfde query** als de lijst op `pending_assessments`: `StudentExam::pendingReviewQuery()` (privé) levert de SQL, `pendingReview()` de rijen (oudste eerst) en `pendingReviewCount()` een `COUNT(*)` daarover. Een docent telt alleen de eigen toetsen, beoordelaar en admin alles. De query draait alleen voor die drie rollen en hooguit één keer per verzoek (statische cache).
+
+**Landingspagina.** `/` zonder action is `case 'home'` (`AuthController::showHome()`): uitgelogd de openbare pagina `pages/home.php`, ingelogd een redirect naar het eigen dashboard. De pagina leest geen sessie- of databasegegevens en heeft geen formulier. Naam en contact komen uit `config/app.php`: `APP_NAME`, `CONTACT_NAME`, `CONTACT_URL` en `CONTACT_EMAIL` (leeg = niet tonen).
+
+**Huisstijl.** Alle kleuren staan als tokens op `:root` in `htdocs/style.css` (afgeleid van het logo: `--brand-900` marineblauw, `--brand-600` koningsblauw, `--success` groen, `--accent` oranje voor de teller, `--danger` alleen voor fouten en verwijderen, plus `--bg`, `--surface`, `--border`, `--text`, `--muted`, de zachte varianten `--soft-*` en de grafiekkleuren `--chart-*`). Views bevatten geen hexkleuren en geen `style=`-attributen. Bootstrap-variabelen (`--bs-primary`, knopvariabelen) verwijzen naar de tokens. Badges zijn zacht en hebben een vaste betekenis (`badge-soft-primary` AI aan, `-success` gepubliceerd/uitstekend, `-info` gedeeld/goed, `-warning` van collega/voldoende, `-danger` onvoldoende/fout, `-secondary` neutraal; `Grading::levelClass()` levert het achtervoegsel). Een paginakop is `.page-header` (titel `h1.h3`, subtitel, primaire actie rechts).
+
+**Iconen.** Bootstrap Icons 1.11.3 van jsdelivr (stylesheet met SRI; de fonts laden relatief van dezelfde CDN, binnen de bestaande `font-src`). Een icoon krijgt `aria-hidden="true"`; een knop met alleen een icoon krijgt een `aria-label` en een `title`. Geen emoji als iconen.
+
 ---
 
 ## 4. Rollen en autorisatie
 
 ### 4.1 Rollen
 
-Een gebruiker heeft precies één rol. De lijst staat op meerdere plekken die gelijk moeten blijven: de `CHECK`-constraint in `setup/schema.sql`, `validRoles()` in `auth.php`, de hiërarchie in `requireRole()`, de navigatie in `layouts/main.php` en de redirect-per-rol in `AuthController`, `StudentController` en `StudentExamController`.
+Een gebruiker heeft precies één rol. De lijst staat op meerdere plekken die gelijk moeten blijven: de `CHECK`-constraint in `setup/schema.sql`, `validRoles()` in `auth.php`, de hiërarchie in `requireRole()`, de navigatie (`navItems()` in `app/helpers/navigation.php`) en de redirect-per-rol in `AuthController`, `StudentController` en `StudentExamController`.
 
 | Rol | Komt door `requireRole(...)` voor | Startpagina na login |
 |---|---|---|
@@ -611,7 +638,7 @@ De volledige beschrijving van de integratie-API, voor ontwikkelaars van een exte
 
 **`grading_scale` in de worker-jobs (contract 2, additief):** een worker die het veld niet kent, werkt zoals vroeger; een worker die het kent maar het niet krijgt (een oude webapp), gaat uit van `points` (`job_scale()` in `process_ai_feedback.py`). Daarom moet de webapp eerst, met `LEVELS_AI_ENABLED = false`, dan de worker, en pas dan de vlag aan.
 
-**Heartbeat:** de layout toont "Parser Actief" als `last_api_ping.txt` jonger is dan 120 seconden. De ontwerppagina meldt dat de AI-ontwerpassistent niet actief is als `last_design_ping.txt` ouder is dan 120 seconden terwijl een ontwerp wacht. De pagina van een agentic beoordeling doet hetzelfde met `last_assessment_ping.txt` en `ASSESSMENT_WORKER_STALE_SECONDS`.
+**Heartbeat:** de topbalk toont docent en admin "AI-worker actief" als `last_api_ping.txt` jonger is dan 120 seconden (`workerStatus()` in `navigation.php`), anders "AI-worker reageert niet". Studenten, beoordelaars en bezoekers zien geen status. De ontwerppagina meldt dat de AI-ontwerpassistent niet actief is als `last_design_ping.txt` ouder is dan 120 seconden terwijl een ontwerp wacht. De pagina van een agentic beoordeling doet hetzelfde met `last_assessment_ping.txt` en `ASSESSMENT_WORKER_STALE_SECONDS`.
 
 ### 6.3 Contract: het tekstformaat van `ai_feedback`
 
@@ -887,7 +914,7 @@ Breekt een wijziging het API-contract, het feedbackformaat of de authenticatie, 
 2. **Controller:** voeg een publieke methode toe in de passende controller. Volg het patroon uit §3.2: CSRF (bij muteren), rol, object-autorisatie, invoer via `requestInt`/`requestString`, model, `AuditLog::log()` en een redirect.
 3. **Route:** voeg een `case 'mijn_actie':` toe aan de `switch` in `htdocs/index.php`.
 4. **View:** maak `app/views/<gebied>/<naam>.php` met `ob_start()` en de layout, gebruik `e()` voor alle output en `csrfInput()` in formulieren.
-5. **Navigatie:** link toevoegen in `layouts/main.php`, binnen het juiste rolblok.
+5. **Navigatie:** een item toevoegen aan `navItems()` in `app/helpers/navigation.php` (groep, label, action, icoon, rollen en de onderliggende actions in `also`). Een onderliggende pagina zonder eigen menu-item zet je in `also` van het bovenliggende item, zodat dat actief blijft.
 6. **Muterende links** krijgen `data-confirm`, of worden een formulier met `method="post"`.
 7. Werk [MANUAL.md](MANUAL.md) bij als het gebruikersgedrag verandert.
 
@@ -913,7 +940,7 @@ Breekt een wijziging het API-contract, het feedbackformaat of de authenticatie, 
 
 ### 8.5 Nieuwe rol
 
-Pas alle plekken uit §4.1 aan: de schema-`CHECK` (in SQLite betekent dat de tabel opnieuw opbouwen in `migrate()`), `validRoles()`, `requireRole()`, de navigatie, de drie redirect-per-rol-functies en de rolkeuze in `student_form.php`.
+Pas alle plekken uit §4.1 aan: de schema-`CHECK` (in SQLite betekent dat de tabel opnieuw opbouwen in `migrate()`), `validRoles()`, `requireRole()`, de navigatie (`navItems()` en de keuze van de layoutstand in `layouts/main.php`), de drie redirect-per-rol-functies en de rolkeuze in `student_form.php`.
 
 ---
 
@@ -972,7 +999,7 @@ De opzet is herbruikbaar voor elke kleine, rolgebaseerde webapplicatie met een a
 | Authenticatie + gebruikersbeheer | `AuthController`, `StudentController` (hernoem naar `UserController`), `User`-model, `views/auth/` | Rollen en startpagina's |
 | Audit log + rate limiting | `AuditLog`-model, `audit_log`-tabel en -view | Eigen action-namen |
 | API-keys voor machine-tot-machine | `ApiKey`-model, `ApiKeyController`, `api_keys`-view, `ApiController::verifyApiKey()` | Ongewijzigd |
-| Layout + client-helpers | `views/layouts/main.php`, `htdocs/style.css` | Navigatie, huisstijl (`--brand-*`-variabelen), logo |
+| Layout + client-helpers | `views/layouts/main.php`, `views/layouts/partials/`, `app/helpers/navigation.php`, `htdocs/style.css` | Menu in `navItems()`, huisstijl (tokens in `:root`), logo, `APP_NAME`/`CONTACT_*` |
 | Achtergrondworker | `htdocs/api/index.php`, `ApiController`, `bin/process_ai_feedback.py` (patroon: poll → verwerk → terugschrijven, `config.py` + sample, heartbeat) | Eigen "wachtrij"-query en verwerking |
 | Lokale testomgeving | `docker/` | Image-naam, poort |
 

@@ -1012,6 +1012,46 @@ zonder toegang krijgt 403 bij override_final_grade).
 
 
 -------------------------------------------------------------------------------
+WIJZIGING 2026-10-04 (branch dev-ui-redesign): nieuwe webinterface
+-------------------------------------------------------------------------------
+Geen nieuwe bevindingen. Alleen de webapp: geen schema, geen worker, geen
+integratie-API. Wat er is gedaan om de bestaande maatregelen te behouden:
+
+U-01  Openbare landingspagina (/ zonder action, case 'home',
+      AuthController::showHome()). Leest geen sessie- of databasegegevens (wie
+      ingelogd is, krijgt alleen een redirect naar het eigen dashboard) en heeft
+      geen formulier. Alle tekst is vaste HTML of gaat via e(); de contactlink
+      komt uit de constanten CONTACT_URL/CONTACT_EMAIL en opent met
+      rel="noopener". Uitloggen stuurt nu door naar /. Gast- en startlinks
+      (?action=guest, ?action=integration_launch) zijn ongewijzigd.
+U-02  Nieuwe externe stylesheet: Bootstrap Icons 1.11.3 van cdn.jsdelivr.net, met
+      integrity (SRI) en crossorigin. Valt binnen de bestaande CSP (style-src en
+      font-src staan jsdelivr al toe); de CSP is niet gewijzigd. Geen nieuwe
+      externe scripts; de dropdowns en de offcanvas-zijbalk gebruiken de
+      bestaande Bootstrap-bundle met data-bs-*-attributen (geen inline
+      handlers). Inline styles in views zijn vervangen door klassen.
+U-03  De teller bij Beoordelen (navCounter('pending')) gebruikt dezelfde query en
+      dezelfde autorisatie als pending_assessments:
+      StudentExam::pendingReviewQuery() filtert bij de rol docent op
+      e.docent_id = de ingelogde gebruiker (alleen eigen toetsen); beoordelaar
+      en admin zien alles. De query draait alleen voor die drie rollen, met een
+      prepared statement, en de teller toont alleen een aantal.
+U-04  De status van de AI-worker (vroeger "Parser Actief/Inactief" voor iedereen,
+      ook uitgelogd) staat nu alleen in de topbalk van docent en admin. De
+      verplaatste muterende acties (verwijderen, dupliceren, testen en de
+      gastlink in de dropdown van het docentdashboard) houden data-confirm en
+      worden door de layout als POST met CSRF-token verstuurd; een GET geeft
+      nog steeds 405.
+U-05  Kleine opschoning onderweg: guest_login.php leest de token via
+      requestString() in plaats van $_GET rechtstreeks, en in de aangeraakte
+      views is htmlspecialchars() vervangen door e().
+
+Verificatie: php -l, een rooktest in Docker met een nieuwe en een bestaande
+database voor elke rol (geen CSP-meldingen in de console, teller gelijk aan de
+lijst, GET op exam_delete geeft 405, / uitgelogd de landingspagina en ingelogd
+een redirect).
+
+-------------------------------------------------------------------------------
 VOORGESTELDE VOLGORDE VOOR DE VOLGENDE RONDE
 -------------------------------------------------------------------------------
 1. S-01, S-02, S-06  (integriteit van toetsresultaten; kleine, gerichte fixes)

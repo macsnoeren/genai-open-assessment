@@ -16,7 +16,7 @@ De webapplicatie (map `htdocs/`) draait op Apache met PHP en gebruikt een lokale
 ```bash
 ./docker/start.sh
 ```
-De applicatie is daarna bereikbaar op [http://localhost:8080](http://localhost:8080), met een standaard admin-account (`admin@school.nl` / `admin123`).
+De applicatie is daarna bereikbaar op [http://localhost:8080](http://localhost:8080). Daar staat een openbare landingspagina; via **Inloggen** log je in met het standaard admin-account (`admin@school.nl` / `admin123`). Docenten, beoordelaars en admins werken met een menu in een zijbalk, studenten met een eenvoudige topnavigatie (zie [MANUAL.md](MANUAL.md)).
 
 Zie [docker/README.md](docker/README.md) voor alle details (vereisten, handmatige commando's, stoppen, beperkingen).
 

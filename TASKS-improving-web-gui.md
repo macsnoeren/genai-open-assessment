@@ -275,11 +275,11 @@ Per stap één bestand of één soort wijziging, zodat je makkelijk kunt vergeli
 
 ## Fase 8: Documentatie
 
-- [ ] **8.1 `CLAUDE.md`:** contract 5 noemt nu "de navigatie in `layouts/main.php`"; maak daar `navItems()` in `app/helpers/navigation.php` van. Voeg onder *Architectuur in het kort* toe dat `/` de landingspagina is en dat de layout drie standen heeft (`staff`, `simple`, `bare`). Voeg aan *Verplichte patronen* toe: kleuren alleen via de tokens in `style.css`, iconen via Bootstrap Icons met `aria-hidden` en een `aria-label` op de knop.
-- [ ] **8.2 `ARCHITECTURE.md`:** de action `home`, de helper `navigation.php` (inclusief `navCounter()` en de query in `StudentExam::pendingReview*()`), de partials in `layouts/partials/`, de stylesheet van Bootstrap Icons als nieuwe externe bron, en de tokens.
-- [ ] **8.3 `MANUAL.md`:** §3 (de landingspagina, inloggen via de knop), §5 (de zijbalk, de teller bij Beoordelen, het gebruikersmenu, "Mijn testpogingen") en de AI-workerstatus in de topbalk.
-- [ ] **8.4 `docs/security-issues.txt`:** de openbare landingspagina (geen sessie- of databasegegevens, geen formulier), de nieuwe externe stylesheet met SRI binnen de bestaande CSP, en dat de teller dezelfde autorisatie volgt als `pending_assessments` (docent alleen eigen toetsen).
-- [ ] **8.5 `README.md`:** werk een eventuele beschrijving of schermafbeelding van de interface bij.
+- [x] **8.1 `CLAUDE.md`:** contract 5 noemt nu "de navigatie in `layouts/main.php`"; maak daar `navItems()` in `app/helpers/navigation.php` van. Voeg onder *Architectuur in het kort* toe dat `/` de landingspagina is en dat de layout drie standen heeft (`staff`, `simple`, `bare`). Voeg aan *Verplichte patronen* toe: kleuren alleen via de tokens in `style.css`, iconen via Bootstrap Icons met `aria-hidden` en een `aria-label` op de knop.
+- [x] **8.2 `ARCHITECTURE.md`:** de action `home`, de helper `navigation.php` (inclusief `navCounter()` en de query in `StudentExam::pendingReview*()`), de partials in `layouts/partials/`, de stylesheet van Bootstrap Icons als nieuwe externe bron, en de tokens.
+- [x] **8.3 `MANUAL.md`:** §3 (de landingspagina, inloggen via de knop), §5 (de zijbalk, de teller bij Beoordelen, het gebruikersmenu, "Mijn testpogingen") en de AI-workerstatus in de topbalk.
+- [x] **8.4 `docs/security-issues.txt`:** de openbare landingspagina (geen sessie- of databasegegevens, geen formulier), de nieuwe externe stylesheet met SRI binnen de bestaande CSP, en dat de teller dezelfde autorisatie volgt als `pending_assessments` (docent alleen eigen toetsen).
+- [x] **8.5 `README.md`:** werk een eventuele beschrijving of schermafbeelding van de interface bij.
 
 ## Fase 9: Afronding
 

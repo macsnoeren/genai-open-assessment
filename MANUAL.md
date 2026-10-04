@@ -36,8 +36,8 @@ Zelfregistratie is standaard uitgeschakeld: alleen Admins maken nieuwe gebruiker
 
 Wachtwoorden moeten minimaal 12 tekens lang zijn en minimaal één letter en één cijfer bevatten. Wie het eigen wachtwoord wijzigt via het profiel, moet het huidige wachtwoord opgeven. Na 30 minuten inactiviteit word je automatisch uitgelogd.
 
-### Inloggen
-Ga naar de startpagina en voer je e-mailadres en wachtwoord in.
+### De startpagina en inloggen
+Op de startpagina (`/`) lees je waarvoor de applicatie is, hoe het werkt en met wie je contact opneemt. Klik rechtsboven of in het blauwe vlak op **Inloggen** en voer je e-mailadres en wachtwoord in. Staat zelfregistratie aan, dan zie je ook **Account aanmaken**. Ben je al ingelogd, dan ga je vanaf de startpagina direct naar je eigen dashboard. Na **Uitloggen** kom je weer op de startpagina.
 *   **Wachtwoord vergeten?** Vraag je beheerder om je wachtwoord te resetten.
 *   **Eerste keer inloggen?** Als de beheerder dit heeft ingesteld, moet je direct na het inloggen een nieuw wachtwoord kiezen.
 
@@ -46,7 +46,7 @@ Ga naar de startpagina en voer je e-mailadres en wachtwoord in.
 ## 4. Voor Studenten
 
 ### Dashboard
-Na het inloggen zie je het student dashboard. Hier staan:
+Na het inloggen zie je bovenaan een witte balk met **Dashboard** en **Mijn toetsen** (op een telefoon onder de menuknop ☰) en rechts het gebruikersmenu met je initialen, met **Profiel** en **Uitloggen**. Op het dashboard staan:
 1.  **Beschikbare toetsen**: Toetsen die open staan om te maken.
 2.  **Mijn gemaakte toetsen**: Een overzicht van toetsen waar je aan begonnen bent of die je hebt ingeleverd.
 
@@ -66,12 +66,27 @@ Bij een toets die met **niveaus** wordt beoordeeld, zie je per vraag het niveau 
 
 ## 5. Voor Docenten
 
+### Navigatie
+Het menu staat in een donkerblauwe **zijbalk** links, in groepen:
+*   **Toetsen**: *Dashboard* (je toetsen), *Beoordelen* en *Mijn testpogingen* (de toetsen die je zelf als test hebt gemaakt; heette eerder "Mijn Toetsen").
+*   **Inrichting**: *Puntenschema's* (en voor de admin *Prompts*).
+*   **Beheer**: *Audit log* (en voor de admin *Gebruikers*, *Koppelingen* en *API-keys*).
+
+Een **beoordelaar** ziet in de zijbalk alleen *Beoordelen*.
+
+Het item van de pagina waar je bent, is gemarkeerd, ook op onderliggende pagina's (bijvoorbeeld de vragen of resultaten van een toets vallen onder *Dashboard*). Op een smal scherm of telefoon klap je de zijbalk open met de menuknop ☰ linksboven.
+
+Het oranje getal bij **Beoordelen** is het aantal ingeleverde pogingen dat nog op een beoordeling wacht, net als het aantal ongelezen berichten bij een inbox. Het telt dezelfde pogingen als de lijst op de pagina Beoordelen: als docent alleen die van je eigen toetsen, als beoordelaar of admin alle. Bij 0 staat er geen getal.
+
+Bovenaan staat een witte balk met het kruimelpad (waar je bent; op een telefoon alleen de huidige pagina), de status van de AI-worker en rechts het **gebruikersmenu** (je initialen, naam en rol) met **Profiel** en **Uitloggen**. De status is een bolletje: groen *AI-worker actief* als de AI-beoordeling de afgelopen twee minuten contact heeft gehad, rood *AI-worker reageert niet* als dat niet zo is (op een smal scherm alleen het bolletje; de tekst staat in de tooltip). Alleen docenten en admins zien deze status.
+
 ### Dashboard
-Op het dashboard zie je een overzicht van al je toetsen, op alfabetische volgorde van de naam.
+Op het dashboard (**Toetsen**) zie je een overzicht van al je toetsen, op alfabetische volgorde van de naam.
 *   **Nieuwe toets**: Klik op de knop om een toets aan te maken.
 *   **Filteren**: Boven de lijst zoek je op (een deel van) de naam en kies je de eigenaar (alle toetsen, mijn toetsen, van collega's) en de status (gepubliceerd, niet gepubliceerd, AI aan, AI uit, gedeeld). Klik op **Filteren**. Het filter blijft staan als je een toets opent en terugkeert naar het dashboard (tot je uitlogt); met **Wis filter** zie je weer alle toetsen.
-*   **Link kopiëren**: Klik op het klembord-icoontje naast een toets om de directe link voor studenten te kopiëren.
-*   **Status**: Je ziet direct of AI-beoordeling aan of uit staat voor een toets.
+*   **Gastlink**: In de kolom *Gastlink* staat de directe link voor studenten. Met de knoppen ernaast kopieer je de link, maak je een nieuwe link (de oude werkt dan niet meer) of zet je de gastlink uit. Staat de gastlink uit, dan zet je hem aan met **Gastlink aanzetten**.
+*   **Acties**: **Vragen** opent de vragen van de toets, het grafiekicoon de **resultaten**. Onder de knop met de drie puntjes staan *Vergelijk AI en docent*, *Testen*, *Dupliceren*, *Bewerken* en *Verwijderen* (de laatste drie alleen bij je eigen toetsen).
+*   **Status**: De labels achter de titel tonen of AI-beoordeling aan of uit staat en of de toets gedeeld, gepubliceerd of van een collega is.
 
 ![Screenshot van docent dashboard](images/docent_dashboard.png)
 
@@ -215,7 +230,7 @@ Hier zie je hoe goed de AI presteert ten opzichte van jouw beoordeling.
 
 ## 6. Voor Beheerders (Admin)
 
-Als admin heb je toegang tot extra menu-opties in de navigatiebalk.
+Als admin zie je in de zijbalk extra items: *Prompts* (onder Inrichting) en *Gebruikers*, *Koppelingen* en *API-keys* (onder Beheer).
 
 ### Gebruikersbeheer
 Hier kun je gebruikers aanmaken, bewerken en verwijderen.
