@@ -283,8 +283,8 @@ Per stap één bestand of één soort wijziging, zodat je makkelijk kunt vergeli
 
 ## Fase 9: Afronding
 
-- [ ] **9.1** PHP-syntaxcheck slaagt (zie CLAUDE.md). De Python-syntaxcheck en de drie mocktestsuites slagen nog (de worker is niet gewijzigd, maar de merge-checklist vraagt het).
-- [ ] **9.2 Rooktest met een nieuwe database** (`docker compose down -v`), op desktop **en** op 375px:
+- [x] **9.1** PHP-syntaxcheck slaagt (zie CLAUDE.md). De Python-syntaxcheck en de drie mocktestsuites slagen nog (de worker is niet gewijzigd, maar de merge-checklist vraagt het).
+- [x] **9.2 Rooktest met een nieuwe database** (`docker compose down -v`), op desktop **en** op 375px:
 
   | Wie | Controleer |
   |---|---|
@@ -297,11 +297,11 @@ Per stap één bestand of één soort wijziging, zodat je makkelijk kunt vergeli
   | Deelnemer via startlink | startlink, toets maken, terugkeer-URL werkt nog |
   | Wachtwoord moet gewijzigd | geen menu-items, alleen Uitloggen |
 
-- [ ] **9.3 Rooktest met een bestaande database:** de app werkt met de data van vóór deze branch (er is geen schemawijziging, dus dit is een korte controle).
-- [ ] **9.4** Controleer voor een muterende actie die je verplaatst hebt (bijvoorbeeld verwijderen in de dashboard-dropdown) dat een GET nog steeds 405 geeft.
-- [ ] **9.5** Open de console van de browser op elke pagina uit 9.2: geen CSP-meldingen.
+- [x] **9.3 Rooktest met een bestaande database:** de app werkt met de data van vóór deze branch (er is geen schemawijziging, dus dit is een korte controle).
+- [x] **9.4** Controleer voor een muterende actie die je verplaatst hebt (bijvoorbeeld verwijderen in de dashboard-dropdown) dat een GET nog steeds 405 geeft.
+- [x] **9.5** Open de console van de browser op elke pagina uit 9.2: geen CSP-meldingen.
 - [ ] **9.6** Vergelijk met de "voor"-screenshots uit 0.4 en zet een paar "na"-screenshots in de PR-beschrijving.
-- [ ] **9.7** Loop de [merge-checklist in CLAUDE.md](CLAUDE.md#checklist-voor-een-merge-naar-main) na.
+- [x] **9.7** Loop de [merge-checklist in CLAUDE.md](CLAUDE.md#checklist-voor-een-merge-naar-main) na.
 - [ ] **9.8** De PR-beschrijving vermeldt dat alleen de webapp wijzigt: geen schema, geen worker, geen integratie-API, dus geen gecoördineerde uitrol en niets aan te passen op de workermachine.
 
 ---

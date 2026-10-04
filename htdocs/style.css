@@ -203,6 +203,26 @@ body {
     height: 56px;
 }
 
+/* Op een telefoon blijft de toetsbalk één regel hoog (anders valt de inhoud
+   onder de balk): de naam vervalt, en op heel smalle schermen ook het logo. */
+@media (max-width: 575.98px) {
+    .exam-topbar-inner {
+        flex-wrap: nowrap;
+    }
+    .exam-topbar-name {
+        display: none;
+    }
+    .exam-topbar-actions .btn {
+        white-space: nowrap;
+    }
+}
+
+@media (max-width: 359.98px) {
+    .exam-topbar-logo {
+        display: none;
+    }
+}
+
 /* Breadcrumbs: gedempte links */
 .breadcrumb-item a {
     color: var(--muted);
