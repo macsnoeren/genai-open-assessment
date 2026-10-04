@@ -9,8 +9,12 @@
  */
 ob_start(); ?>
 
-<h2>Openstaande beoordelingen</h2>
-<p>Hieronder staan de toetsen die zijn ingeleverd maar nog niet volledig zijn beoordeeld.</p>
+<div class="page-header">
+    <div>
+        <h1 class="h3 mb-1">Beoordelen</h1>
+        <p class="text-muted mb-0">Ingeleverde toetsen die nog niet volledig zijn beoordeeld.</p>
+    </div>
+</div>
 
 <div class="card">
 <div class="table-responsive">
@@ -30,9 +34,9 @@ ob_start(); ?>
         <?php else: ?>
             <?php foreach ($pendingExams as $exam): ?>
             <tr>
-                <td><?= htmlspecialchars($exam['student_name']) ?></td>
-                <td><?= htmlspecialchars($exam['exam_title']) ?></td>
-                <td><?= htmlspecialchars($exam['completed_at']) ?></td>
+                <td><?= e($exam['student_name']) ?></td>
+                <td><?= e($exam['exam_title']) ?></td>
+                <td><?= e($exam['completed_at']) ?></td>
                 <td><?= (int)$exam['graded_answers'] ?> / <?= (int)$exam['total_answers'] ?> beoordeeld</td>
                 <td class="text-end">
                     <a href="/?action=grade_student_exam&student_exam_id=<?= $exam['id'] ?>" class="btn btn-sm btn-primary">Beoordelen</a>
@@ -47,10 +51,7 @@ ob_start(); ?>
 
 <?php
 $content = ob_get_clean();
-$title = "Docent beoordelingen";
-$breadcrumbs = [
-    'Dashboard' => '/?action=docent_dashboard',
-    'Openstaande beoordelingen' => ''
-];
+$title = "Beoordelen";
+$breadcrumbs = ['Beoordelen' => null];
 require __DIR__ . '/../layouts/main.php';
 ?>

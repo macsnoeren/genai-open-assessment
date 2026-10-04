@@ -10,11 +10,11 @@
 ob_start();
 ?>
 
-<div class="row justify-content-center align-items-center" style="min-height: 60vh;">
-    <div class="col-md-6 col-lg-5">
-        <div class="card shadow">
+<div class="auth-wrapper auth-wrapper-inline">
+    <div class="auth-card auth-card-wide">
+        <div class="card">
             <div class="card-body p-4">
-                <h3 class="card-title text-center mb-4">Wachtwoord Wijzigen</h3>
+                <h1 class="h4 card-title text-center mb-4">Wachtwoord wijzigen</h1>
                 
                 <div class="alert alert-warning">
                     Je moet je wachtwoord wijzigen voordat je verder kunt gaan.
@@ -30,16 +30,16 @@ ob_start();
                 <form method="POST" action="index.php?action=do_change_password">
                     <?= csrfInput() ?>
                     <div class="mb-3">
-                        <label class="form-label">Nieuw Wachtwoord</label>
-                        <input type="password" name="password" class="form-control" required autofocus minlength="<?= (int)PASSWORD_MIN_LENGTH ?>" autocomplete="new-password">
+                        <label class="form-label" for="new-password">Nieuw wachtwoord</label>
+                        <input type="password" name="password" id="new-password" class="form-control" required autofocus minlength="<?= (int)PASSWORD_MIN_LENGTH ?>" autocomplete="new-password">
                         <div class="form-text">Minimaal <?= (int)PASSWORD_MIN_LENGTH ?> tekens, met minimaal één letter en één cijfer.</div>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Bevestig Wachtwoord</label>
-                        <input type="password" name="confirm_password" class="form-control" required minlength="<?= (int)PASSWORD_MIN_LENGTH ?>" autocomplete="new-password">
+                        <label class="form-label" for="confirm-password">Bevestig wachtwoord</label>
+                        <input type="password" name="confirm_password" id="confirm-password" class="form-control" required minlength="<?= (int)PASSWORD_MIN_LENGTH ?>" autocomplete="new-password">
                     </div>
                     <div class="d-grid">
-                        <button type="submit" class="btn btn-primary">Wachtwoord Opslaan</button>
+                        <button type="submit" class="btn btn-primary">Wachtwoord opslaan</button>
                     </div>
                 </form>
             </div>
@@ -49,6 +49,7 @@ ob_start();
 
 <?php
 $content = ob_get_clean();
-$title = "Wachtwoord Wijzigen";
+$title = "Wachtwoord wijzigen";
+$breadcrumbs = ['Wachtwoord wijzigen' => null];
 require __DIR__ . '/../layouts/main.php';
 ?>

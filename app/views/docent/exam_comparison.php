@@ -23,12 +23,15 @@ if ($isLevels) {
 ob_start();
 ?>
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2 class="mb-0">AI Model Vergelijking: <?= htmlspecialchars($exam['title']) ?></h2>
+<div class="page-header">
+    <div>
+        <h1 class="h3 mb-1">Vergelijk AI en docent</h1>
+        <p class="text-muted mb-0"><?= e($exam['title']) ?></p>
+    </div>
     <?php if (!empty($comparisonData)): ?>
-        <div>
-            <button type="button" id="exportPdfBtn" class="btn btn-danger me-2">Export PDF</button>
-            <a href="/?action=exam_comparison_export&exam_id=<?= (int)$exam['id'] ?>" class="btn btn-success">Export CSV</a>
+        <div class="page-header-actions">
+            <button type="button" id="exportPdfBtn" class="btn btn-outline-secondary"><i class="bi bi-file-earmark-pdf me-1" aria-hidden="true"></i>Export PDF</button>
+            <a href="/?action=exam_comparison_export&amp;exam_id=<?= (int)$exam['id'] ?>" class="btn btn-outline-secondary"><i class="bi bi-filetype-csv me-1" aria-hidden="true"></i>Export CSV</a>
         </div>
     <?php endif; ?>
 </div>
@@ -41,12 +44,12 @@ ob_start();
 <?php else: ?>
 
     <!-- Container voor PDF generatie -->
-    <div id="report-content" class="bg-white p-4 mx-auto" style="max-width: 800px; box-shadow: 0 0 10px rgba(0,0,0,0.1);">
+    <div id="report-content" class="report-sheet">
         
     <!-- Titelblad / Info -->
     <div class="mb-5">
         <h1 class="display-6">Rapportage Validatie AI-Beoordeling</h1>
-        <p class="text-muted">Gegenereerd op: <?= date('d-m-Y H:i') ?> op basis van toets <?= htmlspecialchars($exam['title']) ?></p>
+        <p class="text-muted">Gegenereerd op: <?= date('d-m-Y H:i') ?> op basis van toets <?= e($exam['title']) ?></p>
         <p>Dit rapport geeft een statistische vergelijking weer tussen de beoordeling van de docent en diverse AI-modellen. De analyses tonen de betrouwbaarheid, correlatie en eventuele afwijkingen van de modellen ten opzichte van de menselijke beoordelaar.</p>
     </div>
 
@@ -56,7 +59,7 @@ ob_start();
             Correlatie Visualisatie (Docent vs AI<?= $isLevels ? ', niveaus' : '' ?>)
         </div>
         <div class="card-body">
-            <div style="height: 300px;">
+            <div class="chart-box">
                 <canvas id="correlationChart"></canvas>
             </div>
             <p class="text-muted small mt-2 text-center">
@@ -68,7 +71,7 @@ ob_start();
     <?php if ($isLevels): ?>
     <!-- Kruistabellen per model (niveaus) -->
     <?php foreach ($levelComparison['crosstabs'] as $source => $tab): ?>
-    <div class="card mb-4" style="break-inside: avoid;">
+    <div class="card mb-4 avoid-break">
         <div class="card-header bg-light fw-bold">
             Docentniveau tegen <?= e($source) ?> (<?= (int)$tab['n'] ?> antwoorden)
         </div>
@@ -159,9 +162,9 @@ ob_start();
                 <table class="table table-striped table-hover table-sm mb-0">
                     <thead class="table-light">
                         <tr>
-                            <th style="width: 15%;">Student</th>
-                            <th style="width: 35%;">Vraag</th>
-                            <th class="text-center table-primary" style="width: 10%;">Docent</th>
+                            <th class="col-w-15">Student</th>
+                            <th class="col-w-35">Vraag</th>
+                            <th class="text-center table-primary col-w-10">Docent</th>
                             <?php foreach (array_keys($modelsFound) as $model): ?>
                                 <th class="text-center"><?= e($model) ?></th>
                             <?php endforeach; ?>
@@ -213,13 +216,13 @@ ob_start();
                     <tbody>
                         <?php foreach ($stats as $name => $data): ?>
                         <tr <?= $name === 'Docent' ? 'class="table-primary"' : '' ?>>
-                            <td class="fw-bold"><?= htmlspecialchars($name) ?></td>
+                            <td class="fw-bold"><?= e($name) ?></td>
                             <td><?= isset($data['mean']) ? number_format($data['mean'], 2) : '-' ?></td>
                             <td><?= isset($data['std_dev']) ? number_format($data['std_dev'], 2) : '-' ?></td>
                             <td>
                                 <?php if ($name !== 'Docent' && isset($data['mae'])): ?>
                                     <?= number_format($data['mae'], 2) ?>
-                                    <small class="text-muted d-block" style="font-size: 0.75em;">(lager is beter)</small>
+                                    <small class="text-muted d-block text-xs">(lager is beter)</small>
                                 <?php else: ?>
                                     -
                                 <?php endif; ?>
@@ -227,7 +230,7 @@ ob_start();
                             <td>
                                 <?php if ($name !== 'Docent' && isset($data['rmse'])): ?>
                                     <?= number_format($data['rmse'], 2) ?>
-                                    <small class="text-muted d-block" style="font-size: 0.75em;">(lager is beter)</small>
+                                    <small class="text-muted d-block text-xs">(lager is beter)</small>
                                 <?php else: ?>
                                     -
                                 <?php endif; ?>
@@ -235,7 +238,7 @@ ob_start();
                             <td>
                                 <?php if ($name !== 'Docent' && isset($data['correlation'])): ?>
                                     <?= number_format($data['correlation'], 2) ?>
-                                    <small class="text-muted d-block" style="font-size: 0.75em;">(dichter bij 1 is beter)</small>
+                                    <small class="text-muted d-block text-xs">(dichter bij 1 is beter)</small>
                                 <?php else: ?>
                                     -
                                 <?php endif; ?>
@@ -261,14 +264,14 @@ ob_start();
                             <th>Student</th>
                             <th class="text-center table-primary">Docent</th>
                             <?php foreach (array_keys($modelsFound) as $model): ?>
-                                <th class="text-center"><?= htmlspecialchars($model) ?></th>
+                                <th class="text-center"><?= e($model) ?></th>
                             <?php endforeach; ?>
                         </tr>
                     </thead>
                     <tbody>
                         <?php foreach ($studentAverages as $student => $scores): ?>
                         <tr>
-                            <td><?= htmlspecialchars($student) ?></td>
+                            <td><?= e($student) ?></td>
                             <td class="text-center table-primary fw-bold">
                                 <?= isset($scores['Docent']) ? number_format($scores['Docent'], 1) : '-' ?>
                             </td>
@@ -306,19 +309,19 @@ ob_start();
                 <table class="table table-striped table-hover table-sm mb-0">
                     <thead class="table-light">
                         <tr>
-                            <th style="width: 15%;">Student</th>
-                            <th style="width: 35%;">Vraag</th>
-                            <th class="text-center table-primary" style="width: 10%;">Docent</th>
+                            <th class="col-w-15">Student</th>
+                            <th class="col-w-35">Vraag</th>
+                            <th class="text-center table-primary col-w-10">Docent</th>
                             <?php foreach (array_keys($modelsFound) as $model): ?>
-                                <th class="text-center"><?= htmlspecialchars($model) ?></th>
+                                <th class="text-center"><?= e($model) ?></th>
                             <?php endforeach; ?>
                         </tr>
                     </thead>
                     <tbody>
                         <?php foreach ($comparisonData as $row): ?>
                         <tr>
-                            <td><?= htmlspecialchars($row['student']) ?></td>
-                            <td><small><?= htmlspecialchars(substr($row['question'], 0, 100)) ?>...</small></td>
+                            <td><?= e($row['student']) ?></td>
+                            <td><small><?= e(substr($row['question'], 0, 100)) ?>...</small></td>
                             <td class="text-center table-primary fw-bold"><?= (int)$row['teacher_score'] ?></td>
                             <?php foreach (array_keys($modelsFound) as $model): ?>
                                 <td class="text-center">
@@ -349,13 +352,13 @@ ob_start();
         <h4>Toets beschrijving</h4>
         <div class="card mb-4">
             <div class="card-body">
-                <h5 class="card-title"><?= htmlspecialchars($exam['title']) ?></h5>
-                <p class="card-text"><?= nl2br(htmlspecialchars($exam['description'])) ?></p>
+                <h5 class="card-title"><?= e($exam['title']) ?></h5>
+                <p class="card-text"><?= nl2br(e($exam['description'])) ?></p>
                 
                 <?php if (isset($prompt) && $prompt): ?>
                     <hr>
-                    <h6 class="card-subtitle mb-2 text-muted">Gebruikte AI Prompt: <?= htmlspecialchars($prompt['title']) ?></h6>
-                    <div class="p-3 bg-light border rounded font-monospace small" style="white-space: pre-wrap;"><?= htmlspecialchars($prompt['prompt_text']) ?></div>
+                    <h6 class="card-subtitle mb-2 text-muted">Gebruikte AI Prompt: <?= e($prompt['title']) ?></h6>
+                    <div class="p-3 bg-light border rounded font-monospace small text-pre-wrap"><?= e($prompt['prompt_text']) ?></div>
                 <?php endif; ?>
             </div>
         </div>
@@ -367,13 +370,13 @@ ob_start();
         <p class="text-muted small">Overzicht van de vragen in deze toets en de criteria waarop de AI is geïnstrueerd te beoordelen.</p>
         
         <?php foreach ($questions as $index => $q): ?>
-        <div class="card mb-3" style="break-inside: avoid;">
+        <div class="card mb-3 avoid-break">
             <div class="card-header bg-light">
                 <strong>Vraag <?= $index + 1 ?></strong>
             </div>
             <div class="card-body">
-                <p class="mb-2"><strong>Vraagstelling:</strong><br><?= nl2br(htmlspecialchars($q['question_text'])) ?></p>
-                <div class="text-muted small mt-2"><strong>Criteria:</strong><br><?= nl2br(htmlspecialchars($q['criteria'])) ?></div>
+                <p class="mb-2"><strong>Vraagstelling:</strong><br><?= nl2br(e($q['question_text'])) ?></p>
+                <div class="text-muted small mt-2"><strong>Criteria:</strong><br><?= nl2br(e($q['criteria'])) ?></div>
             </div>
         </div>
         <?php endforeach; ?>
@@ -400,8 +403,12 @@ ob_start();
             };
             const modelsFound = <?= json_encode(array_keys($modelsFound), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
             
+            // Kleuren uit de tokens in style.css (--chart-1 ... --chart-7, --chart-reference)
+            const rootStyle = getComputedStyle(document.documentElement);
+            const colors = [1, 2, 3, 4, 5, 6, 7].map(i => rootStyle.getPropertyValue('--chart-' + i).trim());
+            const referenceColor = rootStyle.getPropertyValue('--chart-reference').trim();
+
             const datasets = modelsFound.map((model, index) => {
-                const colors = ['#0d6efd', '#dc3545', '#198754', '#ffc107', '#0dcaf0', '#6610f2', '#fd7e14'];
                 const color = colors[index % colors.length];
                 
                 return {
@@ -433,7 +440,7 @@ ob_start();
                 label: 'Perfecte match',
                 data: [{x: 0, y: 0}, {x: chartMax, y: chartMax}],
                 type: 'line',
-                borderColor: '#adb5bd',
+                borderColor: referenceColor,
                 borderDash: [5, 5],
                 pointRadius: 0,
                 fill: false,
@@ -519,10 +526,11 @@ ob_start();
 
 <?php
 $content = ob_get_clean();
-$title = "Vergelijk Resultaten";
+$title = "Vergelijk AI en docent";
 $breadcrumbs = [
-    'Dashboard' => '/?action=docent_dashboard',
-    'Vergelijk' => ''
+    'Toetsen' => '/?action=docent_dashboard',
+    $exam['title'] => '/?action=exam_results&exam_id=' . (int)$exam['id'],
+    'Vergelijk AI en docent' => ''
 ];
 require __DIR__ . '/../layouts/main.php';
 ?>

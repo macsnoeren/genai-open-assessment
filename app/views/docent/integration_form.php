@@ -75,7 +75,7 @@ $currentConfidence = $integration['min_confidence'] ?? 'hoog';
                        id="exam<?= (int)$exam['id'] ?>" <?= $linked ? 'checked' : '' ?> <?= (!$aiOn && !$linked) ? 'disabled' : '' ?>>
                 <label class="form-check-label" for="exam<?= (int)$exam['id'] ?>"><?= e($exam['title']) ?></label>
                 <?php if (!$aiOn && $linked): ?>
-                    <span class="badge bg-warning text-dark ms-1">AI-beoordeling staat uit</span>
+                    <span class="badge badge-soft-warning ms-1">AI-beoordeling staat uit</span>
                     <div class="form-text text-warning-emphasis">Deze toets is gekoppeld maar heeft geen AI-beoordeling meer: nieuwe pogingen kunnen niet starten, en lopende pogingen blijven op "grading" staan. Zet AI-beoordeling weer aan of ontkoppel de toets.</div>
                 <?php elseif (!$aiOn): ?>
                     <span class="form-text ms-1">Zet eerst AI-beoordeling aan</span>

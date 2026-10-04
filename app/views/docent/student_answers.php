@@ -18,20 +18,20 @@ ob_start();
             <input type="hidden" name="student_exam_id" value="<?= (int)$studentExam['id'] ?>">
             <div class="input-group">
                 <span class="input-group-text bg-warning text-dark border-warning">Gast</span>
-                <input type="text" name="guest_name" class="form-control border-warning" value="<?= htmlspecialchars($studentExam['guest_name'] ?? '') ?>" required>
+                <input type="text" name="guest_name" class="form-control border-warning" value="<?= e($studentExam['guest_name'] ?? '') ?>" required>
                 <button type="submit" class="btn btn-outline-warning text-dark">Wijzigen</button>
             </div>
         </form>
     <?php elseif (empty($studentExam['student_id'])): ?>
-        <h4 class="text-muted mb-0"><span class="badge bg-warning text-dark">Gast</span> <?= htmlspecialchars($studentExam['guest_name'] ?? 'Gast') ?></h4>
+        <h4 class="text-muted mb-0"><span class="badge badge-soft-warning">Gast</span> <?= e($studentExam['guest_name'] ?? 'Gast') ?></h4>
     <?php elseif (isset($studentExam['name'])): ?>
-        <h4 class="text-muted mb-0"><?= htmlspecialchars($studentExam['name']) ?></h4>
+        <h4 class="text-muted mb-0"><?= e($studentExam['name']) ?></h4>
     <?php endif; ?>
 </div>
 
 <?php if (isset($_SESSION['success_message'])): ?>
     <div class="alert alert-success alert-dismissible fade show" role="alert">
-        <?= htmlspecialchars($_SESSION['success_message']) ?>
+        <?= e($_SESSION['success_message']) ?>
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     </div>
     <?php unset($_SESSION['success_message']); ?>
@@ -49,7 +49,7 @@ ob_start();
     <div class="alert alert-info mb-4">
         <label class="form-label"><strong>Deelbare link voor de student:</strong></label>
         <div class="input-group mb-1">
-            <input type="text" id="shareableLink" class="form-control" value="<?= htmlspecialchars($shareableLink) ?>" readonly data-select-on-click>
+            <input type="text" id="shareableLink" class="form-control" value="<?= e($shareableLink) ?>" readonly data-select-on-click>
             <button class="btn btn-outline-primary" type="button" data-copy-target="shareableLink" data-copy-feedback="Link gekopieerd naar klembord!">Kopieer link</button>
         </div>
         <small>De student kan deze link gebruiken om zijn resultaten te bekijken, ook als hij zijn sessie/cookie is kwijtgeraakt.</small>
@@ -66,7 +66,7 @@ ob_start();
                 <span class="fs-3 fw-bold"><?= e(Grading::formatGrade($attemptResult['computed'])) ?></span>
                 <?php if ($attemptResult['show_label']): ?>
                     <?php $computedLabel = Grading::gradeLabel($attemptResult['computed']); ?>
-                    <span class="badge bg-<?= e(Grading::levelClass($computedLabel)) ?> fs-6"><?= e(Grading::levelLabel($computedLabel)) ?></span>
+                    <span class="badge badge-soft-<?= e(Grading::levelClass($computedLabel)) ?> fs-6"><?= e(Grading::levelLabel($computedLabel)) ?></span>
                 <?php endif; ?>
                 <span class="text-muted small">berekend uit de docentniveaus</span>
             <?php else: ?>
@@ -84,7 +84,7 @@ ob_start();
         <?php endif; ?>
         <?php if (!empty($aiGrades)): ?>
         <div class="mt-3">
-            <strong>AI-cijfers</strong> <span class="badge bg-info text-dark">AI</span> <small class="text-muted">alleen ter vergelijking</small>
+            <strong>AI-cijfers</strong> <span class="badge badge-soft-info">AI</span> <small class="text-muted">alleen ter vergelijking</small>
             <ul class="mb-0 mt-1">
             <?php foreach ($aiGrades as $source => $aiGrade): ?>
                 <li><strong><?= e($source) ?>:</strong> <?= e(Grading::formatGrade($aiGrade['grade'])) ?>
@@ -111,7 +111,7 @@ ob_start();
     <strong>AI-scores (gemiddelde, alleen ter vergelijking):</strong>
     <ul class="mb-0 mt-1">
     <?php foreach ($finalAiScores as $model => $score): ?>
-        <li><strong><?= htmlspecialchars($model) ?>:</strong> <?= number_format($score, 1) ?></li>
+        <li><strong><?= e($model) ?>:</strong> <?= number_format($score, 1) ?></li>
     <?php endforeach; ?>
     </ul>
 </div>
@@ -180,32 +180,32 @@ require __DIR__ . '/final_grade_override.php';
 <?php foreach ($answers as $a): ?>
 <div class="card mb-4" id="answer-<?= (int)$a['id'] ?>">
   <div class="card-header bg-light">
-      <strong>Vraag:</strong> <?= htmlspecialchars($a['question_text']) ?>
+      <strong>Vraag:</strong> <?= e($a['question_text']) ?>
   </div>
   <div class="card-body">
       <div class="mb-3">
           <h6 class="text-muted">Student antwoord:</h6>
-          <div class="p-3 bg-white border rounded"><?= nl2br(htmlspecialchars($a['answer'])) ?></div>
+          <div class="p-3 bg-white border rounded"><?= nl2br(e($a['answer'])) ?></div>
       </div>
       
       <div class="mb-3">
               <small class="text-muted d-block">Criteria:</small>
-              <div class="small text-secondary"><?= nl2br(htmlspecialchars($a['criteria'])) ?></div>
+              <div class="small text-secondary"><?= nl2br(e($a['criteria'])) ?></div>
       </div>
 
       <?php if ($isLevels && !empty($a['ai_levels'])): ?>
       <div class="mb-2 d-flex flex-wrap align-items-center gap-1">
           <span class="small text-muted me-1">AI-niveaus:</span>
           <?php foreach ($a['ai_levels'] as $source => $aiLevel): ?>
-              <span class="badge bg-<?= e(Grading::levelClass($aiLevel)) ?>"><?= e($source) ?>: <?= e(Grading::levelLabel($aiLevel)) ?></span>
+              <span class="badge badge-soft-<?= e(Grading::levelClass($aiLevel)) ?>"><?= e($source) ?>: <?= e(Grading::levelLabel($aiLevel)) ?></span>
           <?php endforeach; ?>
       </div>
       <?php endif; ?>
 
       <?php if ($a['ai_feedback']): ?>
       <div class="alert alert-info">
-          <strong>AI-feedback</strong> <span class="badge bg-info text-dark">AI</span><br>
-          <?= nl2br(htmlspecialchars($a['ai_feedback'])) ?>
+          <strong>AI-feedback</strong> <span class="badge badge-soft-info">AI</span><br>
+          <?= nl2br(e($a['ai_feedback'])) ?>
       </div>
       <?php endif; ?>
 
@@ -214,7 +214,7 @@ require __DIR__ . '/final_grade_override.php';
       <?php if ($run || $canAssess): ?>
       <div class="<?= $agentic ? 'alert alert-info' : 'mb-3' ?>">
         <div class="d-flex flex-wrap align-items-center gap-2">
-          <strong class="me-1">Agentic AI-beoordeling</strong> <span class="badge bg-info text-dark">AI</span>
+          <strong class="me-1">Agentic AI-beoordeling</strong> <span class="badge badge-soft-info">AI</span>
           <?php if ($run): ?>
               <span class="badge <?= e(AnswerAssessment::statusClass($run['status'])) ?>"><?= e(AnswerAssessment::statusLabel($run['status'])) ?></span>
               <?php if ($agentic): ?>
@@ -224,7 +224,7 @@ require __DIR__ . '/final_grade_override.php';
                   <span class="fw-semibold">AI-score: <?= (int)$agentic['score'] ?></span>
                   <?php endif; ?>
                   <?php if ((int)$run['human_review_needed'] === 1): ?>
-                      <span class="badge bg-warning text-dark">AI onzeker: menselijke controle nodig</span>
+                      <span class="badge badge-soft-warning">AI onzeker: menselijke controle nodig</span>
                   <?php endif; ?>
               <?php endif; ?>
               <a href="/?action=answer_assessment_view&id=<?= (int)$run['id'] ?>" class="btn btn-sm btn-outline-secondary">Details</a>
@@ -255,9 +255,9 @@ require __DIR__ . '/final_grade_override.php';
       <div class="mt-3 pt-3 border-top">
           <div class="d-flex justify-content-between align-items-start">
               <div>
-                  <strong>Docentbeoordeling</strong> <span class="badge bg-primary">mens</span><br>
+                  <strong>Docentbeoordeling</strong> <span class="badge badge-soft-primary">mens</span><br>
                   <?php if (!empty($a['teacher_feedback'])): ?>
-                      <?= nl2br(htmlspecialchars($a['teacher_feedback'])) ?>
+                      <?= nl2br(e($a['teacher_feedback'])) ?>
                   <?php else: ?>
                       <em class="text-muted">Nog geen feedback gegeven.</em>
                   <?php endif; ?>
@@ -265,12 +265,12 @@ require __DIR__ . '/final_grade_override.php';
               <div class="text-end">
                   <?php if (Grading::examScale($exam) === Grading::SCALE_LEVELS): ?>
                       <?php if (!empty($a['teacher_level'])): ?>
-                          <span class="badge bg-<?= e(Grading::levelClass($a['teacher_level'])) ?> fs-6">Docentniveau: <?= e(Grading::levelLabel($a['teacher_level'])) ?></span>
+                          <span class="badge badge-soft-<?= e(Grading::levelClass($a['teacher_level'])) ?> fs-6">Docentniveau: <?= e(Grading::levelLabel($a['teacher_level'])) ?></span>
                       <?php else: ?>
-                          <span class="badge bg-secondary fs-6">Docentniveau: -</span>
+                          <span class="badge badge-soft-secondary fs-6">Docentniveau: -</span>
                       <?php endif; ?>
                   <?php else: ?>
-                  <span class="badge bg-primary fs-6">Docentscore: <?= isset($a['teacher_score']) ? htmlspecialchars($a['teacher_score']) : '-' ?></span>
+                  <span class="badge badge-soft-primary fs-6">Docentscore: <?= isset($a['teacher_score']) ? e($a['teacher_score']) : '-' ?></span>
                   <?php endif; ?>
               </div>
           </div>

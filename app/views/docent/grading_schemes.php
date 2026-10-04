@@ -10,14 +10,17 @@
 ob_start();
 ?>
 
-<h2>Puntenschema's</h2>
+<div class="page-header">
+    <div>
+        <h1 class="h3 mb-1">Puntenschema's</h1>
+        <p class="text-muted mb-0">Punten per niveau voor toetsen met <em>Beoordelen met niveaus</em>.</p>
+    </div>
+    <a href="/?action=create_grading_scheme" class="btn btn-primary"><i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Nieuw puntenschema</a>
+</div>
 <p>Een puntenschema zet de niveaus van een toets met <em>Beoordelen met niveaus</em> om in punten: een aantal punten voor onvoldoende (meestal 0), voldoende, goed en uitstekend.
 Het eindcijfer is 10 × de som van de punten / (aantal vragen × de punten voor uitstekend). Je kunt elk schema kiezen bij een toets;
 alleen de maker kan een eigen schema wijzigen of verwijderen.</p>
 
-<div class="mb-3">
-    <a href="/?action=create_grading_scheme" class="btn btn-primary">Nieuw puntenschema</a>
-</div>
 
 <div class="card">
 <div class="table-responsive">
@@ -38,7 +41,7 @@ alleen de maker kan een eigen schema wijzigen of verwijderen.</p>
       <td class="text-center font-monospace"><?= e(str_replace('/', ' / ', GradingScheme::pointsLabel($scheme))) ?></td>
       <td>
         <?php if ($scheme['owner_id'] === null): ?>
-          <span class="badge bg-light text-dark border">Systeem</span>
+          <span class="badge badge-soft-secondary">Systeem</span>
         <?php else: ?>
           <?= e($scheme['owner_name'] ?? 'Verwijderde gebruiker') ?>
         <?php endif; ?>

@@ -10,8 +10,11 @@
  ob_start();
  ?>
 
-<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-    <h2 class="mb-0">Resultaten toets</h2>
+<div class="page-header">
+    <div>
+        <h1 class="h3 mb-1">Resultaten</h1>
+        <p class="text-muted mb-0"><?= e($exam['title']) ?></p>
+    </div>
     <?php if (!empty($canEdit) && !empty($aiResettableCount)): ?>
     <form action="/?action=ai_results_reset_exam" method="post" class="mb-0">
         <?= csrfInput() ?>
@@ -39,12 +42,12 @@
     <?php foreach ($studentExams as $se): ?>
     <tr>
       <td>
-        <?= htmlspecialchars($se['name']) ?>
+        <?= e($se['name']) ?>
         <?php if (!empty($se['integration_name'])): ?>
-        <span class="badge bg-info text-dark ms-1" title="Ref: <?= e($se['external_ref']) ?>">Koppeling: <?= e($se['integration_name']) ?></span>
+        <span class="badge badge-soft-info ms-1" title="Ref: <?= e($se['external_ref']) ?>">Koppeling: <?= e($se['integration_name']) ?></span>
         <?php endif; ?>
       </td>
-      <td class="font-monospace"><?= htmlspecialchars($se['unique_id']) ?></td>
+      <td class="font-monospace"><?= e($se['unique_id']) ?></td>
       <td><?= e($se['started_at']) ?></td>
       <td><?= e($se['completed_at'] ?? 'Nog niet ingeleverd') ?></td>
       <td class="text-nowrap">
@@ -58,12 +61,12 @@
             <strong><?= e(Grading::formatGrade((float)$result['final'])) ?></strong>
           <?php endif; ?>
           <?php if ($result['label'] !== null): ?>
-            <span class="badge bg-<?= e(Grading::levelClass($result['label'])) ?>"><?= e(Grading::levelLabel($result['label'])) ?></span>
+            <span class="badge badge-soft-<?= e(Grading::levelClass($result['label'])) ?>"><?= e(Grading::levelLabel($result['label'])) ?></span>
           <?php endif; ?>
           <?php if ($result['override'] !== null): ?>
-            <span class="badge bg-light text-dark border" title="Handmatig aangepast: <?= e($result['override_reason']) ?>">aangepast</span>
+            <span class="badge badge-soft-secondary" title="Handmatig aangepast: <?= e($result['override_reason']) ?>">aangepast</span>
             <?php if ($result['override_outdated']): ?>
-              <span class="badge bg-warning text-dark" title="Het berekende cijfer is gewijzigd sinds de aanpassing">!</span>
+              <span class="badge badge-soft-warning" title="Het berekende cijfer is gewijzigd sinds de aanpassing">!</span>
             <?php endif; ?>
           <?php endif; ?>
         <?php endif; ?>

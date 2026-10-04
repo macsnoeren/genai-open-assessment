@@ -10,14 +10,15 @@
 ob_start();
 ?>
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2 class="mb-0">Docent Dashboard</h2>
+<div class="page-header">
+    <div>
+        <h1 class="h3 mb-1">Toetsen</h1>
+        <p class="text-muted mb-0">Welkom, <?= e($_SESSION['name']) ?></p>
+    </div>
     <a href="/?action=exam_create" class="btn btn-primary">
-        Nieuwe toets
+        <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Nieuwe toets
     </a>
 </div>
-
-<p class="lead">Welkom <?= htmlspecialchars($_SESSION['name']) ?></p>
 
 <?php
 $ownerOptions = ['all' => 'Alle toetsen', 'mine' => 'Mijn toetsen', 'colleagues' => 'Van collega\'s'];
@@ -74,73 +75,82 @@ $statusOptions = [
                 <tr>
                   <th>Titel</th>
                   <th>Aangemaakt</th>
+                  <th>Gastlink</th>
                   <th class="text-end">Acties</th>
                 </tr>
               </thead>
               <tbody>
                 <?php foreach ($exams as $exam): ?>
+                <?php $isOwner = ($_SESSION['role'] === 'admin' || (int)$exam['docent_id'] === (int)$_SESSION['user_id']); ?>
                 <tr>
                   <td class="align-middle">
-                      <?= htmlspecialchars($exam['title']) ?>
+                      <?= e($exam['title']) ?>
                       <?php if ($exam['ai_grading_enabled']): ?>
-                          <span class="badge bg-success ms-2" title="AI beoordeling actief">AI Aan</span>
+                          <span class="badge badge-soft-primary ms-2" title="AI beoordeling actief">AI aan</span>
                       <?php else: ?>
-                          <span class="badge bg-secondary ms-2" title="AI beoordeling inactief">AI Uit</span>
+                          <span class="badge badge-soft-secondary ms-2" title="AI beoordeling inactief">AI uit</span>
                       <?php endif; ?>
                       <?php if ($exam['shared']): ?>
-                          <span class="badge bg-info text-dark ms-1" title="Gedeeld met andere docenten">Gedeeld</span>
+                          <span class="badge badge-soft-info ms-1" title="Gedeeld met andere docenten">Gedeeld</span>
                       <?php endif; ?>
                       <?php if (!empty($exam['published'])): ?>
-                          <span class="badge bg-primary ms-1" title="Zichtbaar voor ingelogde studenten">Gepubliceerd</span>
+                          <span class="badge badge-soft-success ms-1" title="Zichtbaar voor ingelogde studenten">Gepubliceerd</span>
                       <?php endif; ?>
                       <?php if ($exam['docent_id'] != $_SESSION['user_id']): ?>
-                          <span class="badge bg-warning text-dark ms-1" title="Gemaakt door een andere docent">Van collega</span>
+                          <span class="badge badge-soft-warning ms-1" title="Gemaakt door een andere docent">Van collega</span>
                       <?php endif; ?>
                   </td>
-                  <td class="align-middle"><?= e($exam['created_at']) ?></td>
-                  <td class="text-end">
+                  <td class="align-middle text-nowrap"><?= e($exam['created_at']) ?></td>
+                  <td class="align-middle">
                     <?php if (!empty($exam['public_token'])): ?>
-                        <?php 
-                            $link = appBaseUrl() . "/?action=guest&token=" . $exam['public_token'];
-                            $isOwner = ($_SESSION['role'] === 'admin' || (int)$exam['docent_id'] === (int)$_SESSION['user_id']);
-                        ?>
-                        <div class="input-group input-group-sm mb-2" style="max-width: 300px; margin-left: auto;">
-                            <input type="text" class="form-control" value="<?= htmlspecialchars($link) ?>" readonly id="link-<?= $exam['id'] ?>">
-                            <button class="btn btn-outline-secondary" type="button" data-copy-target="link-<?= (int)$exam['id'] ?>" title="Kopieer link">📋</button>
+                        <?php $link = appBaseUrl() . "/?action=guest&token=" . $exam['public_token']; ?>
+                        <div class="input-group input-group-sm guest-link-group">
+                            <input type="text" class="form-control" value="<?= e($link) ?>" readonly id="link-<?= (int)$exam['id'] ?>" aria-label="Gastlink">
+                            <button class="btn btn-outline-secondary" type="button" data-copy-target="link-<?= (int)$exam['id'] ?>"
+                                    aria-label="Kopieer gastlink" title="Kopieer gastlink"><i class="bi bi-copy" aria-hidden="true"></i></button>
                             <?php if ($isOwner): ?>
-                            <a href="/?action=exam_public_link&mode=renew&id=<?= (int)$exam['id'] ?>" class="btn btn-outline-secondary" title="Nieuwe gastlink"
-                               data-confirm="Nieuwe gastlink maken? De huidige link werkt dan direct niet meer; lopende gastpogingen blijven werken.">🔄</a>
-                            <a href="/?action=exam_public_link&mode=disable&id=<?= (int)$exam['id'] ?>" class="btn btn-outline-secondary" title="Gastlink uitzetten"
-                               data-confirm="Gastlink uitzetten? Niemand kan dan nog als gast starten; lopende gastpogingen blijven werken.">⛔</a>
+                            <a href="/?action=exam_public_link&amp;mode=renew&amp;id=<?= (int)$exam['id'] ?>" class="btn btn-outline-secondary"
+                               aria-label="Nieuwe gastlink" title="Nieuwe gastlink"
+                               data-confirm="Nieuwe gastlink maken? De huidige link werkt dan direct niet meer; lopende gastpogingen blijven werken."><i class="bi bi-arrow-repeat" aria-hidden="true"></i></a>
+                            <a href="/?action=exam_public_link&amp;mode=disable&amp;id=<?= (int)$exam['id'] ?>" class="btn btn-outline-secondary"
+                               aria-label="Gastlink uitzetten" title="Gastlink uitzetten"
+                               data-confirm="Gastlink uitzetten? Niemand kan dan nog als gast starten; lopende gastpogingen blijven werken."><i class="bi bi-slash-circle" aria-hidden="true"></i></a>
                             <?php endif; ?>
                         </div>
+                    <?php elseif ($isOwner): ?>
+                        <a href="/?action=exam_public_link&amp;mode=renew&amp;id=<?= (int)$exam['id'] ?>" class="btn btn-sm btn-outline-secondary text-nowrap"
+                           data-confirm="Een nieuwe gastlink maken?">Gastlink aanzetten</a>
                     <?php else: ?>
-                        <?php $isOwner = ($_SESSION['role'] === 'admin' || (int)$exam['docent_id'] === (int)$_SESSION['user_id']); ?>
-                        <?php if ($isOwner): ?>
-                        <div class="mb-2">
-                            <span class="small text-muted me-1">Gastlink uit</span>
-                            <a href="/?action=exam_public_link&mode=renew&id=<?= (int)$exam['id'] ?>" class="btn btn-sm btn-outline-secondary"
-                               data-confirm="Een nieuwe gastlink maken?">Gastlink aanzetten</a>
-                        </div>
-                        <?php endif; ?>
+                        <span class="small text-muted">Uit</span>
                     <?php endif; ?>
-                    <div class="btn-group btn-group-sm">
-                        <a href="/?action=questions&exam_id=<?= $exam['id'] ?>" class="btn btn-outline-secondary" title="Vragen beheren">📝</a>
-                        <a href="/?action=exam_results&exam_id=<?= $exam['id'] ?>" class="btn btn-outline-secondary" title="Resultaten bekijken">📊</a>
-                        <a href="/?action=exam_comparison&exam_id=<?= $exam['id'] ?>" class="btn btn-outline-secondary" title="Vergelijk AI met Docent">📈</a>
-                        <a href="/?action=start_exam&exam_id=<?= $exam['id'] ?>" class="btn btn-outline-secondary" data-confirm="Weet je zeker dat je deze toets wilt testen?" title="Testen">▶️</a>
-                        <?php if ($isOwner): ?>
-                        <a href="/?action=exam_duplicate&id=<?= $exam['id'] ?>" class="btn btn-outline-warning" data-confirm="Weet je zeker dat je deze toets wilt dupliceren inclusief alle antwoorden? De AI-feedback wordt gewist, docent-feedback blijft behouden." title="Dupliceren">📋</a>
-                        <a href="/?action=exam_edit&id=<?= $exam['id'] ?>" class="btn btn-outline-primary" title="Bewerken">✏️</a>
-                        <a href="/?action=exam_delete&id=<?= $exam['id'] ?>" class="btn btn-outline-danger" data-confirm="Weet je zeker dat je deze toets wilt verwijderen?" title="Verwijderen">🗑️</a>
-                        <?php endif; ?>
+                  </td>
+                  <td class="align-middle text-end text-nowrap">
+                    <a href="/?action=questions&amp;exam_id=<?= (int)$exam['id'] ?>" class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-list-check me-1" aria-hidden="true"></i>Vragen
+                    </a>
+                    <a href="/?action=exam_results&amp;exam_id=<?= (int)$exam['id'] ?>" class="btn btn-sm btn-outline-secondary"
+                       aria-label="Resultaten bekijken" title="Resultaten bekijken"><i class="bi bi-bar-chart" aria-hidden="true"></i></a>
+                    <div class="dropdown d-inline-block">
+                        <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="dropdown" aria-expanded="false"
+                                data-bs-popper-config='{"strategy":"fixed"}'
+                                aria-label="Meer acties" title="Meer acties"><i class="bi bi-three-dots" aria-hidden="true"></i></button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="/?action=exam_comparison&amp;exam_id=<?= (int)$exam['id'] ?>"><i class="bi bi-graph-up me-2" aria-hidden="true"></i>Vergelijk AI en docent</a></li>
+                            <li><a class="dropdown-item" href="/?action=start_exam&amp;exam_id=<?= (int)$exam['id'] ?>" data-confirm="Weet je zeker dat je deze toets wilt testen?"><i class="bi bi-play me-2" aria-hidden="true"></i>Testen</a></li>
+                            <?php if ($isOwner): ?>
+                            <li><a class="dropdown-item" href="/?action=exam_duplicate&amp;id=<?= (int)$exam['id'] ?>" data-confirm="Weet je zeker dat je deze toets wilt dupliceren inclusief alle antwoorden? De AI-feedback wordt gewist, docent-feedback blijft behouden."><i class="bi bi-files me-2" aria-hidden="true"></i>Dupliceren</a></li>
+                            <li><a class="dropdown-item" href="/?action=exam_edit&amp;id=<?= (int)$exam['id'] ?>"><i class="bi bi-pencil me-2" aria-hidden="true"></i>Bewerken</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item text-danger" href="/?action=exam_delete&amp;id=<?= (int)$exam['id'] ?>" data-confirm="Weet je zeker dat je deze toets wilt verwijderen?"><i class="bi bi-trash me-2" aria-hidden="true"></i>Verwijderen</a></li>
+                            <?php endif; ?>
+                        </ul>
                     </div>
                   </td>
                 </tr>
                 <?php endforeach; ?>
                 <?php if (empty($exams)): ?>
                 <tr>
-                  <td colspan="3" class="text-center text-muted py-4">
+                  <td colspan="4" class="text-center text-muted py-4">
                       <?= $filterActive ? 'Geen toetsen gevonden met dit filter.' : 'Je hebt nog geen toetsen.' ?>
                   </td>
                 </tr>
@@ -153,6 +163,7 @@ $statusOptions = [
 
 <?php
 $content = ob_get_clean();
-$title = "Docent Dashboard";
+$title = "Toetsen";
+$breadcrumbs = ['Toetsen' => null];
 require __DIR__ . '/../layouts/main.php';
 ?>

@@ -17,10 +17,10 @@
     <table class="table table-sm align-top">
         <thead class="table-light">
             <tr>
-                <th style="width: 20%">Criterium</th>
-                <th style="width: 40%">Omschrijving</th>
-                <th style="width: 10%">Gewicht</th>
-                <th style="width: 30%">Waarom</th>
+                <th class="col-w-20">Criterium</th>
+                <th class="col-w-40">Omschrijving</th>
+                <th class="col-w-10">Gewicht</th>
+                <th class="col-w-30">Waarom</th>
             </tr>
         </thead>
         <tbody>
@@ -29,7 +29,7 @@
                 <td class="fw-semibold"><?= e($criterion['name']) ?></td>
                 <td><?= e($criterion['description']) ?></td>
                 <td>
-                    <span class="badge <?= $criterion['weight'] === 'essentieel' ? 'bg-danger' : 'bg-secondary' ?>">
+                    <span class="badge <?= $criterion['weight'] === 'essentieel' ? 'badge-soft-danger' : 'badge-soft-secondary' ?>">
                         <?= e($criterion['weight']) ?>
                     </span>
                 </td>

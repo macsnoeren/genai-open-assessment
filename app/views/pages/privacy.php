@@ -5,7 +5,7 @@
 ob_start();
 ?>
 
-<div class="container my-5">
+<div class="privacy-page">
     <div class="row justify-content-center">
         <div class="col-lg-8">
             <h1 class="mb-4">Privacy- en Cookieverklaring</h1>
@@ -95,5 +95,6 @@ ob_start();
 <?php
 $content = ob_get_clean();
 $title = "Privacy & Cookies";
+$breadcrumbs = ['Privacy & Cookies' => null];
 require __DIR__ . '/../layouts/main.php';
 ?>

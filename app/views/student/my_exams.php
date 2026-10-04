@@ -28,13 +28,13 @@ ob_start(); ?>
         <tbody>
             <?php foreach ($studentExams as $se): ?>
                 <tr>
-                    <td><?= htmlspecialchars($se['title']) ?></td>
+                    <td><?= e($se['title']) ?></td>
                     <td><?= e($se['started_at']) ?></td>
                     <td>
                         <?php if($se['completed_at']): ?>
-                            <span class="badge bg-success">Ingeleverd</span>
+                            <span class="badge badge-soft-success">Ingeleverd</span>
                         <?php else: ?>
-                            <span class="badge bg-warning text-dark">Bezig</span>
+                            <span class="badge badge-soft-warning">Bezig</span>
                         <?php endif; ?>
                     </td>
                     <td class="text-end">

@@ -24,11 +24,11 @@ if ($status === QuestionDesign::STATUS_ANALYSIS_PENDING || $status === QuestionD
 }
 $steps = [1 => 'Analyse', 2 => 'Voorstel en validatie', 3 => 'Jouw beoordeling'];
 $statusClass = [
-    QuestionDesign::STATUS_AWAITING_ANSWERS => 'bg-warning text-dark',
-    QuestionDesign::STATUS_REVIEW => 'bg-primary',
-    QuestionDesign::STATUS_APPROVED => 'bg-success',
-    QuestionDesign::STATUS_FAILED => 'bg-danger',
-][$status] ?? 'bg-secondary';
+    QuestionDesign::STATUS_AWAITING_ANSWERS => 'badge-soft-warning',
+    QuestionDesign::STATUS_REVIEW => 'badge-soft-primary',
+    QuestionDesign::STATUS_APPROVED => 'badge-soft-success',
+    QuestionDesign::STATUS_FAILED => 'badge-soft-danger',
+][$status] ?? 'badge-soft-secondary';
 ?>
 
 <div class="d-flex justify-content-between align-items-center mb-3">
@@ -43,7 +43,7 @@ $statusClass = [
         <ol class="list-inline mb-0 small">
             <?php foreach ($steps as $n => $label): ?>
                 <li class="list-inline-item <?= $n === $step ? 'fw-bold' : ($n < $step ? 'text-success' : 'text-muted') ?>">
-                    <?= $n < $step ? '&#10003;' : (int)$n . '.' ?> <?= e($label) ?>
+                    <?php if ($n < $step): ?><i class="bi bi-check-lg" aria-hidden="true"></i><span class="visually-hidden">Klaar:</span><?php else: ?><?= (int)$n ?>.<?php endif; ?> <?= e($label) ?>
                     <?php if ($n < count($steps)): ?><span class="text-muted ms-2">&rarr;</span><?php endif; ?>
                 </li>
             <?php endforeach; ?>
@@ -93,10 +93,10 @@ $statusClass = [
     <div class="card-body">
         <p><?= e($analysis['summary']) ?></p>
         <p>
-            <span class="badge <?= $analysis['question_clear'] ? 'bg-success' : 'bg-warning text-dark' ?>">
+            <span class="badge <?= $analysis['question_clear'] ? 'badge-soft-success' : 'badge-soft-warning' ?>">
                 Vraag duidelijk: <?= $analysis['question_clear'] ? 'ja' : 'nee' ?>
             </span>
-            <span class="badge <?= $analysis['answer_matches_question'] ? 'bg-success' : 'bg-warning text-dark' ?>">
+            <span class="badge <?= $analysis['answer_matches_question'] ? 'badge-soft-success' : 'badge-soft-warning' ?>">
                 Gewenst antwoord past bij de vraag: <?= $analysis['answer_matches_question'] ? 'ja' : 'nee' ?>
             </span>
         </p>
@@ -174,7 +174,7 @@ $statusClass = [
 
 <?php
 // Tijdens een nieuwe ronde staat de uitvoer van de vorige ronde er nog; markeer die.
-$previousRound = $isPending ? ' <span class="badge bg-light text-muted border ms-2">vorige ronde</span>' : '';
+$previousRound = $isPending ? ' <span class="badge badge-soft-secondary ms-2">vorige ronde</span>' : '';
 ?>
 
 <?php if (!empty($design['teacher_feedback'])): ?>
@@ -207,9 +207,9 @@ $previousRound = $isPending ? ' <span class="badge bg-light text-muted border ms
             <?php foreach ($validation['checks'] as $check): ?>
             <li class="mb-2">
                 <?php if ($check['ok']): ?>
-                    <span class="text-success fw-bold" aria-label="in orde">&#10003;</span>
+                    <i class="bi bi-check-circle-fill icon-pass" role="img" aria-label="in orde"></i>
                 <?php else: ?>
-                    <span class="text-danger fw-bold" aria-label="niet in orde">&#10007;</span>
+                    <i class="bi bi-x-circle-fill icon-fail" role="img" aria-label="niet in orde"></i>
                 <?php endif; ?>
                 <span class="fw-semibold"><?= e(QuestionDesign::checkLabel($check['check'])) ?></span>
                 <?php if ($check['comment'] !== ''): ?><br><small class="text-muted ms-4"><?= e($check['comment']) ?></small><?php endif; ?>

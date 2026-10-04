@@ -23,13 +23,13 @@
 
 $isConflict = $decisionItem && $decisionItem['agreement'] === 'conflict';
 $symbolClass = ['voldaan' => 'text-success', 'deels' => 'text-warning', 'niet' => 'text-danger'][$finalStatus] ?? 'text-muted';
-$agreementClass = ['eens' => 'bg-success', 'klein_verschil' => 'bg-info text-dark', 'conflict' => 'bg-warning text-dark'];
+$agreementClass = ['eens' => 'badge-soft-success', 'klein_verschil' => 'badge-soft-info', 'conflict' => 'badge-soft-warning'];
 ?>
 <div class="card mb-3 <?= $isConflict ? 'border-warning border-2' : '' ?>">
     <div class="card-header d-flex flex-wrap align-items-center gap-2">
         <span class="fs-5 fw-bold <?= e($symbolClass) ?>" aria-hidden="true"><?= e(AnswerAssessment::statusSymbol($finalStatus)) ?></span>
         <span class="fw-semibold"><?= (int)$criterion['nr'] ?>. <?= e($criterion['name']) ?></span>
-        <span class="badge <?= $criterion['weight'] === 'essentieel' ? 'bg-dark' : 'bg-light text-dark border' ?>"><?= e($criterion['weight']) ?></span>
+        <span class="badge <?= $criterion['weight'] === 'essentieel' ? 'bg-dark' : 'badge-soft-secondary' ?>"><?= e($criterion['weight']) ?></span>
         <span class="small text-muted">
             <?= e(AnswerAssessment::criterionStatusLabel($finalStatus)) ?>
             <?php if ($evidenceItem): ?> · <?= e(AnswerAssessment::evidenceLabel($evidenceItem['evidence_found'])) ?><?php endif; ?>
@@ -43,7 +43,7 @@ $agreementClass = ['eens' => 'bg-success', 'klein_verschil' => 'bg-info text-dar
             Assessment: <strong><?= e($assessItem['status']) ?></strong> ·
             Validation: <strong><?= e($finalStatus) ?></strong>
             <?php if ($decisionItem): ?>
-                <span class="badge <?= e($agreementClass[$decisionItem['agreement']] ?? 'bg-secondary') ?> ms-2"><?= e(AnswerAssessment::agreementLabel($decisionItem['agreement'])) ?></span>
+                <span class="badge <?= e($agreementClass[$decisionItem['agreement']] ?? 'badge-soft-secondary') ?> ms-2"><?= e(AnswerAssessment::agreementLabel($decisionItem['agreement'])) ?></span>
             <?php endif; ?>
         </div>
 
@@ -59,7 +59,7 @@ $agreementClass = ['eens' => 'bg-success', 'klein_verschil' => 'bg-info text-dar
                         <blockquote class="border-start border-3 ps-2 mb-2 small fst-italic">
                             &ldquo;<?= e($quote) ?>&rdquo;
                             <?php if (!AnswerAssessment::quoteFound($answerText, $quote)): ?>
-                                <span class="badge bg-danger fst-normal">niet letterlijk gevonden</span>
+                                <span class="badge badge-soft-danger fst-normal">niet letterlijk gevonden</span>
                             <?php endif; ?>
                         </blockquote>
                     <?php endforeach; ?>
@@ -92,7 +92,7 @@ $agreementClass = ['eens' => 'bg-success', 'klein_verschil' => 'bg-info text-dar
                         <div class="small text-muted fst-italic">
                             &ldquo;<?= e($quote) ?>&rdquo;
                             <?php if (!AnswerAssessment::quoteFound($answerText, $quote)): ?>
-                                <span class="badge bg-danger fst-normal">niet letterlijk gevonden</span>
+                                <span class="badge badge-soft-danger fst-normal">niet letterlijk gevonden</span>
                             <?php endif; ?>
                         </div>
                     <?php endforeach; ?>

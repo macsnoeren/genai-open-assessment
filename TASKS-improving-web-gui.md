@@ -235,42 +235,42 @@ Per stap één bestand of één soort wijziging, zodat je makkelijk kunt vergeli
 
 **Paginakop**
 
-- [ ] **7.1 CSS `.page-header`:** flex, `justify-content: space-between`, `align-items: flex-end`, `gap: 1rem`, `margin-bottom: 1.5rem`, `flex-wrap: wrap`. Daarin een `h1` met klasse `h3 mb-1` en een optionele `<p class="text-muted mb-0">` als subtitel; de primaire actie rechts.
-- [ ] **7.2** Gebruik `.page-header` op het docentdashboard: kop "Toetsen", subtitel "Welkom, <naam>" (via `e()`), knop "Nieuwe toets" met `bi-plus-lg`.
-- [ ] **7.3** Gebruik `.page-header` op de andere overzichtspagina's: `questions.php`, `pending_assessments.php`, `exam_results.php`, `grading_schemes.php`, `prompts.php`, `students.php`, `integrations.php`, `api_keys.php`, `audit_log.php` en `student/dashboard.php`. Eén bestand per keer.
+- [x] **7.1 CSS `.page-header`:** flex, `justify-content: space-between`, `align-items: flex-end`, `gap: 1rem`, `margin-bottom: 1.5rem`, `flex-wrap: wrap`. Daarin een `h1` met klasse `h3 mb-1` en een optionele `<p class="text-muted mb-0">` als subtitel; de primaire actie rechts.
+- [x] **7.2** Gebruik `.page-header` op het docentdashboard: kop "Toetsen", subtitel "Welkom, <naam>" (via `e()`), knop "Nieuwe toets" met `bi-plus-lg`.
+- [x] **7.3** Gebruik `.page-header` op de andere overzichtspagina's: `questions.php`, `pending_assessments.php`, `exam_results.php`, `grading_schemes.php`, `prompts.php`, `students.php`, `integrations.php`, `api_keys.php`, `audit_log.php` en `student/dashboard.php`. Eén bestand per keer.
 
 **Docentdashboard (`docent/dashboard.php`)**
 
-- [ ] **7.4 Badges:** AI aan → `badge-soft-primary`, AI uit → `badge-soft-secondary`, Gedeeld → `badge-soft-info`, Gepubliceerd → `badge-soft-success`, Van collega → `badge-soft-warning`.
-- [ ] **7.5 Gastlink in een eigen kolom** "Gastlink" in plaats van boven de actieknoppen. De werking blijft gelijk; de knoppen krijgen iconen: kopiëren `bi-copy`, nieuwe link `bi-arrow-repeat`, uitzetten `bi-slash-circle`, elk met `aria-label` en `title`.
-- [ ] **7.6 Actieknoppen:** houd twee zichtbare knoppen, "Vragen" (`bi-list-check`, met tekst) en "Resultaten" (`bi-bar-chart`, alleen icoon), en zet de rest in een dropdown met `bi-three-dots` (`aria-label="Meer acties"`): Vergelijk AI en docent (`bi-graph-up`), Testen (`bi-play`), Dupliceren (`bi-files`), Bewerken (`bi-pencil`), een scheidingslijn en Verwijderen (`bi-trash`, `text-danger`). De `data-confirm`-attributen gaan mee naar de `dropdown-item`-links; het bestaande script zet ze om naar een POST.
+- [x] **7.4 Badges:** AI aan → `badge-soft-primary`, AI uit → `badge-soft-secondary`, Gedeeld → `badge-soft-info`, Gepubliceerd → `badge-soft-success`, Van collega → `badge-soft-warning`.
+- [x] **7.5 Gastlink in een eigen kolom** "Gastlink" in plaats van boven de actieknoppen. De werking blijft gelijk; de knoppen krijgen iconen: kopiëren `bi-copy`, nieuwe link `bi-arrow-repeat`, uitzetten `bi-slash-circle`, elk met `aria-label` en `title`.
+- [x] **7.6 Actieknoppen:** houd twee zichtbare knoppen, "Vragen" (`bi-list-check`, met tekst) en "Resultaten" (`bi-bar-chart`, alleen icoon), en zet de rest in een dropdown met `bi-three-dots` (`aria-label="Meer acties"`): Vergelijk AI en docent (`bi-graph-up`), Testen (`bi-play`), Dupliceren (`bi-files`), Bewerken (`bi-pencil`), een scheidingslijn en Verwijderen (`bi-trash`, `text-danger`). De `data-confirm`-attributen gaan mee naar de `dropdown-item`-links; het bestaande script zet ze om naar een POST.
   *Klaar als:* elke actie nog werkt, inclusief de bevestiging en de POST (controleer in de netwerktab dat verwijderen en dupliceren een POST zijn).
-- [ ] **7.7** Vervang de drie `htmlspecialchars(...)` door `e(...)`.
+- [x] **7.7** Vervang de drie `htmlspecialchars(...)` door `e(...)`.
 
 **Iconen in plaats van emoji en tekens**
 
-- [ ] **7.8** `api_keys.php`: 📋 → `<i class="bi bi-copy" aria-hidden="true"></i>`, met `aria-label` op de knop.
-- [ ] **7.9** `integration_view.php`: twee keer 📋, idem.
-- [ ] **7.10** `question_design_view.php` en `answer_assessment_validation.php`: `&#10003;` → `bi-check-circle-fill` (kleur `--success`) en `&#10007;` → `bi-x-circle-fill` (kleur `--danger`). Houd de bestaande `aria-label`s.
+- [x] **7.8** `api_keys.php`: 📋 → `<i class="bi bi-copy" aria-hidden="true"></i>`, met `aria-label` op de knop.
+- [x] **7.9** `integration_view.php`: twee keer 📋, idem.
+- [x] **7.10** `question_design_view.php` en `answer_assessment_validation.php`: `&#10003;` → `bi-check-circle-fill` (kleur `--success`) en `&#10007;` → `bi-x-circle-fill` (kleur `--danger`). Houd de bestaande `aria-label`s.
 
 **Niveaubadges**
 
-- [ ] **7.11** Vervang in `student_answers.php` (3×) en `exam_results.php` (1×) `badge bg-<?= e(Grading::levelClass(...)) ?>` door `badge badge-soft-<?= e(Grading::levelClass(...)) ?>`. `Grading::levelClass()` blijft ongewijzigd.
-- [ ] **7.12** Zoek de overige badges met `bg-success`, `bg-warning`, `bg-info`, `bg-danger`, `bg-primary` en `bg-secondary` (`grep -rn 'badge bg-' app/views`) en zet ze per bestand om naar de zachte variant met dezelfde naam. Laat `text-dark` erachter weg (de zachte badge heeft al donkere tekst).
+- [x] **7.11** Vervang in `student_answers.php` (3×) en `exam_results.php` (1×) `badge bg-<?= e(Grading::levelClass(...)) ?>` door `badge badge-soft-<?= e(Grading::levelClass(...)) ?>`. `Grading::levelClass()` blijft ongewijzigd.
+- [x] **7.12** Zoek de overige badges met `bg-success`, `bg-warning`, `bg-info`, `bg-danger`, `bg-primary` en `bg-secondary` (`grep -rn 'badge bg-' app/views`) en zet ze per bestand om naar de zachte variant met dezelfde naam. Laat `text-dark` erachter weg (de zachte badge heeft al donkere tekst).
 
 **Inline styles naar klassen** (één bestand per stap; maak per terugkerend patroon één klasse in `style.css` en gebruik de tokens in plaats van hexkleuren)
 
-- [ ] **7.13** `docent/exam_comparison.php` (14 stijlen, waaronder `#e3f2fd`, `#2196f3`, `#1565c0`, `#fff3cd`, `#ffc107`).
-- [ ] **7.14** `student/view_results.php` (10).
-- [ ] **7.15** `auth/register.php` (8), in de kaartopbouw van 5.5.
-- [ ] **7.16** `docent/question_design_rubric.php` (4) en `docent/audit_log.php` (4).
-- [ ] **7.17** De rest: `questions.php`, `prompt_help.php`, `change_password.php`, `dashboard.php` en wat `grep -rn 'style="' app/views` nog vindt. Alleen een echte uitzondering (bijvoorbeeld een breedte die uit PHP komt) mag blijven.
+- [x] **7.13** `docent/exam_comparison.php` (14 stijlen, waaronder `#e3f2fd`, `#2196f3`, `#1565c0`, `#fff3cd`, `#ffc107`).
+- [x] **7.14** `student/view_results.php` (10).
+- [x] **7.15** `auth/register.php` (8), in de kaartopbouw van 5.5.
+- [x] **7.16** `docent/question_design_rubric.php` (4) en `docent/audit_log.php` (4).
+- [x] **7.17** De rest: `questions.php`, `prompt_help.php`, `change_password.php`, `dashboard.php` en wat `grep -rn 'style="' app/views` nog vindt. Alleen een echte uitzondering (bijvoorbeeld een breedte die uit PHP komt) mag blijven.
 
 **Breadcrumbs en escaping**
 
-- [ ] **7.18** Breadcrumbs toevoegen aan `docent/dashboard.php` (`['Toetsen' => null]`), `student/dashboard.php` (`['Dashboard' => null]`), `auth/change_password.php`, `auth/register.php` en `pages/privacy.php`.
-- [ ] **7.19** Vervang in elk bestand dat je in deze fase aanraakt `htmlspecialchars(...)` door `e(...)` (lijst: `grep -rc htmlspecialchars app/views | grep -v ':0'`). Raak geen bestanden aan die je verder niet wijzigt.
-- [ ] **7.20 Opruimen in `style.css`:** verwijder `.navbar-custom`, `.badge-status-*`, de oude aliassen uit 1.1 en de oude breadcrumbstijl als die niet meer gebruikt worden (`grep -rn` per klasse).
+- [x] **7.18** Breadcrumbs toevoegen aan `docent/dashboard.php` (`['Toetsen' => null]`), `student/dashboard.php` (`['Dashboard' => null]`), `auth/change_password.php`, `auth/register.php` en `pages/privacy.php`.
+- [x] **7.19** Vervang in elk bestand dat je in deze fase aanraakt `htmlspecialchars(...)` door `e(...)` (lijst: `grep -rc htmlspecialchars app/views | grep -v ':0'`). Raak geen bestanden aan die je verder niet wijzigt.
+- [x] **7.20 Opruimen in `style.css`:** verwijder `.navbar-custom`, `.badge-status-*`, de oude aliassen uit 1.1 en de oude breadcrumbstijl als die niet meer gebruikt worden (`grep -rn` per klasse).
   *Klaar als:* `grep -rnP '[\x{1F300}-\x{1FAFF}\x{2600}-\x{27BF}]' app/views` niets meer vindt, `grep -rn 'style="' app/views` alleen bewuste uitzonderingen geeft en `grep -rn '#[0-9a-fA-F]\{3,6\}' app/views` leeg is. Commit: `Clean up components: icons, soft badges, no inline styles`.
 
 ## Fase 8: Documentatie

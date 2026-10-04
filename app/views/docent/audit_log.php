@@ -16,7 +16,7 @@ if (!function_exists('highlightDiff')) {
         $new = (string)$new;
         
         // Als er geen verschil is of één van de twee leeg is, toon gewoon de nieuwe waarde
-        if ($old === $new) return htmlspecialchars($new);
+        if ($old === $new) return e($new);
 
         // Zoek gemeenschappelijke prefix (begin van de zin)
         $lenOld = strlen($old);
@@ -41,14 +41,14 @@ if (!function_exists('highlightDiff')) {
         $deleted = substr($old, $prefixLen, $lenOld - $prefixLen - $suffixLen);
         $inserted = substr($new, $prefixLen, $lenNew - $prefixLen - $suffixLen);
 
-        $html = htmlspecialchars($prefix);
+        $html = e($prefix);
         if ($deleted !== '') {
-            $html .= '<del style="background:#ffe6e6; color:#b30000; text-decoration:line-through;">' . htmlspecialchars($deleted) . '</del>';
+            $html .= '<del class="diff-del">' . e($deleted) . '</del>';
         }
         if ($inserted !== '') {
-            $html .= '<ins style="background:#e6ffe6; color:#006600; text-decoration:none;">' . htmlspecialchars($inserted) . '</ins>';
+            $html .= '<ins class="diff-ins">' . e($inserted) . '</ins>';
         }
-        $html .= htmlspecialchars($suffix);
+        $html .= e($suffix);
 
         return $html;
     }
@@ -57,20 +57,21 @@ if (!function_exists('highlightDiff')) {
 if (!function_exists('formatLogDetails')) {
     function formatLogDetails($detailsJson) {
         $data = json_decode($detailsJson, true);
-        if (json_last_error() !== JSON_ERROR_NONE) return htmlspecialchars($detailsJson);
+        if (json_last_error() !== JSON_ERROR_NONE) return e($detailsJson);
         return $data;
     }
 }
 ?>
 
-<h2>Audit Log</h2>
-<p>Overzicht van recente acties in het systeem.</p>
-
-<?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin'): ?>
-<div class="mb-3">
-    <a href="/?action=clear_audit_log" class="btn btn-danger" data-confirm="Weet u zeker dat u de audit log wilt wissen? Alleen de regels van het laatste uur blijven staan (nodig voor de inlogbeveiliging en de rate limits). Deze actie kan niet ongedaan worden gemaakt.">Log leegmaken</a>
+<div class="page-header">
+    <div>
+        <h1 class="h3 mb-1">Audit log</h1>
+        <p class="text-muted mb-0">Overzicht van recente acties in het systeem.</p>
+    </div>
+    <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin'): ?>
+    <a href="/?action=clear_audit_log" class="btn btn-outline-danger" data-confirm="Weet u zeker dat u de audit log wilt wissen? Alleen de regels van het laatste uur blijven staan (nodig voor de inlogbeveiliging en de rate limits). Deze actie kan niet ongedaan worden gemaakt."><i class="bi bi-trash me-1" aria-hidden="true"></i>Log leegmaken</a>
+    <?php endif; ?>
 </div>
-<?php endif; ?>
 
 <div class="card">
 <div class="table-responsive">
@@ -87,22 +88,22 @@ if (!function_exists('formatLogDetails')) {
     <tbody>
         <?php foreach ($logs as $log): ?>
             <tr>
-                <td class="text-nowrap"><?= htmlspecialchars($log['created_at']) ?></td>
-                <td><?= htmlspecialchars($log['user_name'] ?? '') ?></td>
-                <td><span class="badge bg-secondary"><?= htmlspecialchars($log['action']) ?></span></td>
-                <td style="max-width: 500px; overflow-wrap: break-word;">
+                <td class="text-nowrap"><?= e($log['created_at']) ?></td>
+                <td><?= e($log['user_name'] ?? '') ?></td>
+                <td><span class="badge badge-soft-secondary"><?= e($log['action']) ?></span></td>
+                <td class="audit-details">
                     <?php 
                     $data = formatLogDetails($log['details'] ?? '');
                     if (is_array($data)): ?>
-                        <ul style="margin: 0; padding-left: 15px; list-style-type: circle;">
+                        <ul class="audit-details-list">
                             <?php foreach ($data as $key => $val): ?>
                                 <li>
-                                    <strong><?= htmlspecialchars(ucfirst($key)) ?>:</strong> 
+                                    <strong><?= e(ucfirst($key)) ?>:</strong> 
                                     <?php 
                                     if (is_array($val) && isset($val['old'], $val['new']) && is_scalar($val['old']) && is_scalar($val['new'])) {
                                         echo highlightDiff($val['old'], $val['new']);
                                     } else {
-                                        echo htmlspecialchars(is_array($val) ? json_encode($val) : $val);
+                                        echo e(is_array($val) ? json_encode($val) : $val);
                                     }
                                     ?>
                                 </li>
@@ -112,7 +113,7 @@ if (!function_exists('formatLogDetails')) {
                         <?= $data ?>
                     <?php endif; ?>
                 </td>
-                <td class="text-muted small"><?= htmlspecialchars($log['ip_address'] ?? '') ?></td>
+                <td class="text-muted small"><?= e($log['ip_address'] ?? '') ?></td>
             </tr>
         <?php endforeach; ?>
     </tbody>
@@ -134,10 +135,10 @@ if (!function_exists('formatLogDetails')) {
 
 <?php 
 $content = ob_get_clean();
-$title = "Audit Log";
+$title = "Audit log";
 $breadcrumbs = [
     'Dashboard' => '/?action=docent_dashboard',
-    'Audit Log' => ''
+    'Audit log' => ''
 ];
 require __DIR__ . '/../layouts/main.php';
 ?>

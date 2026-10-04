@@ -10,10 +10,12 @@
 ob_start();
 ?>
 
-<h2>Gebruikers beheren</h2>
-
-<div class="mb-3">
-    <a href="/?action=student_create" class="btn btn-primary">Nieuwe gebruiker</a>
+<div class="page-header">
+    <div>
+        <h1 class="h3 mb-1">Gebruikers</h1>
+        <p class="text-muted mb-0">Studenten, docenten, beoordelaars en beheerders.</p>
+    </div>
+    <a href="/?action=student_create" class="btn btn-primary"><i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Nieuwe gebruiker</a>
 </div>
 
 <div class="card">
@@ -31,11 +33,11 @@ ob_start();
   <tbody>
     <?php foreach ($students as $s): ?>
     <tr>
-      <td><?= htmlspecialchars($s['name']) ?></td>
-      <td><?= htmlspecialchars($s['email']) ?></td>
+      <td><?= e($s['name']) ?></td>
+      <td><?= e($s['email']) ?></td>
       <td>
-          <span class="badge <?= $s['role'] == 'admin' ? 'bg-danger' : ($s['role'] == 'docent' ? 'bg-primary' : 'bg-secondary') ?>">
-            <?= htmlspecialchars($s['role']) ?>
+          <span class="badge <?= $s['role'] == 'admin' ? 'badge-soft-danger' : ($s['role'] == 'docent' ? 'badge-soft-primary' : 'badge-soft-secondary') ?>">
+            <?= e($s['role']) ?>
           </span>
       </td>
       <td><?= e($s['created_at']) ?></td>

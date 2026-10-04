@@ -11,13 +11,16 @@ ob_start();
 ?>
 
 <div id="questions-content">
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2 class="mb-0">Vragen: <?= htmlspecialchars($exam['title']) ?></h2>
-    <div data-html2canvas-ignore="true">
-        <button type="button" id="exportPdfBtn" class="btn btn-secondary me-2">Export PDF</button>
+<div class="page-header">
+    <div>
+        <h1 class="h3 mb-1">Vragen</h1>
+        <p class="text-muted mb-0"><?= e($exam['title']) ?></p>
+    </div>
+    <div class="page-header-actions" data-html2canvas-ignore="true">
+        <button type="button" id="exportPdfBtn" class="btn btn-outline-secondary"><i class="bi bi-file-earmark-pdf me-1" aria-hidden="true"></i>Export PDF</button>
         <?php if (!empty($canEdit)): ?>
-        <a href="index.php?action=question_create&exam_id=<?= (int)$exam['id'] ?>" class="btn btn-primary">Nieuwe vraag</a>
-        <a href="/?action=question_design_create&exam_id=<?= (int)$exam['id'] ?>" class="btn btn-outline-primary ms-2">Vraag ontwerpen met AI</a>
+        <a href="/?action=question_design_create&amp;exam_id=<?= (int)$exam['id'] ?>" class="btn btn-outline-primary"><i class="bi bi-magic me-1" aria-hidden="true"></i>Vraag ontwerpen met AI</a>
+        <a href="/?action=question_create&amp;exam_id=<?= (int)$exam['id'] ?>" class="btn btn-primary"><i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Nieuwe vraag</a>
         <?php endif; ?>
     </div>
 </div>
@@ -27,16 +30,16 @@ ob_start();
         <table class="table table-striped table-hover mb-0">
           <thead class="table-light">
             <tr>
-              <th style="width: 45%">Vraag</th>
-              <th style="width: 40%">Criteria</th>
-              <th style="width: 15%" class="text-end" data-html2canvas-ignore="true">Acties</th>
+              <th class="col-w-45">Vraag</th>
+              <th class="col-w-40">Criteria</th>
+              <th class="text-end col-w-15" data-html2canvas-ignore="true">Acties</th>
             </tr>
           </thead>
           <tbody>
             <?php foreach ($questions as $q): ?>
             <tr>
-              <td><?= nl2br(htmlspecialchars($q['question_text'])) ?></td>
-              <td><small class="text-muted"><?= nl2br(htmlspecialchars($q['criteria'])) ?></small></td>
+              <td><?= nl2br(e($q['question_text'])) ?></td>
+              <td><small class="text-muted"><?= nl2br(e($q['criteria'])) ?></small></td>
               <td class="text-end" data-html2canvas-ignore="true">
                 <?php if (!empty($canEdit)): ?>
                 <div class="btn-group btn-group-sm">

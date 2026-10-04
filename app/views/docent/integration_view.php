@@ -19,13 +19,13 @@ $id = (int)$integration['id'];
     <div class="mt-3"><strong>API-key</strong> (alleen voor de server van de externe website, nooit in de browser):</div>
     <div class="input-group mt-1">
         <input type="text" id="newIntegrationKey" readonly data-select-on-click value="<?= e($credentials['key']) ?>" class="form-control font-monospace">
-        <button class="btn btn-outline-secondary" type="button" data-copy-target="newIntegrationKey" title="Kopieer key">📋</button>
+        <button class="btn btn-outline-secondary" type="button" data-copy-target="newIntegrationKey" aria-label="Kopieer key" title="Kopieer key"><i class="bi bi-copy" aria-hidden="true"></i></button>
     </div>
     <?php endif; ?>
     <div class="mt-3"><strong>Webhookgeheim</strong> (om de handtekening van webhooks te controleren):</div>
     <div class="input-group mt-1">
         <input type="text" id="newIntegrationSecret" readonly data-select-on-click value="<?= e($credentials['secret']) ?>" class="form-control font-monospace">
-        <button class="btn btn-outline-secondary" type="button" data-copy-target="newIntegrationSecret" title="Kopieer geheim">📋</button>
+        <button class="btn btn-outline-secondary" type="button" data-copy-target="newIntegrationSecret" aria-label="Kopieer geheim" title="Kopieer geheim"><i class="bi bi-copy" aria-hidden="true"></i></button>
     </div>
 </div>
 <?php endif; ?>
@@ -34,9 +34,9 @@ $id = (int)$integration['id'];
     <h2 class="mb-0">
         <?= e($integration['name']) ?>
         <?php if ($integration['active']): ?>
-        <span class="badge bg-success fs-6 align-middle">Actief</span>
+        <span class="badge badge-soft-success fs-6 align-middle">Actief</span>
         <?php else: ?>
-        <span class="badge bg-secondary fs-6 align-middle">Uitgeschakeld</span>
+        <span class="badge badge-soft-secondary fs-6 align-middle">Uitgeschakeld</span>
         <?php endif; ?>
     </h2>
     <div class="d-flex flex-wrap gap-2">
@@ -83,7 +83,7 @@ $id = (int)$integration['id'];
             <span class="text-muted small">(toets-id <?= (int)$exam['id'] ?>, <?= (int)$exam['question_count'] ?> vragen)</span>
         </span>
         <?php if (empty($exam['ai_grading_enabled'])): ?>
-        <span class="badge bg-warning text-dark" title="Nieuwe pogingen kunnen niet starten; lopende pogingen blijven op grading staan.">AI-beoordeling staat uit</span>
+        <span class="badge badge-soft-warning" title="Nieuwe pogingen kunnen niet starten; lopende pogingen blijven op grading staan.">AI-beoordeling staat uit</span>
         <?php endif; ?>
     </li>
     <?php endforeach; ?>
@@ -122,7 +122,7 @@ $id = (int)$integration['id'];
                 <?php if ($event['last_status'] !== null): ?>HTTP <?= (int)$event['last_status'] ?><?php endif; ?>
                 <?php if ($event['last_error']): ?><span class="text-danger"><?= e($event['last_error']) ?></span><?php endif; ?>
                 <?php if ($event['delivered_at'] === null && $event['next_attempt_at'] === null): ?>
-                    <span class="badge bg-danger">Opgegeven</span>
+                    <span class="badge badge-soft-danger">Opgegeven</span>
                 <?php elseif ($event['delivered_at'] === null): ?>
                     <span class="text-muted">volgende poging vanaf <?= e($event['next_attempt_at']) ?></span>
                 <?php endif; ?>
@@ -160,7 +160,7 @@ $id = (int)$integration['id'];
             <td class="font-monospace small"><?= e($attempt['external_ref']) ?></td>
             <td><?= e($attempt['guest_name']) ?></td>
             <td><?= e($attempt['exam_title']) ?></td>
-            <td><span class="badge bg-light text-dark border"><?= e($attempt['status'] ?? '') ?></span></td>
+            <td><span class="badge badge-soft-secondary"><?= e($attempt['status'] ?? '') ?></span></td>
             <td class="small"><?= e($attempt['created_at']) ?></td>
             <td class="small"><?= e($attempt['completed_at'] ?? '') ?></td>
         </tr>

@@ -98,13 +98,13 @@ class AnswerAssessment {
     }
   }
 
-  /** Bootstrap-klasse voor de statusbadge. */
+  /** CSS-klasse voor de statusbadge (zachte badge, zie htdocs/style.css). */
   public static function statusClass(string $status): string {
     switch ($status) {
-      case self::STATUS_DONE: return 'bg-info text-dark';
-      case self::STATUS_FAILED: return 'bg-danger';
-      case self::STATUS_SUPERSEDED: return 'bg-light text-muted border';
-      default: return 'bg-secondary';
+      case self::STATUS_DONE: return 'badge-soft-info';
+      case self::STATUS_FAILED: return 'badge-soft-danger';
+      case self::STATUS_SUPERSEDED: return 'badge-soft-secondary';
+      default: return 'badge-soft-secondary';
     }
   }
 

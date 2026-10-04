@@ -16,16 +16,21 @@ if (isset($_SESSION['new_api_key'])):
 <div class="alert alert-success mb-4">
     <strong>Nieuwe API-key succesvol aangemaakt!</strong><br>
     Dit is de enige keer dat de volledige key wordt getoond. Kopieer hem nu en bewaar hem op een veilige plek.<br><br>
-    <strong>Naam:</strong> <?= htmlspecialchars($newKeyData['name']) ?><br>
+    <strong>Naam:</strong> <?= e($newKeyData['name']) ?><br>
     <strong>Key:</strong>
     <div class="input-group mt-2">
-        <input type="text" id="newApiKeyValue" readonly data-select-on-click value="<?= htmlspecialchars($newKeyData['key']) ?>" class="form-control font-monospace">
-        <button class="btn btn-outline-secondary" type="button" data-copy-target="newApiKeyValue" title="Kopieer key">📋</button>
+        <input type="text" id="newApiKeyValue" readonly data-select-on-click value="<?= e($newKeyData['key']) ?>" class="form-control font-monospace">
+        <button class="btn btn-outline-secondary" type="button" data-copy-target="newApiKeyValue" aria-label="Kopieer key" title="Kopieer key"><i class="bi bi-copy" aria-hidden="true"></i></button>
     </div>
 </div>
 <?php endif; ?>
 
-<h2>API-keys beheren</h2>
+<div class="page-header">
+    <div>
+        <h1 class="h3 mb-1">API-keys</h1>
+        <p class="text-muted mb-0">Keys voor de AI-workers en de externe koppelingen.</p>
+    </div>
+</div>
 
 <p>Beheer hier de API-keys voor de AI-workers (type <em>Worker</em>). Keys van het type <em>Koppeling</em> horen bij een externe koppeling en beheer je via <a href="/?action=integrations">Koppelingen</a>. Keys worden gehasht opgeslagen; de externe applicatie stuurt de key mee in de header <code>Authorization: Bearer &lt;key&gt;</code>.</p>
 
@@ -50,20 +55,20 @@ if (isset($_SESSION['new_api_key'])):
     <?php foreach ($keys as $key): ?>
     <?php $isIntegrationKey = ($key['scope'] ?? ApiKey::SCOPE_WORKER) === ApiKey::SCOPE_INTEGRATION; ?>
     <tr>
-      <td><?= htmlspecialchars($key['name']) ?></td>
+      <td><?= e($key['name']) ?></td>
       <td>
         <?php if ($isIntegrationKey): ?>
-        <span class="badge bg-info text-dark">Koppeling</span>
+        <span class="badge badge-soft-info">Koppeling</span>
         <?php else: ?>
-        <span class="badge bg-light text-dark border">Worker</span>
+        <span class="badge badge-soft-secondary">Worker</span>
         <?php endif; ?>
       </td>
-      <td class="font-monospace"><?= htmlspecialchars(substr($key['api_key'], 0, 8)) ?>...</td>
+      <td class="font-monospace"><?= e(substr($key['api_key'], 0, 8)) ?>...</td>
       <td>
         <?php if ($key['active']): ?>
-        <span class="badge bg-success">Actief</span>
+        <span class="badge badge-soft-success">Actief</span>
         <?php else: ?>
-        <span class="badge bg-secondary">Uitgeschakeld</span>
+        <span class="badge badge-soft-secondary">Uitgeschakeld</span>
         <?php endif; ?>
       </td>
       <td><?= e($key['created_at']) ?></td>

@@ -9,7 +9,12 @@
  */
 ob_start(); ?>
 
-<h2 class="mb-4">Student Dashboard</h2>
+<div class="page-header">
+    <div>
+        <h1 class="h3 mb-1">Dashboard</h1>
+        <p class="text-muted mb-0">Welkom, <?= e($_SESSION['name'] ?? '') ?></p>
+    </div>
+</div>
 
 <div class="mb-5">
     <h3 class="h4 mb-3 border-bottom pb-2">Beschikbare toetsen</h3>
@@ -21,8 +26,8 @@ ob_start(); ?>
                 <div class="col-md-6 col-lg-4">
                     <div class="card h-100">
                         <div class="card-body d-flex flex-column">
-                            <h5 class="card-title"><?= htmlspecialchars($exam['title']) ?></h5>
-                            <p class="card-text text-muted flex-grow-1"><?= htmlspecialchars($exam['description']) ?></p>
+                            <h5 class="card-title"><?= e($exam['title']) ?></h5>
+                            <p class="card-text text-muted flex-grow-1"><?= e($exam['description']) ?></p>
                             <a href="/?action=start_exam&exam_id=<?= $exam['id'] ?>" class="btn btn-primary mt-3">Start toets</a>
                         </div>
                     </div>
@@ -51,13 +56,13 @@ ob_start(); ?>
             <tbody>
                 <?php foreach ($studentExams as $se): ?>
                     <tr>
-                        <td><?= htmlspecialchars($se['title']) ?></td>
+                        <td><?= e($se['title']) ?></td>
                         <td><?= e($se['started_at']) ?></td>
                         <td>
                             <?php if($se['completed_at']): ?>
-                                <span class="badge bg-success">Ingeleverd</span>
+                                <span class="badge badge-soft-success">Ingeleverd</span>
                             <?php else: ?>
-                                <span class="badge bg-warning text-dark">Bezig</span>
+                                <span class="badge badge-soft-warning">Bezig</span>
                             <?php endif; ?>
                         </td>
                         <td>

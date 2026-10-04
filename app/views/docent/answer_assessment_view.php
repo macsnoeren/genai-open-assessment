@@ -51,7 +51,7 @@ $renderRound = function (array $round, bool $withDecision) use ($rubric, $eviden
 ?>
 
 <div class="d-flex justify-content-between align-items-center mb-3">
-    <h2 class="mb-0">Agentic AI-beoordeling <span class="badge bg-info text-dark fs-6 align-middle">AI</span></h2>
+    <h2 class="mb-0">Agentic AI-beoordeling <span class="badge badge-soft-info fs-6 align-middle">AI</span></h2>
     <h4 class="text-muted mb-0"><?= e($answer['student_name']) ?></h4>
 </div>
 
@@ -231,7 +231,7 @@ $renderRound = function (array $round, bool $withDecision) use ($rubric, $eviden
         <?php endif; ?>
         <ol class="small">
             <?php foreach ($rubric['criteria'] as $c): ?>
-                <li><span class="badge bg-light text-dark border"><?= e($c['weight']) ?></span> <span class="fw-semibold"><?= e($c['name']) ?>:</span> <?= e($c['description']) ?></li>
+                <li><span class="badge badge-soft-secondary"><?= e($c['weight']) ?></span> <span class="fw-semibold"><?= e($c['name']) ?>:</span> <?= e($c['description']) ?></li>
             <?php endforeach; ?>
         </ol>
         <ul class="small list-unstyled">

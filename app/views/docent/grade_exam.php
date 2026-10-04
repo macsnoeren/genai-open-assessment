@@ -16,12 +16,12 @@ ob_start();
 <?php foreach ($answers as $a): ?>
 <div class="card mb-4" id="answer-<?= $a['id'] ?>">
   <div class="card-header bg-light">
-      <strong>Vraag:</strong> <?= htmlspecialchars($a['question_text']) ?>
+      <strong>Vraag:</strong> <?= e($a['question_text']) ?>
   </div>
   <div class="card-body">
       <div class="mb-3">
           <h6 class="text-muted">Student antwoord:</h6>
-          <div class="p-3 bg-white border rounded"><?= nl2br(htmlspecialchars($a['answer'])) ?></div>
+          <div class="p-3 bg-white border rounded"><?= nl2br(e($a['answer'])) ?></div>
       </div>
       
       <hr class="my-4">
@@ -50,12 +50,12 @@ ob_start();
       <?php else: ?>
       <div class="mb-3">
           <label class="form-label">Score (0-10)</label>
-          <input type="number" name="teacher_score" class="form-control" min="0" max="10" value="<?= htmlspecialchars($a['teacher_score'] ?? '') ?>">
+          <input type="number" name="teacher_score" class="form-control" min="0" max="10" value="<?= e($a['teacher_score'] ?? '') ?>">
       </div>
       <?php endif; ?>
       <div class="mb-3">
           <label class="form-label">Feedback</label>
-          <textarea name="teacher_feedback" class="form-control" placeholder="Schrijf hier uw feedback..." rows="3"><?= htmlspecialchars($a['teacher_feedback'] ?? '') ?></textarea>
+          <textarea name="teacher_feedback" class="form-control" placeholder="Schrijf hier uw feedback..." rows="3"><?= e($a['teacher_feedback'] ?? '') ?></textarea>
       </div>
       <button type="submit" class="btn btn-primary">Opslaan</button>
   </form>
@@ -72,10 +72,13 @@ require __DIR__ . '/final_grade_override.php';
 <?php
  $content = ob_get_clean();
  $title = "Beoordelen (Blind)";
- $breadcrumbs = [
-    'Dashboard' => '/?action=docent_dashboard',
-    'Resultaten' => '/?action=exam_results&exam_id=' . $studentExam['exam_id'],
-    'Beoordelen' => ''
- ];
+ // Een beoordelaar komt uit de lijst Beoordelen en heeft geen toegang tot het dashboard.
+ $breadcrumbs = ($_SESSION['role'] ?? '') === 'beoordelaar'
+    ? ['Beoordelen' => '/?action=pending_assessments', 'Poging beoordelen' => '']
+    : [
+        'Dashboard' => '/?action=docent_dashboard',
+        'Resultaten' => '/?action=exam_results&exam_id=' . $studentExam['exam_id'],
+        'Beoordelen' => ''
+    ];
  require __DIR__ . '/../layouts/main.php';
 ?>

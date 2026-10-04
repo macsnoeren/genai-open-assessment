@@ -1,29 +1,51 @@
-<?php ob_start(); ?>
+<?php
+/**
+ * Copyright (C) 2025 JMNL Innovation.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ */
+ob_start();
+?>
 
-<div style="max-width: 400px; margin: 50px auto; padding: 20px; border: 1px solid #ccc; border-radius: 5px;">
-    <h2>Systeem Initialisatie</h2>
-    <p>Er zijn nog geen gebruikers gevonden. Maak het eerste account aan. Dit account wordt automatisch <strong>Admin</strong>.</p>
-    
-    <form method="POST" action="/?action=do_register">
-        <?= csrfInput() ?>
-        <div style="margin-bottom: 10px;">
-            <label>Naam</label><br>
-            <input type="text" name="name" required style="width: 100%;">
+<div class="auth-wrapper auth-wrapper-inline">
+    <div class="card auth-card">
+        <div class="card-body p-4">
+            <img src="/images/logo.png" alt="<?= e(APP_NAME) ?>" class="auth-logo">
+            <h1 class="h4 card-title text-center mb-3">Account aanmaken</h1>
+            <p class="text-muted text-center mb-4">Maak een studentaccount aan. Daarna kun je inloggen.</p>
+
+            <form method="POST" action="/?action=do_register">
+                <?= csrfInput() ?>
+                <div class="mb-3">
+                    <label class="form-label" for="register-name">Naam</label>
+                    <input type="text" name="name" id="register-name" class="form-control" required maxlength="<?= (int)MAX_NAME_LENGTH ?>" autocomplete="name">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="register-email">E-mail</label>
+                    <input type="email" name="email" id="register-email" class="form-control" required autocomplete="email">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="register-password">Wachtwoord</label>
+                    <input type="password" name="password" id="register-password" class="form-control" required minlength="<?= (int)PASSWORD_MIN_LENGTH ?>" autocomplete="new-password">
+                    <div class="form-text">Minimaal <?= (int)PASSWORD_MIN_LENGTH ?> tekens, met minimaal één letter en één cijfer.</div>
+                </div>
+                <div class="d-grid">
+                    <button type="submit" class="btn btn-primary">Account aanmaken</button>
+                </div>
+            </form>
         </div>
-        <div style="margin-bottom: 10px;">
-            <label>Email</label><br>
-            <input type="email" name="email" required style="width: 100%;">
-        </div>
-        <div style="margin-bottom: 10px;">
-            <label>Wachtwoord</label><br>
-            <input type="password" name="password" required minlength="<?= (int)PASSWORD_MIN_LENGTH ?>" autocomplete="new-password" style="width: 100%;">
-        </div>
-        <button type="submit" style="width: 100%; padding: 10px; background: #007bff; color: white; border: none;">Admin Account Aanmaken</button>
-    </form>
+    </div>
+    <p class="auth-back"><a href="/?action=login">Heb je al een account? Inloggen</a></p>
 </div>
 
-<?php 
+<?php
 $content = ob_get_clean();
-$title = "Setup";
-require __DIR__ . '/../layouts/main.php'; 
-?>
+$title = "Account aanmaken";
+$breadcrumbs = [
+    'Startpagina' => '/',
+    'Account aanmaken' => null,
+];
+require __DIR__ . '/../layouts/main.php';

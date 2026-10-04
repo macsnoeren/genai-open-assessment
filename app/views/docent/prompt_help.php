@@ -58,7 +58,7 @@ ob_start();
     <div class="card-header bg-light fw-bold">Voorbeeld Prompt</div>
     <div class="card-body">
         <p>Hieronder staat een voorbeeld van een effectieve prompt. Let op het gebruik van de variabelen en de strikte instructie voor JSON output.</p>
-        <pre class="bg-light p-3 border rounded" style="white-space: pre-wrap;">Negeer alle eerdere context.
+        <pre class="bg-light p-3 border rounded text-pre-wrap">Negeer alle eerdere context.
 
 Je bent een automatisch beoordelingssysteem.
 Je mag GEEN uitleg, analyse of extra tekst geven.
@@ -98,7 +98,7 @@ OUTPUTFORMAAT JSON exact (verplicht):
     <div class="card-header bg-light fw-bold">Voorbeeld Prompt voor niveaus</div>
     <div class="card-body">
         <p>Voor een toets met <em>Beoordelen met niveaus</em> kiest de AI een niveau in plaats van punten. Het eindcijfer volgt daarna uit het puntenschema van de toets.</p>
-        <pre class="bg-light p-3 border rounded" style="white-space: pre-wrap;">Je bent een automatisch beoordelingssysteem.
+        <pre class="bg-light p-3 border rounded text-pre-wrap">Je bent een automatisch beoordelingssysteem.
 Je mag GEEN uitleg, analyse of extra tekst geven.
 
 TAKEN:

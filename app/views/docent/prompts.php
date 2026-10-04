@@ -10,12 +10,15 @@
 ob_start();
 ?>
 
-<h2>Prompts beheren</h2>
-<p>Beheer hier de systeem-prompts die gebruikt worden door de AI modellen.</p>
-
-<div class="mb-3">
-    <a href="/?action=prompt_create" class="btn btn-primary">Nieuwe prompt</a>
-    <a href="/?action=prompt_help" class="btn btn-outline-info ms-2">Hulp bij prompts</a>
+<div class="page-header">
+    <div>
+        <h1 class="h3 mb-1">Prompts</h1>
+        <p class="text-muted mb-0">De systeemprompts die de AI-modellen gebruiken.</p>
+    </div>
+    <div class="page-header-actions">
+        <a href="/?action=prompt_help" class="btn btn-outline-secondary"><i class="bi bi-question-circle me-1" aria-hidden="true"></i>Hulp bij prompts</a>
+        <a href="/?action=prompt_create" class="btn btn-primary"><i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Nieuwe prompt</a>
+    </div>
 </div>
 
 <div class="card">
@@ -33,8 +36,8 @@ ob_start();
   <tbody>
     <?php foreach ($prompts as $p): ?>
     <tr>
-      <td><?= htmlspecialchars($p['title']) ?></td>
-      <td><?= htmlspecialchars($p['description']) ?></td>
+      <td><?= e($p['title']) ?></td>
+      <td><?= e($p['description']) ?></td>
       <td><?= ($p['grading_scale'] ?? 'points') === 'levels' ? 'Niveaus' : 'Punten' ?></td>
       <td><?= e($p['updated_at']) ?></td>
       <td class="text-end">

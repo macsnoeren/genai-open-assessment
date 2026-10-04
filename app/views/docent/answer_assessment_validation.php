@@ -17,11 +17,11 @@
  */
 ?>
 <p>
-    <span class="badge <?= $validation['validated'] ? 'bg-success' : 'bg-warning text-dark' ?>">
+    <span class="badge <?= $validation['validated'] ? 'badge-soft-success' : 'badge-soft-warning' ?>">
         <?= $validation['validated'] ? 'Beoordeling bevestigd' : 'Beoordeling niet bevestigd' ?>
     </span>
     <span class="badge <?= e(AnswerAssessment::confidenceClass($validation['confidence'])) ?>">confidence <?= e($validation['confidence']) ?></span>
-    <span class="badge bg-light text-dark border">eindoordeel validatie: <?= e(AnswerAssessment::resultText($validation['final_assessment']['score'])) ?></span>
+    <span class="badge badge-soft-secondary">eindoordeel validatie: <?= e(AnswerAssessment::resultText($validation['final_assessment']['score'])) ?></span>
 </p>
 
 <h6>Controles</h6>
@@ -29,9 +29,9 @@
     <?php foreach ($validation['checks'] as $check): ?>
     <li class="mb-2">
         <?php if ($check['ok']): ?>
-            <span class="text-success fw-bold" aria-label="in orde">&#10003;</span>
+            <i class="bi bi-check-circle-fill icon-pass" role="img" aria-label="in orde"></i>
         <?php else: ?>
-            <span class="text-danger fw-bold" aria-label="niet in orde">&#10007;</span>
+            <i class="bi bi-x-circle-fill icon-fail" role="img" aria-label="niet in orde"></i>
         <?php endif; ?>
         <span class="fw-semibold"><?= e(AnswerAssessment::checkLabel($check['check'])) ?></span>
         <?php if ($check['comment'] !== ''): ?><br><small class="text-muted ms-4"><?= e($check['comment']) ?></small><?php endif; ?>

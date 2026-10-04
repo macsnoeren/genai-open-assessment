@@ -10,8 +10,12 @@
 ob_start(); ?>
 
 <?php if (!isset($studentExam)): ?>
-    <h2>Mijn Resultaten Dashboard</h2>
-    <p class="lead">Hieronder vind je een overzicht van al je gemaakte toetsen.</p>
+    <div class="page-header">
+        <div>
+            <h1 class="h3 mb-1">Mijn resultaten</h1>
+            <p class="text-muted mb-0">Een overzicht van al je gemaakte toetsen.</p>
+        </div>
+    </div>
 
     <div class="card">
         <div class="table-responsive">
@@ -29,8 +33,8 @@ ob_start(); ?>
                     <?php else: ?>
                         <?php foreach ($allStudentExams as $se): ?>
                         <tr>
-                            <td><?= htmlspecialchars($se['exam_title'] ?? 'Toets') ?></td>
-                            <td><?= htmlspecialchars($se['completed_at']) ?></td>
+                            <td><?= e($se['exam_title'] ?? 'Toets') ?></td>
+                            <td><?= e($se['completed_at']) ?></td>
                             <td class="text-end">
                                 <a href="/?action=student_view_results&student_exam_id=<?= (int)$se['id'] ?>" class="btn btn-sm btn-outline-primary">Bekijken</a>
                             </td>
@@ -43,11 +47,17 @@ ob_start(); ?>
     </div>
 <?php else: ?>
 
-<h2>Resultaten: <?= htmlspecialchars($exam['title']) ?></h2>
-<h4 class="text-muted mb-3">Student: <?= htmlspecialchars($studentExam['guest_name'] ?? $_SESSION['name'] ?? 'Onbekend') ?></h4>
-<p class="text-muted"><strong>Ingeleverd op:</strong> <?= htmlspecialchars($studentExam['completed_at']) ?></p>
+<div class="page-header">
+    <div>
+        <h1 class="h3 mb-1">Resultaten: <?= e($exam['title']) ?></h1>
+        <p class="text-muted mb-0">
+            <?= e($studentExam['guest_name'] ?? $_SESSION['name'] ?? 'Onbekend') ?>
+            &middot; ingeleverd op <?= e($studentExam['completed_at']) ?>
+        </p>
+    </div>
+</div>
 
-<p><?= htmlspecialchars($exam['description']) ?></p>
+<p><?= e($exam['description']) ?></p>
 
 <?php $isLevels = ($gradingScale ?? Grading::SCALE_POINTS) === Grading::SCALE_LEVELS; ?>
 <?php if ($isLevels): ?>
@@ -86,7 +96,7 @@ ob_start(); ?>
     <strong>AI-scores (gemiddelde):</strong> <small>automatisch door AI, ter informatie; je cijfer komt van je docent.</small>
     <ul class="mb-0 mt-1">
     <?php foreach ($finalAiScores as $model => $score): ?>
-        <li><strong><?= htmlspecialchars($model) ?>:</strong> <?= number_format($score, 1) ?></li>
+        <li><strong><?= e($model) ?>:</strong> <?= number_format($score, 1) ?></li>
     <?php endforeach; ?>
     </ul>
 </div>
@@ -95,29 +105,30 @@ ob_start(); ?>
 <?php foreach ($questions as $q): ?>
     <?php $a = $answers[$q['id']] ?? null; ?>
     <div class="card">
-        <p><strong>Vraag:</strong> <?= htmlspecialchars($q['question_text']) ?></p>
-        
+      <div class="card-body">
+        <p><strong>Vraag:</strong> <?= e($q['question_text']) ?></p>
+
         <p><strong>Jouw antwoord:</strong><br>
-        <?= $a ? nl2br(htmlspecialchars($a['answer'])) : '<em>Geen antwoord gegeven</em>' ?>
+        <?= $a ? nl2br(e($a['answer'])) : '<em>Geen antwoord gegeven</em>' ?>
         </p>
 
         <hr>
 
         <?php if ($a): ?>
             <?php if (isset($a['teacher_score']) || !empty($a['teacher_level']) || !empty($a['teacher_feedback'])): ?>
-            <div style="margin-top: 10px; padding: 10px; background-color: #fff3cd; border-left: 4px solid #ffc107;">
+            <div class="feedback-block feedback-teacher">
                 <strong>Beoordeling door je docent:</strong><br>
                 <?php if ($isLevels && !empty($a['teacher_level'])): ?>
                     Niveau: <strong><?= e(Grading::levelLabel($a['teacher_level'])) ?></strong><br>
                 <?php elseif (!$isLevels && isset($a['teacher_score'])): ?>
-                    Score: <strong><?= htmlspecialchars($a['teacher_score']) ?></strong><br>
+                    Score: <strong><?= e($a['teacher_score']) ?></strong><br>
                 <?php endif; ?>
                 <?php if (!empty($a['teacher_feedback'])): ?>
-                    Feedback: <?= nl2br(htmlspecialchars($a['teacher_feedback'])) ?>
+                    Feedback: <?= nl2br(e($a['teacher_feedback'])) ?>
                 <?php endif; ?>
             </div>
             <?php else: ?>
-                <div style="color: #666; font-style: italic; padding: 10px; background: #f5f5f5; border-radius: 4px;">
+                <div class="feedback-empty">
                     Docent heeft nog geen feedback gegeven.
                 </div>
             <?php endif; ?>
@@ -126,9 +137,9 @@ ob_start(); ?>
 
             <?php $agentic = $agenticResults[(int)$a['id']] ?? null; ?>
             <?php if ($agentic): ?>
-                <div style="background: #e3f2fd; padding: 15px; border-left: 4px solid #2196f3; margin-bottom: 10px;">
-                    <strong style="color: #1565c0;">AI-beoordeling (agentic):</strong>
-                    <small style="color: #555;">automatisch door AI, niet door je docent</small><br>
+                <div class="feedback-block feedback-ai">
+                    <strong class="feedback-ai-title">AI-beoordeling (agentic):</strong>
+                    <small class="text-muted">automatisch door AI, niet door je docent</small><br>
                     <?php if (isset($agentic['level'])): ?>
                     Niveau: <strong><?= e(Grading::levelLabel($agentic['level'])) ?></strong><br>
                     <?php else: ?>
@@ -140,19 +151,20 @@ ob_start(); ?>
                 </div>
             <?php endif; ?>
             <?php if ($a['ai_feedback']): ?>
-                <div style="background: #e3f2fd; padding: 15px; border-left: 4px solid #2196f3;">
-                    <strong style="color: #1565c0;">AI-feedback:</strong>
-                    <small style="color: #555;">automatisch door AI, niet door je docent</small><br>
-                    <div style="margin-top: 5px; white-space: pre-wrap; font-family: monospace, sans-serif; font-size: 0.95em;">
-<?= htmlspecialchars($a['ai_feedback']) ?>
+                <div class="feedback-block feedback-ai">
+                    <strong class="feedback-ai-title">AI-feedback:</strong>
+                    <small class="text-muted">automatisch door AI, niet door je docent</small><br>
+                    <div class="feedback-raw">
+<?= e($a['ai_feedback']) ?>
                     </div>
                 </div>
             <?php elseif (!$agentic): ?>
-                <div style="color: #666; font-style: italic; padding: 10px; background: #f5f5f5; border-radius: 4px;">
+                <div class="feedback-empty">
                     Nog geen feedback beschikbaar. Dit proces loopt op de achtergrond.
                 </div>
             <?php endif; ?>
         <?php endif; ?>
+      </div>
     </div>
 <?php endforeach; ?>
 
@@ -171,11 +183,12 @@ $content = ob_get_clean();
 $title = isset($exam) ? "Resultaten - " . $exam['title'] : "Mijn Resultaten Overzicht"; // wordt in de layout ge-escaped
 $breadcrumbs = [];
 if (empty($isGuest)) {
-    $breadcrumbs = [
-        'Dashboard' => '/?action=student_dashboard',
-        'Mijn toetsen' => '/?action=my_exams',
-        'Resultaten' => ''
-    ];
+    // Een docent die een eigen testpoging bekijkt, komt uit "Mijn testpogingen".
+    $isStudent = ($_SESSION['role'] ?? '') === 'student';
+    $breadcrumbs = $isStudent
+        ? ['Dashboard' => '/?action=student_dashboard', 'Mijn toetsen' => '/?action=my_exams']
+        : ['Mijn testpogingen' => '/?action=my_exams'];
+    $breadcrumbs['Resultaten'] = '';
 }
 require __DIR__ . '/../layouts/main.php';
 ?>

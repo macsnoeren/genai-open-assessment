@@ -10,13 +10,16 @@
 ob_start();
 ?>
 
-<h2>Externe koppelingen</h2>
+<div class="page-header">
+    <div>
+        <h1 class="h3 mb-1">Koppelingen</h1>
+        <p class="text-muted mb-0">Andere websites die hun deelnemers hier een toets laten maken.</p>
+    </div>
+    <a href="/?action=integration_create" class="btn btn-primary"><i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Nieuwe koppeling</a>
+</div>
 
 <p>Met een koppeling laat een andere website (bijvoorbeeld een leeromgeving) haar eigen deelnemers hier een toets maken. De externe server start een poging met een API-key, de deelnemer maakt de toets zonder account, en de AI kijkt de toets na. De externe website volgt de status via de API en webhooks. Zie <code>docs/integration-api.md</code> voor de technische beschrijving.</p>
 
-<div class="mb-3">
-    <a href="/?action=integration_create" class="btn btn-primary">Nieuwe koppeling</a>
-</div>
 
 <div class="card">
 <div class="table-responsive">
@@ -41,9 +44,9 @@ ob_start();
       <td><a href="/?action=integration_view&id=<?= (int)$integration['id'] ?>"><?= e($integration['name']) ?></a></td>
       <td>
         <?php if ($integration['active']): ?>
-        <span class="badge bg-success">Actief</span>
+        <span class="badge badge-soft-success">Actief</span>
         <?php else: ?>
-        <span class="badge bg-secondary">Uitgeschakeld</span>
+        <span class="badge badge-soft-secondary">Uitgeschakeld</span>
         <?php endif; ?>
       </td>
       <td class="font-monospace small"><?= e($integration['return_origin']) ?></td>
