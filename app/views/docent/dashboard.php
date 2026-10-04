@@ -19,6 +19,53 @@ ob_start();
 
 <p class="lead">Welkom <?= htmlspecialchars($_SESSION['name']) ?></p>
 
+<?php
+$ownerOptions = ['all' => 'Alle toetsen', 'mine' => 'Mijn toetsen', 'colleagues' => 'Van collega\'s'];
+$statusOptions = [
+    'all' => 'Elke status',
+    'published' => 'Gepubliceerd',
+    'unpublished' => 'Niet gepubliceerd',
+    'ai_on' => 'AI aan',
+    'ai_off' => 'AI uit',
+    'shared' => 'Gedeeld',
+];
+?>
+<form method="get" action="/" class="row g-2 align-items-end mb-3">
+    <input type="hidden" name="action" value="docent_dashboard">
+    <input type="hidden" name="filter" value="1">
+    <div class="col-md-5">
+        <label for="filter-q" class="form-label small text-muted mb-1">Zoek op naam</label>
+        <input type="search" class="form-control" id="filter-q" name="q" maxlength="100"
+               value="<?= e($filter['q']) ?>" placeholder="Bijvoorbeeld: Biologie">
+    </div>
+    <div class="col-6 col-md-2">
+        <label for="filter-owner" class="form-label small text-muted mb-1">Eigenaar</label>
+        <select class="form-select" id="filter-owner" name="owner">
+            <?php foreach ($ownerOptions as $value => $label): ?>
+            <option value="<?= e($value) ?>"<?= $filter['owner'] === $value ? ' selected' : '' ?>><?= e($label) ?></option>
+            <?php endforeach; ?>
+        </select>
+    </div>
+    <div class="col-6 col-md-2">
+        <label for="filter-status" class="form-label small text-muted mb-1">Status</label>
+        <select class="form-select" id="filter-status" name="status">
+            <?php foreach ($statusOptions as $value => $label): ?>
+            <option value="<?= e($value) ?>"<?= $filter['status'] === $value ? ' selected' : '' ?>><?= e($label) ?></option>
+            <?php endforeach; ?>
+        </select>
+    </div>
+    <div class="col-md-3 d-flex gap-2">
+        <button type="submit" class="btn btn-outline-primary">Filteren</button>
+        <?php if ($filterActive): ?>
+        <a href="/?action=docent_dashboard&amp;reset_filter=1" class="btn btn-outline-secondary">Wis filter</a>
+        <?php endif; ?>
+    </div>
+</form>
+
+<?php if ($filterActive): ?>
+<p class="small text-muted mb-2"><?= count($exams) ?> van <?= (int)$totalExams ?> toetsen zichtbaar door het filter.</p>
+<?php endif; ?>
+
 <div class="card">
     <div class="card-body p-0">
         <div class="table-responsive">
@@ -91,6 +138,13 @@ ob_start();
                   </td>
                 </tr>
                 <?php endforeach; ?>
+                <?php if (empty($exams)): ?>
+                <tr>
+                  <td colspan="3" class="text-center text-muted py-4">
+                      <?= $filterActive ? 'Geen toetsen gevonden met dit filter.' : 'Je hebt nog geen toetsen.' ?>
+                  </td>
+                </tr>
+                <?php endif; ?>
               </tbody>
             </table>
         </div>

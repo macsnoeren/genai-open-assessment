@@ -66,8 +66,9 @@ Zodra de docent de resultaten heeft vrijgegeven of beoordeeld, kun je via "Mijn 
 ## 5. Voor Docenten
 
 ### Dashboard
-Op het dashboard zie je een overzicht van al je toetsen.
+Op het dashboard zie je een overzicht van al je toetsen, op alfabetische volgorde van de naam.
 *   **Nieuwe toets**: Klik op de knop om een toets aan te maken.
+*   **Filteren**: Boven de lijst zoek je op (een deel van) de naam en kies je de eigenaar (alle toetsen, mijn toetsen, van collega's) en de status (gepubliceerd, niet gepubliceerd, AI aan, AI uit, gedeeld). Klik op **Filteren**. Het filter blijft staan als je een toets opent en terugkeert naar het dashboard (tot je uitlogt); met **Wis filter** zie je weer alle toetsen.
 *   **Link kopiëren**: Klik op het klembord-icoontje naast een toets om de directe link voor studenten te kopiëren.
 *   **Status**: Je ziet direct of AI-beoordeling aan of uit staat voor een toets.
 

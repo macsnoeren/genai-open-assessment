@@ -4,11 +4,21 @@ require_once __DIR__ . '/../../config/database.php';
 
 class Exam {
   
+  /** Eigen en gedeelde toetsen, op naam (zie sortByTitle()). */
   public static function allByDocent($docentId) {
     $pdo = Database::connect();
-    $stmt = $pdo->prepare("SELECT * FROM exams WHERE docent_id = ? OR shared = 1 ORDER BY created_at DESC");
+    $stmt = $pdo->prepare("SELECT * FROM exams WHERE docent_id = ? OR shared = 1 ORDER BY id DESC");
     $stmt->execute([$docentId]);
-    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    return self::sortByTitle($stmt->fetchAll(PDO::FETCH_ASSOC));
+  }
+
+  /**
+   * Sorteert toetsen natuurlijk en hoofdletterongevoelig op titel ("Toets 2" voor
+   * "toets 10"). usort is stabiel: gelijke titels houden de volgorde uit de query.
+   */
+  private static function sortByTitle(array $exams): array {
+    usort($exams, fn($a, $b) => strnatcasecmp((string)$a['title'], (string)$b['title']));
+    return $exams;
   }
   
   public static function create($title, $description, $docentId, $promptId = null, $aiGradingEnabled = 0, $shared = 0, $published = 0) {
@@ -30,11 +40,12 @@ class Exam {
       return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
+    /** Alle toetsen, op naam (zie sortByTitle()). */
     public static function all() {
       $pdo = Database::connect();
-      $stmt = $pdo->prepare("SELECT * FROM exams ORDER BY created_at DESC");
+      $stmt = $pdo->prepare("SELECT * FROM exams ORDER BY id DESC");
       $stmt->execute();
-      return $stmt->fetchAll(PDO::FETCH_ASSOC);
+      return self::sortByTitle($stmt->fetchAll(PDO::FETCH_ASSOC));
     }
 
     public static function find($id) {

@@ -31,13 +31,65 @@ class DocentController {
    */
   public function dashboard() {
     requireRole('docent');
-    
+
     if ($_SESSION['role'] === 'admin') {
         $exams = Exam::all();
     } else {
         $exams = Exam::allByDocent($_SESSION['user_id']);
     }
+    $totalExams = count($exams);
+    $filter = $this->dashboardFilter();
+    $filterActive = $filter !== self::DASHBOARD_FILTER_DEFAULT;
+    $exams = $this->applyDashboardFilter($exams, $filter);
     require __DIR__ . '/../views/docent/dashboard.php';
+  }
+
+  /** Filter van het dashboard als er niets is gekozen. */
+  private const DASHBOARD_FILTER_DEFAULT = ['q' => '', 'owner' => 'all', 'status' => 'all'];
+  private const DASHBOARD_OWNERS = ['all', 'mine', 'colleagues'];
+  private const DASHBOARD_STATUSES = ['all', 'published', 'unpublished', 'ai_on', 'ai_off', 'shared'];
+
+  /**
+   * Leest het dashboardfilter uit de query string en onthoudt het in de sessie,
+   * zodat het blijft staan als de docent na bewerken terugkeert naar het dashboard.
+   * Zonder `filter` in de URL geldt het onthouden filter; `reset_filter` wist het.
+   */
+  private function dashboardFilter(): array {
+    if (isset($_GET['reset_filter'])) {
+        unset($_SESSION['dashboard_filter']);
+    } elseif (isset($_GET['filter'])) {
+        $owner = requestString($_GET, 'owner', 20, 'all');
+        $status = requestString($_GET, 'status', 20, 'all');
+        $_SESSION['dashboard_filter'] = [
+            'q' => trim(mb_scrub(requestString($_GET, 'q', 100), 'UTF-8')),
+            'owner' => in_array($owner, self::DASHBOARD_OWNERS, true) ? $owner : 'all',
+            'status' => in_array($status, self::DASHBOARD_STATUSES, true) ? $status : 'all',
+        ];
+    }
+    $filter = $_SESSION['dashboard_filter'] ?? [];
+    return is_array($filter) ? array_merge(self::DASHBOARD_FILTER_DEFAULT, $filter) : self::DASHBOARD_FILTER_DEFAULT;
+  }
+
+  /** Houdt alleen de toetsen over die aan het dashboardfilter voldoen (volgorde blijft gelijk). */
+  private function applyDashboardFilter(array $exams, array $filter): array {
+    $userId = (int)$_SESSION['user_id'];
+    return array_values(array_filter($exams, function ($exam) use ($filter, $userId) {
+        if ($filter['q'] !== '' && mb_stripos((string)$exam['title'], $filter['q'], 0, 'UTF-8') === false) {
+            return false;
+        }
+        $isMine = (int)$exam['docent_id'] === $userId;
+        if (($filter['owner'] === 'mine' && !$isMine) || ($filter['owner'] === 'colleagues' && $isMine)) {
+            return false;
+        }
+        switch ($filter['status']) {
+            case 'published':   return !empty($exam['published']);
+            case 'unpublished': return empty($exam['published']);
+            case 'ai_on':       return !empty($exam['ai_grading_enabled']);
+            case 'ai_off':      return empty($exam['ai_grading_enabled']);
+            case 'shared':      return !empty($exam['shared']);
+            default:            return true;
+        }
+    }));
   }
   
   /**
