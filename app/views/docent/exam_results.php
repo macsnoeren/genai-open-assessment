@@ -31,6 +31,7 @@
       <th>Toets ID</th>
       <th>Gestart op</th>
       <th>Ingeleverd op</th>
+      <th>Eindcijfer</th>
       <th class="text-end">Acties</th>
     </tr>
   </thead>
@@ -46,6 +47,27 @@
       <td class="font-monospace"><?= htmlspecialchars($se['unique_id']) ?></td>
       <td><?= e($se['started_at']) ?></td>
       <td><?= e($se['completed_at'] ?? 'Nog niet ingeleverd') ?></td>
+      <td class="text-nowrap">
+        <?php $result = $se['result']; ?>
+        <?php if ($result === null): ?>
+          <span class="text-muted">-</span>
+        <?php elseif ($result['final'] === null): ?>
+          <span class="text-muted small"><?= (int)$result['graded'] ?> van <?= (int)$result['total'] ?> beoordeeld</span>
+        <?php else: ?>
+          <?php if (!is_string($result['final'])): ?>
+            <strong><?= e(Grading::formatGrade((float)$result['final'])) ?></strong>
+          <?php endif; ?>
+          <?php if ($result['label'] !== null): ?>
+            <span class="badge bg-<?= e(Grading::levelClass($result['label'])) ?>"><?= e(Grading::levelLabel($result['label'])) ?></span>
+          <?php endif; ?>
+          <?php if ($result['override'] !== null): ?>
+            <span class="badge bg-light text-dark border" title="Handmatig aangepast: <?= e($result['override_reason']) ?>">aangepast</span>
+            <?php if ($result['override_outdated']): ?>
+              <span class="badge bg-warning text-dark" title="Het berekende cijfer is gewijzigd sinds de aanpassing">!</span>
+            <?php endif; ?>
+          <?php endif; ?>
+        <?php endif; ?>
+      </td>
       <td class="text-end">
         <div class="btn-group btn-group-sm">
             <a href="/?action=view_student_answers&student_exam_id=<?= $se['student_exam_id'] ?>" class="btn btn-outline-secondary">Bekijken</a>

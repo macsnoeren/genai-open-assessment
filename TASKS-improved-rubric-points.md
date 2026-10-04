@@ -174,15 +174,15 @@ Alle rekenregels staan op één plek, zodat de aggregatie niet opnieuw op meerde
 
 ## Fase 6: Eindcijfer berekenen en tonen
 
-- [ ] **6.1 `Grading::attemptResult(int $studentExamId): array`**, de enige plek voor het eindresultaat van een poging. Geeft terug: `scale`, `graded` (aantal beoordeeld), `total`, `computed` (float of null), `override` (cijfer of woord, of null), `final` (`override` als die er is, anders `computed`), `label` (woord als `show_grade_label` aan staat, voor een override het opgegeven woord) en `override_outdated` (`grade_override_basis` ≠ `computed`).
+- [x] **6.1 `Grading::attemptResult(int $studentExamId): array`**, de enige plek voor het eindresultaat van een poging. Geeft terug: `scale`, `graded` (aantal beoordeeld), `total`, `computed` (float of null), `override` (cijfer of woord, of null), `final` (`override` als die er is, anders `computed`), `label` (woord als `show_grade_label` aan staat, voor een override het opgegeven woord) en `override_outdated` (`grade_override_basis` ≠ `computed`).
   Bij `points` is `computed` het huidige gemiddelde van de docentscores, zodat beide schalen dezelfde vorm hebben.
-- [ ] **6.2 `StudentAnswer::aiLevels(?string $aiFeedback, ?string $agenticLevel): array`:** zoals `aiScores()`, maar met de regex `/Model:\s+(.+?)\s+.*?Niveau:\s+(onvoldoende|voldoende|goed|uitstekend)/is` en de bron `Agentic AI` voor het agentic niveau. Nog niet gebruikt door de worker, wel al door de views.
-- [ ] **6.3 `AnswerAssessment::agenticLevelSql()`:** zoals `agenticScoreSql()`, maar voor `final_level`.
-- [ ] **6.4 `Grading::aiGrades(array $answers, array $scheme): array`:** per bron (model of "Agentic AI") het cijfer over de antwoorden waarvoor die bron een niveau heeft.
-- [ ] **6.5 `viewStudentAnswers()`:** gebruik bij `levels` `attemptResult()` en `aiGrades()` in plaats van de lus met `$totalScore`/`$finalAiScores`. Toon per antwoord de AI-niveaus als badges.
-- [ ] **6.6 `student_answers.php`:** een kaart "Eindcijfer" met het berekende cijfer, het woord (als dat aan staat) of "x van y beoordeeld", en de AI-cijfers per model.
-- [ ] **6.7 `StudentExamController::viewResults()` en `view_results.php`:** per vraag het docentniveau (label) en de feedback; bovenaan `final` (of `label`). **Niet** tonen: `computed`, de reden of dat het cijfer is aangepast (B8). Het tonen van AI-resultaten blijft zoals het nu is.
-- [ ] **6.8 `viewExamResults()` en `exam_results.php`:** een kolom "Eindcijfer" per poging via `attemptResult()`, met een markering "aangepast" als er een override is.
+- [x] **6.2 `StudentAnswer::aiLevels(?string $aiFeedback, ?string $agenticLevel): array`:** zoals `aiScores()`, maar met de regex `/Model:\s+(.+?)\s+.*?Niveau:\s+(onvoldoende|voldoende|goed|uitstekend)/is` en de bron `Agentic AI` voor het agentic niveau. Nog niet gebruikt door de worker, wel al door de views.
+- [x] **6.3 `AnswerAssessment::agenticLevelSql()`:** zoals `agenticScoreSql()`, maar voor `final_level`.
+- [x] **6.4 `Grading::aiGrades(array $answers, array $scheme): array`:** per bron (model of "Agentic AI") het cijfer over de antwoorden waarvoor die bron een niveau heeft.
+- [x] **6.5 `viewStudentAnswers()`:** gebruik bij `levels` `attemptResult()` en `aiGrades()` in plaats van de lus met `$totalScore`/`$finalAiScores`. Toon per antwoord de AI-niveaus als badges.
+- [x] **6.6 `student_answers.php`:** een kaart "Eindcijfer" met het berekende cijfer, het woord (als dat aan staat) of "x van y beoordeeld", en de AI-cijfers per model.
+- [x] **6.7 `StudentExamController::viewResults()` en `view_results.php`:** per vraag het docentniveau (label) en de feedback; bovenaan `final` (of `label`). **Niet** tonen: `computed`, de reden of dat het cijfer is aangepast (B8). Het tonen van AI-resultaten blijft zoals het nu is.
+- [x] **6.8 `viewExamResults()` en `exam_results.php`:** een kolom "Eindcijfer" per poging via `attemptResult()`, met een markering "aangepast" als er een override is.
   *Klaar als:* bij een toets met vier vragen en schema 3/4/5 de niveaus U/G/V/O overal 6,0 tonen (docentweergave, resultatenlijst, student); na een wissel naar schema 7/9/10 klopt het nieuwe cijfer; en het woord verschijnt alleen als het vinkje aan staat. Commit: `Calculate final grade from levels`.
 
 ## Fase 7: Eindcijfer handmatig aanpassen

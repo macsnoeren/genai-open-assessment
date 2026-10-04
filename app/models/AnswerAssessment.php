@@ -753,7 +753,19 @@ class AnswerAssessment {
   }
 
   /**
-   * Wat de student van een agentic beoordeling ziet: alleen de score en de
+   * SQL-fragment zoals agenticScoreSql(), maar voor het niveau van de actuele
+   * agentic beoordeling (final_level, bij een toets met grading_scale levels).
+   * Zie StudentAnswer::aiLevels().
+   */
+  public static function agenticLevelSql(string $sa = 'sa'): string {
+    return "(SELECT aa.final_level FROM answer_assessments aa
+             WHERE aa.student_answer_id = $sa.id AND aa.status = '" . self::STATUS_DONE . "'
+             ORDER BY aa.id DESC LIMIT 1)";
+  }
+
+  /**
+   * Wat de student van een agentic beoordeling ziet: alleen de score (bij
+   * grading_scale levels het niveau, sleutel level in plaats van score) en de
    * feedback van de AI (niet de citaten, redeneringen en controles), of null
    * als de run (nog) niet klaar is.
    */
@@ -764,9 +776,13 @@ class AnswerAssessment {
     $run = self::decode($run);
     $rounds = $run['rounds'] ?? [];
     $last = $rounds ? $rounds[count($rounds) - 1] : null;
+    $feedback = (string)($last['assessment']['feedback'] ?? '');
+    if (($run['final_level'] ?? null) !== null && $run['final_level'] !== '') {
+      return ['level' => (string)$run['final_level'], 'feedback' => $feedback];
+    }
     return [
       'score' => (int)$run['final_score'],
-      'feedback' => (string)($last['assessment']['feedback'] ?? ''),
+      'feedback' => $feedback,
     ];
   }
 

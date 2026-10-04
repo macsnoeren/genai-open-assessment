@@ -49,9 +49,35 @@ ob_start(); ?>
 
 <p><?= htmlspecialchars($exam['description']) ?></p>
 
-<?php if (isset($finalScore) && $finalScore !== null): ?>
+<?php $isLevels = ($gradingScale ?? Grading::SCALE_POINTS) === Grading::SCALE_LEVELS; ?>
+<?php if ($isLevels): ?>
+    <?php if ($finalLabel !== null): ?>
+    <div class="alert alert-primary">
+        <strong>Eindbeoordeling van je docent:</strong> <?= e(Grading::levelLabel($finalLabel)) ?>
+    </div>
+    <?php elseif ($finalGrade !== null): ?>
+    <div class="alert alert-primary">
+        <strong>Eindcijfer van je docent:</strong> <?= e(Grading::formatGrade((float)$finalGrade)) ?>
+    </div>
+    <?php else: ?>
+    <div class="alert alert-secondary">
+        Je docent heeft nog niet alle antwoorden beoordeeld. Je eindcijfer verschijnt zodra dat klaar is.
+    </div>
+    <?php endif; ?>
+<?php elseif (isset($finalGrade) && $finalGrade !== null): ?>
 <div class="alert alert-primary">
-    <strong>Eindscore van je docent (gemiddelde):</strong> <?= number_format($finalScore, 1) ?>
+    <strong>Eindscore van je docent:</strong> <?= number_format((float)$finalGrade, 1) ?>
+</div>
+<?php endif; ?>
+
+<?php if ($isLevels && !empty($aiGrades)): ?>
+<div class="alert alert-info">
+    <strong>AI-cijfers:</strong> <small>automatisch door AI, ter informatie; je cijfer komt van je docent.</small>
+    <ul class="mb-0 mt-1">
+    <?php foreach ($aiGrades as $source => $aiGrade): ?>
+        <li><strong><?= e($source) ?>:</strong> <?= e(Grading::formatGrade($aiGrade['grade'])) ?></li>
+    <?php endforeach; ?>
+    </ul>
 </div>
 <?php endif; ?>
 
@@ -78,10 +104,12 @@ ob_start(); ?>
         <hr>
 
         <?php if ($a): ?>
-            <?php if (isset($a['teacher_score']) || !empty($a['teacher_feedback'])): ?>
+            <?php if (isset($a['teacher_score']) || !empty($a['teacher_level']) || !empty($a['teacher_feedback'])): ?>
             <div style="margin-top: 10px; padding: 10px; background-color: #fff3cd; border-left: 4px solid #ffc107;">
                 <strong>Beoordeling door je docent:</strong><br>
-                <?php if (isset($a['teacher_score'])): ?>
+                <?php if ($isLevels && !empty($a['teacher_level'])): ?>
+                    Niveau: <strong><?= e(Grading::levelLabel($a['teacher_level'])) ?></strong><br>
+                <?php elseif (!$isLevels && isset($a['teacher_score'])): ?>
                     Score: <strong><?= htmlspecialchars($a['teacher_score']) ?></strong><br>
                 <?php endif; ?>
                 <?php if (!empty($a['teacher_feedback'])): ?>
@@ -101,7 +129,11 @@ ob_start(); ?>
                 <div style="background: #e3f2fd; padding: 15px; border-left: 4px solid #2196f3; margin-bottom: 10px;">
                     <strong style="color: #1565c0;">AI-beoordeling (agentic):</strong>
                     <small style="color: #555;">automatisch door AI, niet door je docent</small><br>
+                    <?php if (isset($agentic['level'])): ?>
+                    Niveau: <strong><?= e(Grading::levelLabel($agentic['level'])) ?></strong><br>
+                    <?php else: ?>
                     Score: <strong><?= (int)$agentic['score'] ?></strong><br>
+                    <?php endif; ?>
                     <?php if ($agentic['feedback'] !== ''): ?>
                         Feedback: <?= nl2br(e($agentic['feedback'])) ?>
                     <?php endif; ?>

@@ -477,6 +477,8 @@ public function viewExamResults($examId) {
     foreach ($studentExams as &$se) {
         $se['can_reset_ai'] = $canEdit && $this->aiResetBlockedReason($se, $exam, !empty($se['integration_name']) || !empty($se['external_ref'])) === null;
         $aiResettableCount += $se['can_reset_ai'] ? 1 : 0;
+        // Eindcijfer per poging (inclusief een handmatige aanpassing)
+        $se['result'] = !empty($se['completed_at']) ? Grading::attemptResult((int)$se['student_exam_id']) : null;
     }
     unset($se);
     require __DIR__ . '/../views/docent/exam_results.php';
@@ -515,38 +517,45 @@ public function viewStudentAnswers($studentExamId) {
     $pdo = Database::connect();
         $stmt = $pdo->prepare("
         SELECT sa.id, q.question_text, sa.answer, q.criteria, sa.ai_feedback, sa.teacher_score, sa.teacher_level, sa.teacher_feedback,
-               " . AnswerAssessment::agenticScoreSql('sa') . " AS agentic_score
+               " . AnswerAssessment::agenticScoreSql('sa') . " AS agentic_score,
+               " . AnswerAssessment::agenticLevelSql('sa') . " AS agentic_level
         FROM student_answers sa
         JOIN questions q ON sa.question_id = q.id
         WHERE sa.student_exam_id = ?
+        ORDER BY sa.id ASC
     ");
         $stmt->execute([$studentExamId]);
 	    $answers = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    // Bereken eindscore (gemiddelde)
-    $totalScore = 0;
-    $scoredCount = 0;
-    $aiModelScores = [];
+    // Eindresultaat (berekend cijfer en een eventuele handmatige aanpassing): alleen via Grading
+    $gradingScale = Grading::examScale($exam);
+    $attemptResult = Grading::attemptResult((int)$studentExamId);
 
-    foreach ($answers as $a) {
-        if (isset($a['teacher_score']) && $a['teacher_score'] !== null && $a['teacher_score'] !== '') {
-            $totalScore += (float)$a['teacher_score'];
-            $scoredCount++;
+    if ($gradingScale === Grading::SCALE_LEVELS) {
+        // AI-cijfer per bron over de antwoorden waarvoor die bron een niveau heeft
+        $aiGrades = $attemptResult['scheme'] ? Grading::aiGrades($answers, $attemptResult['scheme']) : [];
+        foreach ($answers as &$a) {
+            $a['ai_levels'] = StudentAnswer::aiLevels($a['ai_feedback'], $a['agentic_level']);
+        }
+        unset($a);
+    } else {
+        // Eindscore docent: het gemiddelde van de docentscores (Grading::attemptResult())
+        $finalScore = $attemptResult['computed'];
+        $aiModelScores = [];
+        foreach ($answers as $a) {
+            foreach (StudentAnswer::aiScores($a['ai_feedback'], $a['agentic_score']) as $source => $score) {
+                $aiModelScores[$source][] = $score;
+            }
         }
 
-        foreach (StudentAnswer::aiScores($a['ai_feedback'], $a['agentic_score']) as $source => $score) {
-            $aiModelScores[$source][] = $score;
+        $finalAiScores = [];
+        foreach ($aiModelScores as $model => $scores) {
+            if (count($scores) > 0) {
+                $finalAiScores[$model] = array_sum($scores) / count($scores);
+            }
         }
+        ksort($finalAiScores);
     }
-    $finalScore = $scoredCount > 0 ? $totalScore / $scoredCount : null;
-
-    $finalAiScores = [];
-    foreach ($aiModelScores as $model => $scores) {
-        if (count($scores) > 0) {
-            $finalAiScores[$model] = array_sum($scores) / count($scores);
-        }
-    }
-    ksort($finalAiScores);
 
     require __DIR__ . '/../views/docent/student_answers.php';
     }

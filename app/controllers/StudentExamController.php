@@ -15,6 +15,7 @@ require_once __DIR__ . '/../models/Questions.php';
 require_once __DIR__ . '/../models/StudentExam.php';
 require_once __DIR__ . '/../models/AuditLog.php';
 require_once __DIR__ . '/../models/StudentAnswer.php';
+require_once __DIR__ . '/../models/Grading.php';
 require_once __DIR__ . '/../models/AnswerAssessment.php';
 require_once __DIR__ . '/../models/IntegrationAttempt.php';
 
@@ -581,24 +582,28 @@ class StudentExamController {
         $agenticResults[$answerId] = AnswerAssessment::studentSummary($run);
     }
     
+    // Eindcijfer: alleen het uiteindelijke cijfer of woord (Grading::attemptResult()); de student
+    // ziet niet of het handmatig is aangepast en ook niet de reden (B8)
+    $gradingScale = Grading::examScale($exam);
+    $attemptResult = Grading::attemptResult((int)$studentExamId);
+    $finalGrade = $attemptResult['final'];
+    $finalLabel = $attemptResult['label'];
+
     $answers = [];
-    $totalScore = 0;
-    $scoredCount = 0;
     $aiModelScores = [];
+    $aiLevelRows = [];
 
     foreach ($answersRaw as $a) {
       $answers[$a['question_id']] = $a;
-      if (isset($a['teacher_score']) && $a['teacher_score'] !== null && $a['teacher_score'] !== '') {
-          $totalScore += (float)$a['teacher_score'];
-          $scoredCount++;
-      }
-
       $agentic = $agenticResults[(int)$a['id']] ?? null;
+      if ($gradingScale === Grading::SCALE_LEVELS) {
+          $aiLevelRows[] = ['ai_feedback' => $a['ai_feedback'], 'agentic_level' => $agentic['level'] ?? null];
+          continue;
+      }
       foreach (StudentAnswer::aiScores($a['ai_feedback'], $agentic['score'] ?? null) as $source => $score) {
           $aiModelScores[$source][] = $score;
       }
     }
-    $finalScore = $scoredCount > 0 ? $totalScore / $scoredCount : null;
 
     $finalAiScores = [];
     foreach ($aiModelScores as $model => $scores) {
@@ -607,6 +612,9 @@ class StudentExamController {
         }
     }
     ksort($finalAiScores);
+    // Bij niveaus: het AI-cijfer per bron, net als het gemiddelde per model bij punten
+    $aiGrades = ($gradingScale === Grading::SCALE_LEVELS && $attemptResult['scheme'])
+        ? Grading::aiGrades($aiLevelRows, $attemptResult['scheme']) : [];
     
     require __DIR__ . '/../views/student/view_results.php';
   }

@@ -56,13 +56,57 @@ ob_start();
     </div>
 <?php endif; ?>
 
-<?php if (isset($finalScore) && $finalScore !== null): ?>
+<?php $isLevels = $gradingScale === Grading::SCALE_LEVELS; ?>
+<?php if ($isLevels): ?>
+<div class="card mb-4 border-primary" id="final-grade">
+    <div class="card-header bg-primary text-white"><strong>Eindcijfer</strong></div>
+    <div class="card-body">
+        <div class="d-flex flex-wrap align-items-center gap-3">
+            <?php if ($attemptResult['computed'] !== null): ?>
+                <span class="fs-3 fw-bold"><?= e(Grading::formatGrade($attemptResult['computed'])) ?></span>
+                <?php if ($attemptResult['show_label']): ?>
+                    <?php $computedLabel = Grading::gradeLabel($attemptResult['computed']); ?>
+                    <span class="badge bg-<?= e(Grading::levelClass($computedLabel)) ?> fs-6"><?= e(Grading::levelLabel($computedLabel)) ?></span>
+                <?php endif; ?>
+                <span class="text-muted small">berekend uit de docentniveaus</span>
+            <?php else: ?>
+                <span class="fs-5"><?= (int)$attemptResult['graded'] ?> van <?= (int)$attemptResult['total'] ?> beoordeeld</span>
+                <span class="text-muted small">Het eindcijfer verschijnt als elk antwoord een docentniveau heeft.</span>
+            <?php endif; ?>
+        </div>
+        <?php if ($attemptResult['scheme']): ?>
+        <div class="small text-muted mt-2">
+            Puntenschema: <?= e($attemptResult['scheme']['name']) ?>
+            (voldoende <?= (int)$attemptResult['scheme']['points_voldoende'] ?>, goed <?= (int)$attemptResult['scheme']['points_goed'] ?>,
+            uitstekend <?= (int)$attemptResult['scheme']['points_uitstekend'] ?>, onvoldoende 0).
+            Eindcijfer = 10 × punten / (<?= (int)$attemptResult['total'] ?> × <?= (int)$attemptResult['scheme']['points_uitstekend'] ?>).
+        </div>
+        <?php endif; ?>
+        <?php if (!empty($aiGrades)): ?>
+        <div class="mt-3">
+            <strong>AI-cijfers</strong> <span class="badge bg-info text-dark">AI</span> <small class="text-muted">alleen ter vergelijking</small>
+            <ul class="mb-0 mt-1">
+            <?php foreach ($aiGrades as $source => $aiGrade): ?>
+                <li><strong><?= e($source) ?>:</strong> <?= e(Grading::formatGrade($aiGrade['grade'])) ?>
+                    <?php if ($aiGrade['count'] < $attemptResult['total']): ?>
+                        <small class="text-muted">(over <?= (int)$aiGrade['count'] ?> van <?= (int)$attemptResult['total'] ?> antwoorden)</small>
+                    <?php endif; ?>
+                </li>
+            <?php endforeach; ?>
+            </ul>
+        </div>
+        <?php endif; ?>
+    </div>
+</div>
+<?php endif; ?>
+
+<?php if (!$isLevels && isset($finalScore) && $finalScore !== null): ?>
 <div class="alert alert-primary">
     <strong>Eindscore docent (gemiddelde van de docentscores):</strong> <?= number_format($finalScore, 1) ?>
 </div>
 <?php endif; ?>
 
-<?php if (!empty($finalAiScores)): ?>
+<?php if (!$isLevels && !empty($finalAiScores)): ?>
 <div class="alert alert-info">
     <strong>AI-scores (gemiddelde, alleen ter vergelijking):</strong>
     <ul class="mb-0 mt-1">
@@ -140,6 +184,15 @@ ob_start();
               <div class="small text-secondary"><?= nl2br(htmlspecialchars($a['criteria'])) ?></div>
       </div>
 
+      <?php if ($isLevels && !empty($a['ai_levels'])): ?>
+      <div class="mb-2 d-flex flex-wrap align-items-center gap-1">
+          <span class="small text-muted me-1">AI-niveaus:</span>
+          <?php foreach ($a['ai_levels'] as $source => $aiLevel): ?>
+              <span class="badge bg-<?= e(Grading::levelClass($aiLevel)) ?>"><?= e($source) ?>: <?= e(Grading::levelLabel($aiLevel)) ?></span>
+          <?php endforeach; ?>
+      </div>
+      <?php endif; ?>
+
       <?php if ($a['ai_feedback']): ?>
       <div class="alert alert-info">
           <strong>AI-feedback</strong> <span class="badge bg-info text-dark">AI</span><br>
@@ -156,7 +209,11 @@ ob_start();
           <?php if ($run): ?>
               <span class="badge <?= e(AnswerAssessment::statusClass($run['status'])) ?>"><?= e(AnswerAssessment::statusLabel($run['status'])) ?></span>
               <?php if ($agentic): ?>
+                  <?php if (isset($agentic['level'])): ?>
+                  <span class="fw-semibold">AI-niveau: <?= e(Grading::levelLabel($agentic['level'])) ?></span>
+                  <?php else: ?>
                   <span class="fw-semibold">AI-score: <?= (int)$agentic['score'] ?></span>
+                  <?php endif; ?>
                   <?php if ((int)$run['human_review_needed'] === 1): ?>
                       <span class="badge bg-warning text-dark">AI onzeker: menselijke controle nodig</span>
                   <?php endif; ?>

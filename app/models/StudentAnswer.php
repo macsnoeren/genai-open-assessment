@@ -2,6 +2,7 @@
 
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/AnswerAssessment.php';
+require_once __DIR__ . '/Grading.php';
 
 class StudentAnswer {
   
@@ -88,6 +89,31 @@ class StudentAnswer {
       $scores[AnswerAssessment::AI_SOURCE] = (int)$agenticScore;
     }
     return $scores;
+  }
+
+  /**
+   * AI-niveaus van één antwoord per bron, bij een toets met grading_scale levels:
+   * de modellen uit ai_feedback (contract 1: blokken met "Model:" en "Niveau:")
+   * plus de agentic beoordeling als bron AnswerAssessment::AI_SOURCE. Het
+   * tegenhanger van aiScores(); de enige plek waar de niveaus uit ai_feedback
+   * worden gelezen.
+   *
+   * @param string|null $aiFeedback    student_answers.ai_feedback
+   * @param string|null $agenticLevel  niveau van de actuele agentic beoordeling (zie AnswerAssessment::agenticLevelSql())
+   * @return array bron => niveau
+   */
+  public static function aiLevels(?string $aiFeedback, ?string $agenticLevel = null): array {
+    $levels = [];
+    if ($aiFeedback !== null && $aiFeedback !== '') {
+      preg_match_all('/Model:\s+(.+?)\s+.*?Niveau:\s+(onvoldoende|voldoende|goed|uitstekend)/is', $aiFeedback, $matches, PREG_SET_ORDER);
+      foreach ($matches as $match) {
+        $levels[trim($match[1])] = strtolower($match[2]);
+      }
+    }
+    if ($agenticLevel !== null && $agenticLevel !== '' && in_array($agenticLevel, Grading::LEVELS, true)) {
+      $levels[AnswerAssessment::AI_SOURCE] = $agenticLevel;
+    }
+    return $levels;
   }
 
   /**
