@@ -1075,6 +1075,15 @@ public function viewStudentAnswers($studentExamId) {
     if (!empty($exam['prompt_id'])) {
         $prompt = Prompt::find($exam['prompt_id']);
     }
+
+    $isLevels = Grading::examScale($exam) === Grading::SCALE_LEVELS;
+    if ($isLevels) {
+        $levelComparison = $this->levelComparison((int)$examId, $exam);
+        $comparisonData = $levelComparison['rows'];
+        $modelsFound = $levelComparison['models'];
+        require __DIR__ . '/../views/docent/exam_comparison.php';
+        return;
+    }
     
     $pdo = Database::connect();
     // Haal antwoorden op die zowel door docent als AI zijn beoordeeld
@@ -1219,6 +1228,11 @@ public function viewStudentAnswers($studentExamId) {
     if (!empty($exam['prompt_id'])) {
         $prompt = Prompt::find($exam['prompt_id']);
     }
+
+    if (Grading::examScale($exam) === Grading::SCALE_LEVELS) {
+        $this->exportLevelComparison((int)$examId, $exam);
+        exit;
+    }
     
     $pdo = Database::connect();
     // Haal antwoorden op die zowel door docent als AI zijn beoordeeld
@@ -1329,6 +1343,145 @@ public function viewStudentAnswers($studentExamId) {
 
     fclose($output);
     exit;
+  }
+
+  /**
+   * Vergelijking docent tegen AI bij een toets met niveaus. Alleen antwoorden met
+   * een docentniveau en minstens één AI-niveau tellen mee.
+   * @return array rows (student, question, teacher_level, models bron => niveau),
+   *         models (bron => true), crosstabs per bron (4×4 docentniveau × AI-niveau,
+   *         n, exact- en voldoende/onvoldoende-percentage, gemiddelde afwijking in
+   *         niveaus) en student_grades (student => bron of Docent => cijfer over de
+   *         vergeleken antwoorden, met het puntenschema van de toets)
+   */
+  private function levelComparison(int $examId, array $exam): array {
+      $pdo = Database::connect();
+      $stmt = $pdo->prepare("
+          SELECT * FROM (
+              SELECT sa.id, COALESCE(u.name, se.guest_name, 'Gast') AS student_name, q.question_text, sa.teacher_level, sa.ai_feedback,
+                     " . AnswerAssessment::agenticLevelSql('sa') . " AS agentic_level
+              FROM student_answers sa
+              JOIN student_exams se ON sa.student_exam_id = se.id
+              LEFT JOIN users u ON se.student_id = u.id
+              JOIN questions q ON sa.question_id = q.id
+              WHERE se.exam_id = ?
+              AND sa.teacher_level IS NOT NULL
+          ) WHERE ai_feedback IS NOT NULL OR agentic_level IS NOT NULL
+          ORDER BY id ASC
+      ");
+      $stmt->execute([$examId]);
+
+      $rows = [];
+      $models = [];
+      $levelsByStudent = [];
+      foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+          if (!Grading::isLevel($row['teacher_level'])) {
+              continue;
+          }
+          $aiLevels = StudentAnswer::aiLevels($row['ai_feedback'], $row['agentic_level']);
+          if (!$aiLevels) {
+              continue;
+          }
+          $rows[] = [
+              'student' => $row['student_name'],
+              'question' => $row['question_text'],
+              'teacher_level' => $row['teacher_level'],
+              'models' => $aiLevels,
+          ];
+          $levelsByStudent[$row['student_name']]['Docent'][] = $row['teacher_level'];
+          foreach ($aiLevels as $source => $level) {
+              $models[$source] = true;
+              $levelsByStudent[$row['student_name']][$source][] = $level;
+          }
+      }
+      ksort($models);
+
+      $crosstabs = [];
+      foreach (array_keys($models) as $source) {
+          $matrix = array_fill(0, count(Grading::LEVELS), array_fill(0, count(Grading::LEVELS), 0));
+          $n = $exact = $passAgree = $distance = 0;
+          foreach ($rows as $row) {
+              if (!isset($row['models'][$source])) {
+                  continue;
+              }
+              $t = Grading::levelIndex($row['teacher_level']);
+              $a = Grading::levelIndex($row['models'][$source]);
+              $matrix[$t][$a]++;
+              $n++;
+              $exact += $t === $a ? 1 : 0;
+              $passAgree += ($t > 0) === ($a > 0) ? 1 : 0;
+              $distance += abs($t - $a);
+          }
+          $crosstabs[$source] = [
+              'matrix' => $matrix,
+              'n' => $n,
+              'exact_pct' => $n > 0 ? 100 * $exact / $n : null,
+              'pass_pct' => $n > 0 ? 100 * $passAgree / $n : null,
+              'mean_distance' => $n > 0 ? $distance / $n : null,
+          ];
+      }
+
+      $scheme = !empty($exam['grading_scheme_id']) ? GradingScheme::find($exam['grading_scheme_id']) : null;
+      $studentGrades = [];
+      foreach ($levelsByStudent as $student => $judges) {
+          foreach ($judges as $judge => $levels) {
+              $studentGrades[$student][$judge] = $scheme ? Grading::grade($levels, $scheme) : null;
+          }
+      }
+
+      return ['rows' => $rows, 'models' => $models, 'crosstabs' => $crosstabs, 'student_grades' => $studentGrades, 'scheme' => $scheme ?: null];
+  }
+
+  /** CSV-export van levelComparison(): per antwoord de niveaus en "gelijk", daarna de cijfers per student. */
+  private function exportLevelComparison(int $examId, array $exam): void {
+      $data = $this->levelComparison($examId, $exam);
+      $modelNames = array_keys($data['models']);
+
+      header('Content-Type: text/csv; charset=utf-8');
+      header('Content-Disposition: attachment; filename="comparison_' . preg_replace('/[^a-z0-9]/i', '_', $exam['title']) . '_' . date('Y-m-d') . '.csv"');
+      $output = fopen('php://output', 'w');
+      fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF));
+
+      $headers = ['Student', 'Vraag', 'Docentniveau'];
+      foreach ($modelNames as $model) {
+          $headers[] = csvSafe($model . ' Niveau');
+          $headers[] = csvSafe($model . ' Gelijk');
+      }
+      fputcsv($output, $headers, ';');
+
+      foreach ($data['rows'] as $row) {
+          $csvRow = [csvSafe($row['student']), csvSafe($row['question']), csvSafe($row['teacher_level'])];
+          foreach ($modelNames as $model) {
+              if (isset($row['models'][$model])) {
+                  $csvRow[] = csvSafe($row['models'][$model]);
+                  $csvRow[] = $row['models'][$model] === $row['teacher_level'] ? 'ja' : 'nee';
+              } else {
+                  $csvRow[] = '';
+                  $csvRow[] = '';
+              }
+          }
+          fputcsv($output, $csvRow, ';');
+      }
+
+      fputcsv($output, [], ';');
+      fputcsv($output, ['CIJFERS PER STUDENT (OVER DE VERGELEKEN ANTWOORDEN)'], ';');
+      $summaryHeaders = ['Student', 'Docent Cijfer'];
+      foreach ($modelNames as $model) {
+          $summaryHeaders[] = csvSafe($model . ' Cijfer');
+          $summaryHeaders[] = csvSafe($model . ' Verschil');
+      }
+      fputcsv($output, $summaryHeaders, ';');
+      foreach ($data['student_grades'] as $student => $grades) {
+          $docent = $grades['Docent'] ?? null;
+          $csvRow = [csvSafe($student), $docent !== null ? Grading::formatGrade($docent) : ''];
+          foreach ($modelNames as $model) {
+              $grade = $grades[$model] ?? null;
+              $csvRow[] = $grade !== null ? Grading::formatGrade($grade) : '';
+              $csvRow[] = ($grade !== null && $docent !== null) ? number_format($grade - $docent, 1, ',', '') : '';
+          }
+          fputcsv($output, $csvRow, ';');
+      }
+      fclose($output);
   }
 
   /**

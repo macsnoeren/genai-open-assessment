@@ -199,10 +199,10 @@ Alle rekenregels staan op één plek, zodat de aggregatie niet opnieuw op meerde
 
 ## Fase 8: Vergelijking en export
 
-- [ ] **8.1 `compareExamResults()`:** voor `levels` rijen met `teacher_level` en de AI-niveaus. Voeg per model een 4×4-kruistabel toe (docentniveau tegen AI-niveau), plus het percentage exact gelijk en het percentage gelijk op voldoende/onvoldoende.
-- [ ] **8.2 `exam_comparison.php`:** toon de kruistabellen bij `levels`. De scatterplot gebruikt de niveau-index 0–3 als as, met labels. `points` blijft ongewijzigd.
-- [ ] **8.3 `exportExamComparison()`:** bij `levels` de kolommen docentniveau, het niveau per model en "gelijk (ja/nee)". Tekst altijd via `csvSafe()`.
-- [ ] **8.4 Dashboard:** controleer of het dashboard scores toont (er staan wijzigingen klaar op `dev-dashboard-filter`) en gebruik daar `attemptResult()`.
+- [x] **8.1 `compareExamResults()`:** voor `levels` rijen met `teacher_level` en de AI-niveaus. Voeg per model een 4×4-kruistabel toe (docentniveau tegen AI-niveau), plus het percentage exact gelijk en het percentage gelijk op voldoende/onvoldoende.
+- [x] **8.2 `exam_comparison.php`:** toon de kruistabellen bij `levels`. De scatterplot gebruikt de niveau-index 0–3 als as, met labels. `points` blijft ongewijzigd.
+- [x] **8.3 `exportExamComparison()`:** bij `levels` de kolommen docentniveau, het niveau per model en "gelijk (ja/nee)". Tekst altijd via `csvSafe()`.
+- [x] **8.4 Dashboard:** controleer of het dashboard scores toont (er staan wijzigingen klaar op `dev-dashboard-filter`) en gebruik daar `attemptResult()`.
   *Klaar als:* de vergelijkingspagina en de CSV-export kloppen voor een `levels`-toets met een paar handmatig ingevulde AI-niveaus, en een `points`-toets er hetzelfde uitziet als vroeger. Commit: `Compare levels between teacher and AI`.
 
 ## Fase 9: Worker-contract, webapp-kant

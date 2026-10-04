@@ -7,6 +7,19 @@
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  */
+$isLevels = !empty($isLevels);
+// Grafiek: bij niveaus de niveau-index 0-3 (onvoldoende ... uitstekend) als as, met labels
+$chartRows = $comparisonData;
+$chartMax = 10;
+$chartLabels = null;
+if ($isLevels) {
+    $chartRows = array_map(fn($row) => [
+        'teacher_score' => Grading::levelIndex($row['teacher_level']),
+        'models' => array_map(fn($level) => Grading::levelIndex($level), $row['models']),
+    ], $comparisonData);
+    $chartMax = count(Grading::LEVELS) - 1;
+    $chartLabels = array_map(fn($level) => Grading::levelLabel($level), Grading::LEVELS);
+}
 ob_start();
 ?>
 
@@ -40,7 +53,7 @@ ob_start();
     <!-- Chart Section -->
     <div class="card mb-4">
         <div class="card-header bg-light fw-bold">
-            Correlatie Visualisatie (Docent vs AI)
+            Correlatie Visualisatie (Docent vs AI<?= $isLevels ? ', niveaus' : '' ?>)
         </div>
         <div class="card-body">
             <div style="height: 300px;">
@@ -52,6 +65,133 @@ ob_start();
         </div>
     </div>
 
+    <?php if ($isLevels): ?>
+    <!-- Kruistabellen per model (niveaus) -->
+    <?php foreach ($levelComparison['crosstabs'] as $source => $tab): ?>
+    <div class="card mb-4" style="break-inside: avoid;">
+        <div class="card-header bg-light fw-bold">
+            Docentniveau tegen <?= e($source) ?> (<?= (int)$tab['n'] ?> antwoorden)
+        </div>
+        <div class="card-body">
+            <p class="mb-2">
+                Exact gelijk: <strong><?= $tab['exact_pct'] !== null ? e(number_format($tab['exact_pct'], 0)) . '%' : '-' ?></strong> ·
+                Gelijk op voldoende/onvoldoende: <strong><?= $tab['pass_pct'] !== null ? e(number_format($tab['pass_pct'], 0)) . '%' : '-' ?></strong> ·
+                Gemiddelde afwijking: <strong><?= $tab['mean_distance'] !== null ? e(number_format($tab['mean_distance'], 2, ',', '')) : '-' ?></strong> niveau
+            </p>
+            <div class="table-responsive">
+                <table class="table table-bordered table-sm mb-0 text-center">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="text-start">Docent ↓ / AI →</th>
+                            <?php foreach (Grading::LEVELS as $level): ?>
+                                <th><?= e(Grading::levelLabel($level)) ?></th>
+                            <?php endforeach; ?>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach (Grading::LEVELS as $t => $teacherLevel): ?>
+                        <tr>
+                            <th class="text-start table-primary"><?= e(Grading::levelLabel($teacherLevel)) ?></th>
+                            <?php foreach (Grading::LEVELS as $a => $aiLevel): ?>
+                                <?php $count = (int)$tab['matrix'][$t][$a]; ?>
+                                <td class="<?= $t === $a ? 'table-success fw-bold' : ($count > 0 && (($t > 0) !== ($a > 0)) ? 'table-danger' : '') ?>"><?= $count ?></td>
+                            <?php endforeach; ?>
+                        </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+            <p class="text-muted small mt-2 mb-0">Groen: exact gelijk. Rood: docent en AI verschillen op voldoende/onvoldoende.</p>
+        </div>
+    </div>
+    <?php endforeach; ?>
+
+    <!-- Cijfers per student (niveaus) -->
+    <div class="card mb-4">
+        <div class="card-header bg-light fw-bold">
+            Cijfers per student (over de vergeleken antwoorden<?= $levelComparison['scheme'] ? ', puntenschema ' . e($levelComparison['scheme']['name']) : '' ?>)
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-striped table-hover table-sm mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Student</th>
+                            <th class="text-center table-primary">Docent</th>
+                            <?php foreach (array_keys($modelsFound) as $model): ?>
+                                <th class="text-center"><?= e($model) ?></th>
+                            <?php endforeach; ?>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($levelComparison['student_grades'] as $student => $grades): ?>
+                        <tr>
+                            <td><?= e($student) ?></td>
+                            <td class="text-center table-primary fw-bold"><?= isset($grades['Docent']) ? e(Grading::formatGrade($grades['Docent'])) : '-' ?></td>
+                            <?php foreach (array_keys($modelsFound) as $model): ?>
+                                <td class="text-center">
+                                    <?php if (isset($grades[$model])): ?>
+                                        <?= e(Grading::formatGrade($grades[$model])) ?>
+                                        <?php if (isset($grades['Docent'])): ?>
+                                            <?php $diff = $grades[$model] - $grades['Docent']; ?>
+                                            <small class="<?= abs($diff) < 0.05 ? 'text-success' : ($diff > 0 ? 'text-danger' : 'text-warning') ?>">(<?= $diff > 0 ? '+' : '' ?><?= e(number_format($diff, 1, ',', '')) ?>)</small>
+                                        <?php endif; ?>
+                                    <?php else: ?>
+                                        -
+                                    <?php endif; ?>
+                                </td>
+                            <?php endforeach; ?>
+                        </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Detail Tabel (niveaus) -->
+    <div class="card html2pdf__page-break">
+        <div class="card-header bg-light fw-bold">
+            Detailoverzicht per Vraag
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-striped table-hover table-sm mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 15%;">Student</th>
+                            <th style="width: 35%;">Vraag</th>
+                            <th class="text-center table-primary" style="width: 10%;">Docent</th>
+                            <?php foreach (array_keys($modelsFound) as $model): ?>
+                                <th class="text-center"><?= e($model) ?></th>
+                            <?php endforeach; ?>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($comparisonData as $row): ?>
+                        <tr>
+                            <td><?= e($row['student']) ?></td>
+                            <td><small><?= e(mb_substr($row['question'], 0, 100, 'UTF-8')) ?>...</small></td>
+                            <td class="text-center table-primary fw-bold"><?= e(Grading::levelLabel($row['teacher_level'])) ?></td>
+                            <?php foreach (array_keys($modelsFound) as $model): ?>
+                                <td class="text-center">
+                                    <?php if (isset($row['models'][$model])): ?>
+                                        <?php $same = $row['models'][$model] === $row['teacher_level']; ?>
+                                        <span class="<?= $same ? 'text-success' : 'text-danger' ?>"><?= e(Grading::levelLabel($row['models'][$model])) ?></span>
+                                    <?php else: ?>
+                                        -
+                                    <?php endif; ?>
+                                </td>
+                            <?php endforeach; ?>
+                        </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <?php else: ?>
     <!-- Statistieken Tabel -->
     <div class="card mb-4">
         <div class="card-header bg-light fw-bold">
@@ -202,6 +342,8 @@ ob_start();
         </div>
     </div>
 
+    <?php endif; ?>
+
     <!-- Toets beschrijving -->
     <div class="mb-4 html2pdf__page-break">
         <h4>Toets beschrijving</h4>
@@ -249,7 +391,13 @@ ob_start();
             var pdfBtn = document.getElementById('exportPdfBtn');
             if (pdfBtn) { pdfBtn.addEventListener('click', generatePDF); }
 
-            const comparisonData = <?= json_encode($comparisonData, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+            const comparisonData = <?= json_encode($chartRows, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+            const chartMax = <?= (int)$chartMax ?>;
+            const chartLabels = <?= json_encode($chartLabels, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+            const jitter = chartLabels ? 0.15 : 0.3;
+            const tickLabel = function (value) {
+                return chartLabels ? (chartLabels[value] !== undefined ? chartLabels[value] : '') : value;
+            };
             const modelsFound = <?= json_encode(array_keys($modelsFound), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
             
             const datasets = modelsFound.map((model, index) => {
@@ -261,8 +409,8 @@ ob_start();
                     data: comparisonData.map(item => {
                         if (item.models[model] !== undefined) {
                             // Jitter toevoegen voor zichtbaarheid
-                            const jitterX = (Math.random() - 0.5) * 0.3;
-                            const jitterY = (Math.random() - 0.5) * 0.3;
+                            const jitterX = (Math.random() - 0.5) * jitter;
+                            const jitterY = (Math.random() - 0.5) * jitter;
                             return {
                                 x: item.teacher_score + jitterX,
                                 y: item.models[model] + jitterY,
@@ -283,7 +431,7 @@ ob_start();
             // Diagonale lijn (perfecte match)
             datasets.push({
                 label: 'Perfecte match',
-                data: [{x: 0, y: 0}, {x: 10, y: 10}],
+                data: [{x: 0, y: 0}, {x: chartMax, y: chartMax}],
                 type: 'line',
                 borderColor: '#adb5bd',
                 borderDash: [5, 5],
@@ -307,23 +455,25 @@ ob_start();
                             position: 'bottom',
                             title: {
                                 display: true,
-                                text: 'Docent Score'
+                                text: chartLabels ? 'Docentniveau' : 'Docent Score'
                             },
                             min: -0.5,
-                            max: 10.5,
+                            max: chartMax + 0.5,
                             ticks: {
-                                stepSize: 1
+                                stepSize: 1,
+                                callback: tickLabel
                             }
                         },
                         y: {
                             title: {
                                 display: true,
-                                text: 'AI Score'
+                                text: chartLabels ? 'AI-niveau' : 'AI Score'
                             },
                             min: -0.5,
-                            max: 10.5,
+                            max: chartMax + 0.5,
                             ticks: {
-                                stepSize: 1
+                                stepSize: 1,
+                                callback: tickLabel
                             }
                         }
                     },
@@ -338,7 +488,7 @@ ob_start();
                                     
                                     if (context.dataset.type === 'line') return null;
                                     
-                                    return context.dataset.label + ': Docent ' + x + ' vs AI ' + y;
+                                    return context.dataset.label + ': Docent ' + tickLabel(x) + ' vs AI ' + tickLabel(y);
                                 }
                             }
                         },
