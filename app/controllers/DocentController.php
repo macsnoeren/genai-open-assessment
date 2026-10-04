@@ -972,33 +972,8 @@ public function viewStudentAnswers($studentExamId) {
   public function pendingAssessments() {
     requireRole('beoordelaar');
 
-    $pdo = Database::connect();
-    // Haal toetsen op die ingeleverd zijn, gekoppeld aan deze docent, en nog niet volledig beoordeeld zijn.
-    $sql = "
-        SELECT se.id, se.completed_at, COALESCE(u.name, se.guest_name, 'Gast') as student_name, e.title as exam_title,
-               COUNT(sa.id) as total_answers,
-               COUNT(COALESCE(sa.teacher_score, sa.teacher_level)) as graded_answers
-        FROM student_exams se
-        LEFT JOIN users u ON se.student_id = u.id
-        JOIN exams e ON se.exam_id = e.id
-        LEFT JOIN student_answers sa ON se.id = sa.student_exam_id
-        WHERE se.completed_at IS NOT NULL
-    ";
-
-    $params = [];
-    // Als het een docent is, filter op eigen examens. Beoordelaars en admins zien alles.
-    if ($_SESSION['role'] === 'docent') {
-        $sql .= " AND e.docent_id = ? ";
-        $params[] = $_SESSION['user_id'];
-    }
-
-    $sql .= " GROUP BY se.id
-        HAVING graded_answers < total_answers
-        ORDER BY se.completed_at ASC";
-
-    $stmt = $pdo->prepare($sql);
-    $stmt->execute($params);
-    $pendingExams = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    // Ingeleverde pogingen die nog niet volledig beoordeeld zijn (docent: alleen eigen toetsen).
+    $pendingExams = StudentExam::pendingReview((int)$_SESSION['user_id'], $_SESSION['role']);
 
     require __DIR__ . '/../views/docent/pending_assessments.php';
   }

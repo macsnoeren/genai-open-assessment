@@ -134,5 +134,49 @@ class StudentExam {
       $stmt->execute([$guestName, $id]);
       return $stmt->rowCount() > 0;
   }
+
+  /**
+   * Ingeleverde pogingen die nog op een beoordeling wachten: niet alle antwoorden
+   * hebben een docentscore of -niveau. Een docent ziet alleen de eigen toetsen,
+   * beoordelaar en admin zien alles. Eén query voor de lijst (pendingReview()) en
+   * de teller in het menu (pendingReviewCount()), zodat die altijd overeenkomen.
+   * @return array [$sql, $params], zonder ORDER BY
+   */
+  private static function pendingReviewQuery(int $userId, string $role): array {
+      $sql = "
+          SELECT se.id, se.completed_at, COALESCE(u.name, se.guest_name, 'Gast') as student_name, e.title as exam_title,
+                 COUNT(sa.id) as total_answers,
+                 COUNT(COALESCE(sa.teacher_score, sa.teacher_level)) as graded_answers
+          FROM student_exams se
+          LEFT JOIN users u ON se.student_id = u.id
+          JOIN exams e ON se.exam_id = e.id
+          LEFT JOIN student_answers sa ON se.id = sa.student_exam_id
+          WHERE se.completed_at IS NOT NULL
+      ";
+      $params = [];
+      if ($role === 'docent') {
+          $sql .= " AND e.docent_id = ? ";
+          $params[] = $userId;
+      }
+      $sql .= " GROUP BY se.id
+          HAVING graded_answers < total_answers";
+      return [$sql, $params];
+  }
+
+  /** De pogingen die op een beoordeling wachten, oudste eerst. */
+  public static function pendingReview(int $userId, string $role): array {
+      [$sql, $params] = self::pendingReviewQuery($userId, $role);
+      $stmt = Database::connect()->prepare($sql . " ORDER BY se.completed_at ASC");
+      $stmt->execute($params);
+      return $stmt->fetchAll(PDO::FETCH_ASSOC);
+  }
+
+  /** Het aantal pogingen dat op een beoordeling wacht (de teller bij Beoordelen). */
+  public static function pendingReviewCount(int $userId, string $role): int {
+      [$sql, $params] = self::pendingReviewQuery($userId, $role);
+      $stmt = Database::connect()->prepare("SELECT COUNT(*) FROM (" . $sql . ") AS t");
+      $stmt->execute($params);
+      return (int)$stmt->fetchColumn();
+  }
 }
 ?>

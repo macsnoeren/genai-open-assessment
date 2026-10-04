@@ -163,14 +163,14 @@ Geen wijziging aan de markup. Na deze fase is de hele app blauw in plaats van ro
 
 ## Fase 3: De teller bij Beoordelen
 
-- [ ] **3.1 Lees** `DocentController::pendingAssessments()` door. De query daar is de bron.
-- [ ] **3.2 `StudentExam::pendingReviewQuery(int $userId, string $role): array`** (private static). Geeft `[$sql, $params]` terug met de huidige SELECT, de `WHERE`, het filter op `e.docent_id` bij de rol `docent`, en `GROUP BY se.id HAVING graded_answers < total_answers`, zonder `ORDER BY`.
-- [ ] **3.3 `StudentExam::pendingReview(int $userId, string $role): array`.** Voert de query uit met `ORDER BY se.completed_at ASC` en geeft de rijen terug.
-- [ ] **3.4 `StudentExam::pendingReviewCount(int $userId, string $role): int`.** `SELECT COUNT(*) FROM (<query>) AS t`, met dezelfde parameters.
-- [ ] **3.5 Controller.** Laat `pendingAssessments()` `StudentExam::pendingReview()` gebruiken. De rest van de methode blijft gelijk.
+- [x] **3.1 Lees** `DocentController::pendingAssessments()` door. De query daar is de bron.
+- [x] **3.2 `StudentExam::pendingReviewQuery(int $userId, string $role): array`** (private static). Geeft `[$sql, $params]` terug met de huidige SELECT, de `WHERE`, het filter op `e.docent_id` bij de rol `docent`, en `GROUP BY se.id HAVING graded_answers < total_answers`, zonder `ORDER BY`.
+- [x] **3.3 `StudentExam::pendingReview(int $userId, string $role): array`.** Voert de query uit met `ORDER BY se.completed_at ASC` en geeft de rijen terug.
+- [x] **3.4 `StudentExam::pendingReviewCount(int $userId, string $role): int`.** `SELECT COUNT(*) FROM (<query>) AS t`, met dezelfde parameters.
+- [x] **3.5 Controller.** Laat `pendingAssessments()` `StudentExam::pendingReview()` gebruiken. De rest van de methode blijft gelijk.
   *Klaar als:* de pagina Beoordelen dezelfde lijst toont als vóór deze stap.
-- [ ] **3.6 `navCounter(string $name): int`** in `navigation.php`. Voor `'pending'`: geeft 0 als er niemand ingelogd is of de rol niet docent, admin of beoordelaar is; anders `StudentExam::pendingReviewCount($_SESSION['user_id'], $_SESSION['role'])`. Bewaar het resultaat in een `static`-variabele, zodat de query hooguit één keer per verzoek draait.
-- [ ] **3.7 CSS.** `.nav-counter`: `margin-left: auto`, achtergrond `--accent`, kleur `--on-accent`, `font-weight: 700`, `font-size: .75rem`, `border-radius: 999px`, `padding: .1rem .5rem`, `min-width: 1.5rem`, `text-align: center`.
+- [x] **3.6 `navCounter(string $name): int`** in `navigation.php`. Voor `'pending'`: geeft 0 als er niemand ingelogd is of de rol niet docent, admin of beoordelaar is; anders `StudentExam::pendingReviewCount($_SESSION['user_id'], $_SESSION['role'])`. Bewaar het resultaat in een `static`-variabele, zodat de query hooguit één keer per verzoek draait.
+- [x] **3.7 CSS.** `.nav-counter`: `margin-left: auto`, achtergrond `--accent`, kleur `--on-accent`, `font-weight: 700`, `font-size: .75rem`, `border-radius: 999px`, `padding: .1rem .5rem`, `min-width: 1.5rem`, `text-align: center`.
   *Klaar als:* de teller na fase 4 hetzelfde getal toont als het aantal rijen op Beoordelen, voor een docent (alleen eigen toetsen) en voor een beoordelaar (alles). Commit: `Count pending reviews in the model`.
 
 ## Fase 4: Zijbalk en topbalk voor docent, admin en beoordelaar

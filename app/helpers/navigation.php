@@ -8,6 +8,8 @@
  * (at your option) any later version.
  */
 
+require_once __DIR__ . '/../models/StudentExam.php';
+
 /**
  * Navigatie van de layout. Het menu staat op één plek: navItems().
  * De layout bouwt de zijbalk (docent, admin, beoordelaar) en de topnavigatie
@@ -136,3 +138,23 @@ function workerStatus(): string {
     return 'inactive';
 }
 
+/**
+ * Teller bij een menu-item. 'pending': het aantal ingeleverde pogingen dat nog op een
+ * beoordeling wacht, met dezelfde query en autorisatie als de lijst op
+ * pending_assessments (docent alleen de eigen toetsen). De query draait hooguit één
+ * keer per verzoek.
+ */
+function navCounter(string $name): int {
+    static $cache = [];
+    if (array_key_exists($name, $cache)) {
+        return $cache[$name];
+    }
+    $count = 0;
+    if ($name === 'pending') {
+        $role = $_SESSION['role'] ?? '';
+        if (!empty($_SESSION['user_id']) && in_array($role, ['docent', 'admin', 'beoordelaar'], true)) {
+            $count = StudentExam::pendingReviewCount((int)$_SESSION['user_id'], $role);
+        }
+    }
+    return $cache[$name] = $count;
+}

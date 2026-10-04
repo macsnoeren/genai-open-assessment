@@ -214,3 +214,17 @@ body {
     color: var(--text);
     text-decoration: underline;
 }
+
+/* Teller bij Beoordelen: aantal pogingen dat op een beoordeling wacht */
+.nav-counter {
+    margin-left: auto;
+    background-color: var(--accent);
+    color: var(--on-accent);
+    font-weight: 700;
+    font-size: .75rem;
+    line-height: 1.4;
+    border-radius: 999px;
+    padding: .1rem .5rem;
+    min-width: 1.5rem;
+    text-align: center;
+}
