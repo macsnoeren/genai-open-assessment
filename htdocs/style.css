@@ -1,17 +1,53 @@
+/*
+ * Kleurenschema, afgeleid van het logo (marineblauw en koningsblauw, met het groen
+ * van de vinkjes en het oranje van het potlood als accenten).
+ * Alle kleuren staan hier als tokens; nergens anders staan nog hexkleuren.
+ */
 :root {
-    /* Overriding Bootstrap variables where supported or using custom vars */
-    --brand-primary: #b71c1c;
-    --brand-primary-hover: #d32f2f;
-    --brand-bg: #f8f9fa;
+    --brand-900: #0F2A4F;   /* zijbalk, hero, toetsbalk */
+    --brand-700: #194C8C;   /* hover en focus */
+    --brand-600: #1F5FAF;   /* knoppen, links, actief item */
+    --brand-50: #EAF1FB;    /* actief item, geselecteerde rij, zachte badge */
+    --success: #2E9E4F;     /* gepubliceerd, beoordeeld, worker actief */
+    --accent: #E8890C;      /* teller bij Beoordelen */
+    --on-accent: #0F2A4F;   /* tekst op --accent */
+    --danger: #C62828;      /* alleen fouten en verwijderen */
+    --bg: #F5F7FA;          /* pagina */
+    --surface: #FFFFFF;     /* kaarten, topbalk */
+    --border: #E2E8F0;      /* kaarten, tabellen, topbalk */
+    --text: #1E293B;        /* lopende tekst */
+    --muted: #5A6B82;       /* labels en metadata */
+
+    /* Oude namen, verwijzen naar de nieuwe tokens */
+    --brand-primary: var(--brand-600);
+    --brand-primary-hover: var(--brand-700);
+    --brand-bg: var(--bg);
+
+    /* Bootstrap-variabelen */
+    --bs-primary: var(--brand-600);
+    --bs-primary-rgb: 31, 95, 175;
+    --bs-link-color: var(--brand-600);
+    --bs-link-color-rgb: 31, 95, 175;
+    --bs-link-hover-color: var(--brand-700);
+    --bs-link-hover-color-rgb: 25, 76, 140;
+    --bs-body-bg: var(--bg);
+    --bs-body-color: var(--text);
+    --bs-secondary-color: var(--muted);
+    --bs-border-color: var(--border);
+    --bs-danger: var(--danger);
+    --bs-danger-rgb: 198, 40, 40;
+    --bs-success: var(--success);
+    --bs-success-rgb: 46, 158, 79;
 }
 
 body {
-    background-color: var(--brand-bg);
+    background-color: var(--bg);
+    color: var(--text);
 }
 
-/* Navbar customization */
+/* Navbar customization (tijdelijk, tot de nieuwe layout) */
 .navbar-custom {
-    background-color: var(--brand-primary);
+    background-color: var(--brand-900);
 }
 
 .navbar-custom .navbar-brand,
@@ -20,40 +56,107 @@ body {
 }
 
 .navbar-custom .nav-link:hover {
-    color: #fff;
+    color: var(--surface);
 }
 
-/* Button overrides */
+/* Knoppen */
 .btn-primary {
-    background-color: var(--brand-primary);
-    border-color: var(--brand-primary);
-}
-
-.btn-primary:hover {
-    background-color: var(--brand-primary-hover);
-    border-color: var(--brand-primary-hover);
+    --bs-btn-bg: var(--brand-600);
+    --bs-btn-border-color: var(--brand-600);
+    --bs-btn-hover-bg: var(--brand-700);
+    --bs-btn-hover-border-color: var(--brand-700);
+    --bs-btn-active-bg: var(--brand-700);
+    --bs-btn-active-border-color: var(--brand-700);
+    --bs-btn-disabled-bg: var(--brand-600);
+    --bs-btn-disabled-border-color: var(--brand-600);
+    --bs-btn-focus-shadow-rgb: 31, 95, 175;
 }
 
 .btn-outline-primary {
-    color: var(--brand-primary);
-    border-color: var(--brand-primary);
+    --bs-btn-color: var(--brand-600);
+    --bs-btn-border-color: var(--brand-600);
+    --bs-btn-hover-bg: var(--brand-600);
+    --bs-btn-hover-border-color: var(--brand-600);
+    --bs-btn-hover-color: var(--surface);
+    --bs-btn-active-bg: var(--brand-700);
+    --bs-btn-active-border-color: var(--brand-700);
+    --bs-btn-active-color: var(--surface);
+    --bs-btn-disabled-color: var(--brand-600);
+    --bs-btn-disabled-border-color: var(--brand-600);
+    --bs-btn-focus-shadow-rgb: 31, 95, 175;
 }
 
-.btn-outline-primary:hover {
-    background-color: var(--brand-primary);
-    color: #fff;
+.btn-danger {
+    --bs-btn-bg: var(--danger);
+    --bs-btn-border-color: var(--danger);
 }
 
-/* Card tweaks */
+.btn-outline-danger {
+    --bs-btn-color: var(--danger);
+    --bs-btn-border-color: var(--danger);
+    --bs-btn-hover-bg: var(--danger);
+    --bs-btn-hover-border-color: var(--danger);
+    --bs-btn-active-bg: var(--danger);
+    --bs-btn-active-border-color: var(--danger);
+}
+
+.btn-success {
+    --bs-btn-bg: var(--success);
+    --bs-btn-border-color: var(--success);
+}
+
+.btn-outline-success {
+    --bs-btn-color: var(--success);
+    --bs-btn-border-color: var(--success);
+    --bs-btn-hover-bg: var(--success);
+    --bs-btn-hover-border-color: var(--success);
+    --bs-btn-active-bg: var(--success);
+    --bs-btn-active-border-color: var(--success);
+}
+
+/* Gedempte tekst */
+.text-muted {
+    color: var(--muted) !important;
+}
+
+/* Zachte badges: lichte achtergrond, donkere tekst, vaste betekenis */
+.badge-soft-primary { background-color: #EAF1FB; color: #194C8C; font-weight: 600; }
+.badge-soft-success { background-color: #E6F4EA; color: #1E6B35; font-weight: 600; }
+.badge-soft-info { background-color: #E3F2F9; color: #0B5A7A; font-weight: 600; }
+.badge-soft-warning { background-color: #FDF0DC; color: #8A4F00; font-weight: 600; }
+.badge-soft-danger { background-color: #FBE9E9; color: #9B1C1C; font-weight: 600; }
+.badge-soft-secondary { background-color: #EEF1F5; color: #475569; font-weight: 600; }
+
+/* Kaarten */
 .card {
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-    border: none;
+    border: 1px solid var(--border);
+    border-radius: .75rem;
+    box-shadow: 0 1px 2px rgba(15, 42, 79, .06);
     margin-bottom: 1.5rem;
 }
 
-/* Status badges */
-.badge-status-active { background-color: #198754; }
-.badge-status-inactive { background-color: #dc3545; }
+.card-header {
+    background-color: var(--surface);
+    border-bottom: 1px solid var(--border);
+}
+
+/* Tabellen */
+.table > thead.table-light th {
+    color: var(--muted);
+    font-size: .8rem;
+    text-transform: uppercase;
+    letter-spacing: .03em;
+}
+
+/* Duidelijke focusring voor toetsenbordgebruikers */
+:focus-visible {
+    outline: 2px solid var(--brand-600);
+    outline-offset: 2px;
+}
+
+/* Status badges (tijdelijk, tot de nieuwe layout) */
+.badge-status-active { background-color: var(--success); }
+.badge-status-inactive { background-color: var(--danger); }
 
 /* Sticky exam header (take_exam.php) */
 .exam-topbar {
@@ -62,7 +165,7 @@ body {
     left: 0;
     right: 0;
     z-index: 1040;
-    background-color: var(--brand-primary);
+    background-color: var(--brand-900);
     box-shadow: 0 2px 4px rgba(0,0,0,0.15);
 }
 
@@ -89,7 +192,7 @@ body {
 }
 
 .exam-topbar-name {
-    color: #fff;
+    color: var(--surface);
     font-weight: 600;
 }
 
@@ -104,10 +207,10 @@ body {
 
 /* Breadcrumb tweaks */
 .breadcrumb-item a {
-    color: #6c757d;
+    color: var(--muted);
     text-decoration: none;
 }
 .breadcrumb-item a:hover {
-    color: #343a40;
+    color: var(--text);
     text-decoration: underline;
 }
