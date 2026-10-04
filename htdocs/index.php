@@ -267,6 +267,14 @@ switch ($action) {
    $docent->saveTeacherFeedback();
    break;
 
+ case 'override_final_grade':
+   $docent->overrideFinalGrade();
+   break;
+
+ case 'clear_final_grade_override':
+   $docent->clearFinalGradeOverride();
+   break;
+
  case 'answer_assessment_start':
    $answerAssessmentController->start();
    break;

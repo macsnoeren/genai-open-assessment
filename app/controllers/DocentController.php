@@ -584,6 +584,8 @@ public function viewStudentAnswers($studentExamId) {
     ");
     $stmt->execute([$studentExamId]);
     $answers = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    // Eindcijfer (zonder AI): het berekende cijfer en het formulier om het handmatig aan te passen
+    $attemptResult = Grading::attemptResult((int)$studentExamId);
 
     require __DIR__ . '/../views/docent/grade_exam.php';
   }
@@ -626,14 +628,7 @@ public function viewStudentAnswers($studentExamId) {
     }
     $feedback = requestString($_POST, 'teacher_feedback');
 
-    $redirectAction = requestString($_POST, 'redirect_action', 40, 'view_student_answers');
-    if (!in_array($redirectAction, ['view_student_answers', 'grade_student_exam'], true)) {
-        $redirectAction = 'view_student_answers';
-    }
-    // Docenten mogen alleen via de blinde beoordeling naar de docentweergave als ze de toets mogen inzien
-    if ($redirectAction === 'view_student_answers' && $_SESSION['role'] === 'beoordelaar') {
-        $redirectAction = 'grade_student_exam';
-    }
+    $redirectAction = $this->gradingRedirectAction();
 
     if ($isLevels) {
         StudentAnswer::updateTeacherLevel($studentAnswerId, $level, $feedback);
@@ -663,6 +658,109 @@ public function viewStudentAnswers($studentExamId) {
 
     header('Location: /?action=' . $redirectAction . '&student_exam_id=' . $studentExamId . '#answer-' . $studentAnswerId);
     exit;
+  }
+
+  /**
+   * Past het eindcijfer van een toetspoging handmatig aan (B8). Mag iedereen die
+   * de toets mag nakijken. Een cijfer 0-10 met één decimaal, of bij een toets met
+   * woordbeoordeling een woord; de reden is verplicht.
+   */
+  public function overrideFinalGrade() {
+    validateCsrfToken();
+    requireRole('beoordelaar');
+
+    [$studentExam, $exam] = $this->findAttemptForGrading();
+    $studentExamId = (int)$studentExam['id'];
+
+    $reason = trim(requestString($_POST, 'reason', MAX_GRADE_OVERRIDE_REASON + 1));
+    $reasonLength = mb_strlen($reason, 'UTF-8');
+    if ($reasonLength < 1 || $reasonLength > MAX_GRADE_OVERRIDE_REASON) {
+        abort(400, 'Een reden is verplicht (hooguit ' . MAX_GRADE_OVERRIDE_REASON . ' tekens).');
+    }
+
+    // Cijfer of woord: dat bepaalt de toets in de database, niet het formulier
+    $grade = null;
+    $label = null;
+    if (Grading::examScale($exam) === Grading::SCALE_LEVELS && !empty($exam['show_grade_label'])) {
+        $label = trim(requestString($_POST, 'grade_label', 20));
+        if (!Grading::isLevel($label)) {
+            abort(400, 'Ongeldig woord: kies onvoldoende, voldoende, goed of uitstekend.');
+        }
+    } else {
+        $raw = str_replace(',', '.', trim(requestString($_POST, 'grade', 10)));
+        if (!preg_match('/^(10(\.0)?|[0-9](\.[0-9])?)$/', $raw)) {
+            abort(400, 'Het cijfer moet tussen 0 en 10 liggen, met hooguit één decimaal.');
+        }
+        $grade = Grading::roundGrade((float)$raw);
+    }
+
+    $before = Grading::attemptResult($studentExamId);
+    StudentExam::setOverride($studentExamId, $grade, $label, $reason, (int)$_SESSION['user_id'], $before['computed']);
+    AuditLog::log('final_grade_override', [
+        'student_exam_id' => $studentExamId,
+        'old' => $before['override'],
+        'new' => $label ?? $grade,
+        'reason' => $reason,
+        'computed' => $before['computed'],
+    ]);
+
+    $_SESSION['success_message'] = 'Het eindcijfer is aangepast.';
+    header('Location: /?action=' . $this->gradingRedirectAction() . '&student_exam_id=' . $studentExamId . '#final-grade');
+    exit;
+  }
+
+  /** Verwijdert een handmatig eindcijfer; daarna geldt weer het berekende cijfer. */
+  public function clearFinalGradeOverride() {
+    validateCsrfToken();
+    requireRole('beoordelaar');
+
+    [$studentExam] = $this->findAttemptForGrading();
+    $studentExamId = (int)$studentExam['id'];
+
+    $before = Grading::attemptResult($studentExamId);
+    if ($before['override'] !== null) {
+        StudentExam::clearOverride($studentExamId);
+        AuditLog::log('final_grade_override_clear', [
+            'student_exam_id' => $studentExamId,
+            'old' => $before['override'],
+            'reason' => $before['override_reason'],
+            'computed' => $before['computed'],
+        ]);
+        $_SESSION['success_message'] = 'De aanpassing van het eindcijfer is verwijderd.';
+    }
+
+    header('Location: /?action=' . $this->gradingRedirectAction() . '&student_exam_id=' . $studentExamId . '#final-grade');
+    exit;
+  }
+
+  /**
+   * De ingeleverde toetspoging uit de POST (student_exam_id) met zijn toets, na de
+   * controle dat de gebruiker die toets mag nakijken. De toets komt uit de database.
+   * @return array [student_exam, exam]
+   */
+  private function findAttemptForGrading(): array {
+    $studentExamId = requestInt($_POST, 'student_exam_id');
+    $studentExam = $studentExamId !== null ? StudentExam::find($studentExamId) : null;
+    if (!$studentExam) {
+        abort(404, 'Toetspoging niet gevonden.');
+    }
+    $this->checkGradingPermission($studentExam['exam_id']);
+    if (empty($studentExam['completed_at'])) {
+        abort(400, 'Deze toetspoging is nog niet ingeleverd.');
+    }
+    return [$studentExam, Exam::find($studentExam['exam_id'])];
+  }
+
+  /** Terug naar de docentweergave of de blinde beoordeling; een beoordelaar altijd naar de blinde beoordeling. */
+  private function gradingRedirectAction(): string {
+    $redirectAction = requestString($_POST, 'redirect_action', 40, 'view_student_answers');
+    if (!in_array($redirectAction, ['view_student_answers', 'grade_student_exam'], true)) {
+        $redirectAction = 'view_student_answers';
+    }
+    if ($redirectAction === 'view_student_answers' && $_SESSION['role'] === 'beoordelaar') {
+        $redirectAction = 'grade_student_exam';
+    }
+    return $redirectAction;
   }
 
   /**

@@ -64,6 +64,12 @@ ob_start();
 <?php endforeach; ?>
 
 <?php
+$overrideRedirect = 'grade_student_exam';
+$overrideShowComputed = true;
+require __DIR__ . '/final_grade_override.php';
+?>
+
+<?php
  $content = ob_get_clean();
  $title = "Beoordelen (Blind)";
  $breadcrumbs = [

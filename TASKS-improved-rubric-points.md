@@ -187,14 +187,14 @@ Alle rekenregels staan op één plek, zodat de aggregatie niet opnieuw op meerde
 
 ## Fase 7: Eindcijfer handmatig aanpassen
 
-- [ ] **7.1 Model:** `StudentExam`-functies (of in `Grading`): `setOverride($id, ?float $grade, ?string $label, string $reason, int $userId, ?float $basis)` en `clearOverride($id)`.
-- [ ] **7.2 Formulier in `student_answers.php`** onder de kaart "Eindcijfer": bij `show_grade_label` een keuze uit vier woorden, anders een getalveld (0–10, stap 0,1), en een verplicht tekstveld "Reden". Een bestaande aanpassing toon je met wie, wanneer, de reden en het berekende cijfer op dat moment, plus een knop "Aanpassing verwijderen" (`data-confirm`).
-- [ ] **7.3 Waarschuwing:** bij `override_outdated` een gele melding "Het berekende cijfer is gewijzigd sinds de aanpassing (toen x, nu y)."
-- [ ] **7.4 Action `override_final_grade`** (`DocentController`) met een `case` in `index.php`: `validateCsrfToken()`, `requireRole('beoordelaar')`, `requestInt($_POST, 'student_exam_id')`, de poging uit de database ophalen (anders 404) en `checkGradingPermission($examId)`.
-- [ ] **7.5 Validatie:** de reden is 1–`MAX_GRADE_OVERRIDE_REASON` tekens (anders 400). Cijfer: getal 0–10 met hooguit één decimaal, een komma mag (`str_replace(',', '.', …)`), afronden op 0,1. Woord: `Grading::isLevel()`. Welk van de twee bepaalt `show_grade_label` van de toets uit de database.
-- [ ] **7.6 Opslaan en loggen:** `setOverride()` met `basis = attemptResult()['computed']`, daarna `AuditLog::log('final_grade_override', [student_exam_id, old, new, reason, computed])` en een redirect terug.
-- [ ] **7.7 Action `clear_final_grade_override`:** zelfde checks, `clearOverride()` en `AuditLog::log('final_grade_override_clear', …)`.
-- [ ] **7.8 Ook in de blinde beoordeling** (`grade_exam.php`) voor beoordelaars, met hetzelfde formulier (gedeelde partial).
+- [x] **7.1 Model:** `StudentExam`-functies (of in `Grading`): `setOverride($id, ?float $grade, ?string $label, string $reason, int $userId, ?float $basis)` en `clearOverride($id)`.
+- [x] **7.2 Formulier in `student_answers.php`** onder de kaart "Eindcijfer": bij `show_grade_label` een keuze uit vier woorden, anders een getalveld (0–10, stap 0,1), en een verplicht tekstveld "Reden". Een bestaande aanpassing toon je met wie, wanneer, de reden en het berekende cijfer op dat moment, plus een knop "Aanpassing verwijderen" (`data-confirm`).
+- [x] **7.3 Waarschuwing:** bij `override_outdated` een gele melding "Het berekende cijfer is gewijzigd sinds de aanpassing (toen x, nu y)."
+- [x] **7.4 Action `override_final_grade`** (`DocentController`) met een `case` in `index.php`: `validateCsrfToken()`, `requireRole('beoordelaar')`, `requestInt($_POST, 'student_exam_id')`, de poging uit de database ophalen (anders 404) en `checkGradingPermission($examId)`.
+- [x] **7.5 Validatie:** de reden is 1–`MAX_GRADE_OVERRIDE_REASON` tekens (anders 400). Cijfer: getal 0–10 met hooguit één decimaal, een komma mag (`str_replace(',', '.', …)`), afronden op 0,1. Woord: `Grading::isLevel()`. Welk van de twee bepaalt `show_grade_label` van de toets uit de database.
+- [x] **7.6 Opslaan en loggen:** `setOverride()` met `basis = attemptResult()['computed']`, daarna `AuditLog::log('final_grade_override', [student_exam_id, old, new, reason, computed])` en een redirect terug.
+- [x] **7.7 Action `clear_final_grade_override`:** zelfde checks, `clearOverride()` en `AuditLog::log('final_grade_override_clear', …)`.
+- [x] **7.8 Ook in de blinde beoordeling** (`grade_exam.php`) voor beoordelaars, met hetzelfde formulier (gedeelde partial).
   *Klaar als:* een docent en een beoordelaar het cijfer kunnen aanpassen en terugzetten; zonder reden komt er een foutmelding; de student ziet alleen het nieuwe cijfer; de waarschuwing verschijnt na een gewijzigd niveau; een docent zonder toegang tot de toets een 403 krijgt; en een GET een 405 geeft. Commit: `Allow manual final grade with reason`.
 
 ## Fase 8: Vergelijking en export

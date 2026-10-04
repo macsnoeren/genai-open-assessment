@@ -100,6 +100,34 @@ class StudentExam {
       $stmt->execute([$id]);
   }
 
+  /**
+   * Handmatig eindcijfer (zie Grading::attemptResult()): een cijfer 0-10 of, bij een
+   * toets met woordbeoordeling, een woord. De reden is verplicht; $basis is het
+   * berekende cijfer op dit moment (voor de waarschuwing als dat later verandert).
+   */
+  public static function setOverride($id, ?float $grade, ?string $label, string $reason, int $userId, ?float $basis): void {
+      $pdo = Database::connect();
+      $stmt = $pdo->prepare("
+          UPDATE student_exams
+          SET grade_override = ?, grade_override_label = ?, grade_override_reason = ?,
+              grade_override_by = ?, grade_override_at = CURRENT_TIMESTAMP, grade_override_basis = ?
+          WHERE id = ?
+      ");
+      $stmt->execute([$grade, $label, $reason, $userId, $basis, $id]);
+  }
+
+  /** Verwijdert een handmatig eindcijfer; daarna geldt weer het berekende cijfer. */
+  public static function clearOverride($id): void {
+      $pdo = Database::connect();
+      $stmt = $pdo->prepare("
+          UPDATE student_exams
+          SET grade_override = NULL, grade_override_label = NULL, grade_override_reason = NULL,
+              grade_override_by = NULL, grade_override_at = NULL, grade_override_basis = NULL
+          WHERE id = ?
+      ");
+      $stmt->execute([$id]);
+  }
+
   public static function updateGuestName($id, $guestName) {
       $pdo = Database::connect();
       $stmt = $pdo->prepare("UPDATE student_exams SET guest_name = ? WHERE id = ? AND student_id IS NULL");

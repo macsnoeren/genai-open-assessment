@@ -58,7 +58,7 @@ ob_start();
 
 <?php $isLevels = $gradingScale === Grading::SCALE_LEVELS; ?>
 <?php if ($isLevels): ?>
-<div class="card mb-4 border-primary" id="final-grade">
+<div class="card mb-4 border-primary">
     <div class="card-header bg-primary text-white"><strong>Eindcijfer</strong></div>
     <div class="card-body">
         <div class="d-flex flex-wrap align-items-center gap-3">
@@ -116,6 +116,12 @@ ob_start();
     </ul>
 </div>
 <?php endif; ?>
+
+<?php
+$overrideRedirect = 'view_student_answers';
+$overrideShowComputed = false;
+require __DIR__ . '/final_grade_override.php';
+?>
 
 <?php $canAssess = !empty($exam['ai_grading_enabled']) && !empty($studentExam['completed_at']); ?>
 <div class="card mb-4">
