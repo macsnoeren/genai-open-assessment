@@ -514,7 +514,7 @@ public function viewStudentAnswers($studentExamId) {
 
     $pdo = Database::connect();
         $stmt = $pdo->prepare("
-        SELECT sa.id, q.question_text, sa.answer, q.criteria, sa.ai_feedback, sa.teacher_score, sa.teacher_feedback,
+        SELECT sa.id, q.question_text, sa.answer, q.criteria, sa.ai_feedback, sa.teacher_score, sa.teacher_level, sa.teacher_feedback,
                " . AnswerAssessment::agenticScoreSql('sa') . " AS agentic_score
         FROM student_answers sa
         JOIN questions q ON sa.question_id = q.id
@@ -563,10 +563,12 @@ public function viewStudentAnswers($studentExamId) {
         abort(404, 'Toetspoging niet gevonden.');
     }
     $this->checkGradingPermission($studentExam['exam_id']);
+    $exam = Exam::find($studentExam['exam_id']);
+    $gradingScale = Grading::examScale($exam);
 
     $pdo = Database::connect();
     $stmt = $pdo->prepare("
-        SELECT sa.id, q.question_text, sa.answer, q.criteria, sa.teacher_score, sa.teacher_feedback
+        SELECT sa.id, q.question_text, sa.answer, q.criteria, sa.teacher_score, sa.teacher_level, sa.teacher_feedback
         FROM student_answers sa
         JOIN questions q ON sa.question_id = q.id
         WHERE sa.student_exam_id = ?
@@ -593,13 +595,25 @@ public function viewStudentAnswers($studentExamId) {
     $this->checkGradingPermission($answer['exam_id']);
     $studentExamId = (int)$answer['student_exam_id'];
 
-    $scoreRaw = trim(requestString($_POST, 'teacher_score', 10));
-    if ($scoreRaw === '') {
-        $score = null;
-    } elseif (preg_match('/^(10|[0-9])$/', $scoreRaw)) {
-        $score = (int)$scoreRaw;
+    // De schaal komt uit de database (de toets van het antwoord), nooit uit de POST
+    $isLevels = Grading::examScale($answer) === Grading::SCALE_LEVELS;
+    $score = null;
+    $level = null;
+    if ($isLevels) {
+        $levelRaw = trim(requestString($_POST, 'teacher_level', 20));
+        if ($levelRaw !== '' && !Grading::isLevel($levelRaw)) {
+            abort(400, 'Ongeldig niveau.');
+        }
+        $level = $levelRaw === '' ? null : $levelRaw;
     } else {
-        abort(400, 'Score moet een geheel getal van 0 t/m 10 zijn.');
+        $scoreRaw = trim(requestString($_POST, 'teacher_score', 10));
+        if ($scoreRaw === '') {
+            $score = null;
+        } elseif (preg_match('/^(10|[0-9])$/', $scoreRaw)) {
+            $score = (int)$scoreRaw;
+        } else {
+            abort(400, 'Score moet een geheel getal van 0 t/m 10 zijn.');
+        }
     }
     $feedback = requestString($_POST, 'teacher_feedback');
 
@@ -612,10 +626,18 @@ public function viewStudentAnswers($studentExamId) {
         $redirectAction = 'grade_student_exam';
     }
 
-    StudentAnswer::updateTeacherGrade($studentAnswerId, $score, $feedback);
+    if ($isLevels) {
+        StudentAnswer::updateTeacherLevel($studentAnswerId, $level, $feedback);
+    } else {
+        StudentAnswer::updateTeacherGrade($studentAnswerId, $score, $feedback);
+    }
 
     $changes = ['student_answer_id' => $studentAnswerId, 'student_exam_id' => $studentExamId];
-    if ((string)($answer['teacher_score'] ?? '') !== (string)($score ?? '')) {
+    if ($isLevels) {
+        if (($answer['teacher_level'] ?? null) !== $level) {
+            $changes['teacher_level'] = ['old' => $answer['teacher_level'] ?? null, 'new' => $level];
+        }
+    } elseif ((string)($answer['teacher_score'] ?? '') !== (string)($score ?? '')) {
         $changes['teacher_score'] = ['old' => $answer['teacher_score'], 'new' => $score];
     }
     if (($answer['teacher_feedback'] ?? '') !== $feedback) {
@@ -623,7 +645,7 @@ public function viewStudentAnswers($studentExamId) {
     }
     AuditLog::log('teacher_grade', $changes);
 
-    // Externe koppeling: heeft nu elk antwoord een docentscore, dan attempt.reviewed.
+    // Externe koppeling: heeft nu elk antwoord een docentscore (of docentniveau), dan attempt.reviewed.
     try {
         IntegrationAttempt::checkReviewed($studentExamId);
     } catch (Throwable $e) {
@@ -848,7 +870,7 @@ public function viewStudentAnswers($studentExamId) {
     $sql = "
         SELECT se.id, se.completed_at, COALESCE(u.name, se.guest_name, 'Gast') as student_name, e.title as exam_title,
                COUNT(sa.id) as total_answers,
-               COUNT(sa.teacher_score) as graded_answers
+               COUNT(COALESCE(sa.teacher_score, sa.teacher_level)) as graded_answers
         FROM student_exams se
         LEFT JOIN users u ON se.student_id = u.id
         JOIN exams e ON se.exam_id = e.id

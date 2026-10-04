@@ -29,13 +29,14 @@ class StudentAnswer {
     return $stmt->fetch(PDO::FETCH_ASSOC);
   }
 
-  /** Antwoord inclusief toetspoging en toets-id (voor autorisatiecontroles). */
+  /** Antwoord inclusief toetspoging, toets-id en schaal van de toets (voor autorisatie en validatie). */
   public static function findWithExam($id) {
     $pdo = Database::connect();
     $stmt = $pdo->prepare("
-        SELECT sa.*, se.exam_id, se.completed_at
+        SELECT sa.*, se.exam_id, se.completed_at, e.grading_scale
         FROM student_answers sa
         JOIN student_exams se ON sa.student_exam_id = se.id
+        JOIN exams e ON se.exam_id = e.id
         WHERE sa.id = ?
     ");
     $stmt->execute([$id]);
@@ -102,6 +103,16 @@ class StudentAnswer {
     $pdo = Database::connect();
     $stmt = $pdo->prepare("UPDATE student_answers SET teacher_score = ?, teacher_feedback = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?");
     $stmt->execute([$score, $feedback, $id]);
+  }
+
+  /**
+   * Docentbeoordeling bij een toets met grading_scale levels: het niveau (of null
+   * voor "nog niet beoordeeld") en de feedback. teacher_score blijft NULL.
+   */
+  public static function updateTeacherLevel($id, ?string $level, $feedback) {
+    $pdo = Database::connect();
+    $stmt = $pdo->prepare("UPDATE student_answers SET teacher_level = ?, teacher_score = NULL, teacher_feedback = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?");
+    $stmt->execute([$level, $feedback, $id]);
   }
 
   public static function allByStudentExam($studentExamId) {

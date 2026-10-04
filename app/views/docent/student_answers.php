@@ -197,7 +197,15 @@ ob_start();
                   <?php endif; ?>
               </div>
               <div class="text-end">
+                  <?php if (Grading::examScale($exam) === Grading::SCALE_LEVELS): ?>
+                      <?php if (!empty($a['teacher_level'])): ?>
+                          <span class="badge bg-<?= e(Grading::levelClass($a['teacher_level'])) ?> fs-6">Docentniveau: <?= e(Grading::levelLabel($a['teacher_level'])) ?></span>
+                      <?php else: ?>
+                          <span class="badge bg-secondary fs-6">Docentniveau: -</span>
+                      <?php endif; ?>
+                  <?php else: ?>
                   <span class="badge bg-primary fs-6">Docentscore: <?= isset($a['teacher_score']) ? htmlspecialchars($a['teacher_score']) : '-' ?></span>
+                  <?php endif; ?>
               </div>
           </div>
       </div>

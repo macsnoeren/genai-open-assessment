@@ -163,13 +163,13 @@ Alle rekenregels staan op één plek, zodat de aggregatie niet opnieuw op meerde
 
 ## Fase 5: De docent beoordeelt per niveau
 
-- [ ] **5.1 `StudentAnswer::updateTeacherLevel($id, ?string $level, $feedback)`:** schrijft `teacher_level` en `teacher_feedback` en laat `teacher_score` NULL.
-- [ ] **5.2 Toets meesturen:** zorg dat `gradeStudentExam()` en `viewStudentAnswers()` de toets (met `grading_scale`) aan de view geven en dat de query's `teacher_level` meenemen.
-- [ ] **5.3 `grade_exam.php`:** bij `levels` vier keuzerondjes (Onvoldoende/Voldoende/Goed/Uitstekend) plus "Nog niet beoordeeld" in plaats van het getalveld. Bij `points` blijft alles zoals het is.
-- [ ] **5.4 `student_answers.php`:** hetzelfde voor het docentformulier, en de badge "Docentscore" wordt bij `levels` "Docentniveau: <label>" met `levelClass()`.
-- [ ] **5.5 `saveTeacherFeedback()`:** haal de schaal van de toets op via `StudentAnswer::findWithExam()`, dus uit de database en niet uit de POST. Bij `levels`: `teacher_level` uit de POST, leeg of `Grading::isLevel()` (anders 400 "Ongeldig niveau."), daarna `updateTeacherLevel()`. Bij `points`: de huidige code.
-- [ ] **5.6 Audit:** neem in `teacher_grade` bij `levels` `teacher_level` (oud/nieuw) op in plaats van `teacher_score`.
-- [ ] **5.7 `pendingAssessments()`:** "x / y beoordeeld" telt bij `levels` `teacher_level` in plaats van `teacher_score` (`COUNT(COALESCE(sa.teacher_score, sa.teacher_level))`).
+- [x] **5.1 `StudentAnswer::updateTeacherLevel($id, ?string $level, $feedback)`:** schrijft `teacher_level` en `teacher_feedback` en laat `teacher_score` NULL.
+- [x] **5.2 Toets meesturen:** zorg dat `gradeStudentExam()` en `viewStudentAnswers()` de toets (met `grading_scale`) aan de view geven en dat de query's `teacher_level` meenemen.
+- [x] **5.3 `grade_exam.php`:** bij `levels` vier keuzerondjes (Onvoldoende/Voldoende/Goed/Uitstekend) plus "Nog niet beoordeeld" in plaats van het getalveld. Bij `points` blijft alles zoals het is.
+- [x] **5.4 `student_answers.php`:** hetzelfde voor het docentformulier, en de badge "Docentscore" wordt bij `levels` "Docentniveau: <label>" met `levelClass()`.
+- [x] **5.5 `saveTeacherFeedback()`:** haal de schaal van de toets op via `StudentAnswer::findWithExam()`, dus uit de database en niet uit de POST. Bij `levels`: `teacher_level` uit de POST, leeg of `Grading::isLevel()` (anders 400 "Ongeldig niveau."), daarna `updateTeacherLevel()`. Bij `points`: de huidige code.
+- [x] **5.6 Audit:** neem in `teacher_grade` bij `levels` `teacher_level` (oud/nieuw) op in plaats van `teacher_score`.
+- [x] **5.7 `pendingAssessments()`:** "x / y beoordeeld" telt bij `levels` `teacher_level` in plaats van `teacher_score` (`COUNT(COALESCE(sa.teacher_score, sa.teacher_level))`).
   *Klaar als:* een docent en een beoordelaar in Docker per antwoord een niveau kunnen geven en weer leegmaken, een ongeldig niveau via een handmatige POST een 400 geeft, en een `points`-toets onveranderd werkt. Commit: `Grade answers with levels`.
 
 ## Fase 6: Eindcijfer berekenen en tonen

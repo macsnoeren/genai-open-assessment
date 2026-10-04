@@ -33,10 +33,26 @@ ob_start();
       <input type="hidden" name="redirect_action" value="grade_student_exam">
       
       <h5 class="mb-3">Docent Beoordeling</h5>
+      <?php if ($gradingScale === Grading::SCALE_LEVELS): ?>
+      <fieldset class="mb-3">
+          <legend class="form-label fs-6">Niveau</legend>
+          <?php foreach (array_merge(Grading::LEVELS, ['']) as $levelOption): ?>
+          <div class="form-check form-check-inline">
+              <input class="form-check-input" type="radio" name="teacher_level" value="<?= e($levelOption) ?>"
+                     id="level-<?= (int)$a['id'] ?>-<?= e($levelOption ?: 'none') ?>"
+                     <?= ($a['teacher_level'] ?? '') === $levelOption ? 'checked' : '' ?>>
+              <label class="form-check-label" for="level-<?= (int)$a['id'] ?>-<?= e($levelOption ?: 'none') ?>">
+                  <?= $levelOption === '' ? 'Nog niet beoordeeld' : e(Grading::levelLabel($levelOption)) ?>
+              </label>
+          </div>
+          <?php endforeach; ?>
+      </fieldset>
+      <?php else: ?>
       <div class="mb-3">
           <label class="form-label">Score (0-10)</label>
           <input type="number" name="teacher_score" class="form-control" min="0" max="10" value="<?= htmlspecialchars($a['teacher_score'] ?? '') ?>">
       </div>
+      <?php endif; ?>
       <div class="mb-3">
           <label class="form-label">Feedback</label>
           <textarea name="teacher_feedback" class="form-control" placeholder="Schrijf hier uw feedback..." rows="3"><?= htmlspecialchars($a['teacher_feedback'] ?? '') ?></textarea>
