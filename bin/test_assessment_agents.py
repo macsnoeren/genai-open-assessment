@@ -23,8 +23,8 @@ from unittest import mock
 
 import assessment_agents
 from assessment_agents import (STALE, AssessmentOrchestrator, NO_RUBRIC_ERROR, build_user_message, decide,
-                               numbered_rubric, validate_assessment, validate_evidence, validate_validation,
-                               verify_quotes)
+                               has_conflict, numbered_rubric, validate_assessment, validate_evidence,
+                               validate_validation, verify_quotes)
 from process_ai_feedback import parse_rubric_criteria
 
 BIN = os.path.dirname(os.path.abspath(__file__))
@@ -317,6 +317,22 @@ class DecideTest(unittest.TestCase):
         self.assertEqual(decision["confidence"], "laag")
         self.assertIn("De confidence is laag.", decision["reasons"])
 
+    def test_not_validated_without_changes_needs_no_human_review(self):
+        # Twijfel zonder correctie: de validatie neemt de beoordeling ongewijzigd over
+        validation = load("validation")
+        validation["validated"] = False
+        validation["checks"][4]["ok"] = False
+        decision = decide(RUBRIC, ANSWER, load("evidence"), self.rounds(validation), False)
+        self.assertFalse(decision["human_review_needed"], decision["reasons"])
+
+    def test_not_validated_with_correction_needs_human_review(self):
+        validation = load("validation")
+        validation["validated"] = False
+        validation["corrections"] = [{"nr": 3, "from": "voldaan", "to": "deels", "why": "x"}]
+        validation["final_assessment"]["criteria"][2]["status"] = "deels"
+        decision = decide(RUBRIC, ANSWER, load("evidence"), self.rounds(validation), False)
+        self.assertIn("De Validation Agent bevestigt de voorlopige beoordeling niet.", decision["reasons"])
+
 
 class ValidatorTest(unittest.TestCase):
 
@@ -435,6 +451,61 @@ class DecideLevelsTest(unittest.TestCase):
         decision = decide(rubric, "", evidence, rounds, False, "levels")
         self.assertEqual(decision["level"], "uitstekend")
         self.assertTrue(any("ander niveau: goed tegenover uitstekend" in r for r in decision["reasons"]))
+
+    def correct(self, rounds, nr, status):
+        """Validation corrigeert criterium nr naar status en bevestigt dus niet."""
+        validation = rounds[0]["validation"]
+        before = validation["final_assessment"]["criteria"][nr - 1]["status"]
+        validation["final_assessment"]["criteria"][nr - 1]["status"] = status
+        validation["corrections"].append({"nr": nr, "from": before, "to": status, "why": "x"})
+        validation["validated"] = False
+
+    def test_doubt_without_correction_needs_no_human_review(self):
+        # Run 4: "black hat hackers" als cybercriminelen gezien, maar niets gecorrigeerd
+        rubric, evidence, rounds = levels_inputs(["essentieel"] * 4 + ["aanvullend"], ["niet"] * 5)
+        validation = rounds[0]["validation"]
+        validation["validated"] = False
+        validation["checks"][4]["ok"] = False
+        validation["issues"] = [{"nr": 0, "issue": "Black hat hackers kunnen ook cybercriminelen zijn."}]
+        decision = decide(rubric, "", evidence, rounds, False, "levels")
+        self.assertEqual(decision["level"], "onvoldoende")
+        self.assertFalse(decision["human_review_needed"], decision["reasons"])
+
+    def test_conflict_that_cannot_change_the_level_needs_no_human_review(self):
+        # Run 4 met correctie: criterium 2 voldaan, maar drie andere essentiële criteria ontbreken
+        rubric, evidence, rounds = levels_inputs(["essentieel"] * 4 + ["aanvullend"], ["niet"] * 5)
+        self.correct(rounds, 2, "voldaan")
+        decision = decide(rubric, "", evidence, rounds, False, "levels")
+        self.assertEqual(decision["criteria"][1]["agreement"], "conflict")
+        self.assertEqual(decision["level"], "onvoldoende")
+        self.assertFalse(decision["human_review_needed"], decision["reasons"])
+        self.assertFalse(has_conflict(decision, rubric))
+
+    def test_conflict_that_changes_the_level_needs_human_review(self):
+        # Run 2: Validation zet het enige twijfelachtige essentiële criterium op niet
+        rubric, evidence, rounds = levels_inputs(["essentieel"] * 4 + ["aanvullend"], ["voldaan"] * 4 + ["niet"])
+        self.correct(rounds, 2, "niet")
+        rounds[0]["validation"]["final_assessment"]["score"] = "onvoldoende"
+        decision = decide(rubric, "", evidence, rounds, False, "levels")
+        self.assertEqual(decision["level"], "onvoldoende")
+        self.assertTrue(any("essentieel criterium 2" in r for r in decision["reasons"]))
+        self.assertIn("De Validation Agent bevestigt de voorlopige beoordeling niet.", decision["reasons"])
+        self.assertTrue(has_conflict(decision, rubric))
+
+    def test_conflicts_count_together(self):
+        # Elk conflict apart verandert niets, samen wel: beide essentiële criteria voldaan geeft voldoende
+        rubric, evidence, rounds = levels_inputs(["essentieel", "essentieel"], ["voldaan", "voldaan"])
+        self.correct(rounds, 1, "niet")
+        self.correct(rounds, 2, "niet")
+        rounds[0]["validation"]["final_assessment"]["score"] = "onvoldoende"
+        decision = decide(rubric, "", evidence, rounds, False, "levels")
+        self.assertTrue(decision["human_review_needed"])
+        self.assertTrue(has_conflict(decision, rubric))
+
+    def test_partly_met_essential_criterion_is_no_borderline_when_another_is_missing(self):
+        decision = self.decide(["essentieel", "essentieel", "aanvullend"], ["deels", "niet", "voldaan"])
+        self.assertEqual(decision["level"], "onvoldoende")
+        self.assertFalse(decision["human_review_needed"], decision["reasons"])
 
     def test_points_decision_has_no_level(self):
         decision = decide(RUBRIC, ANSWER, load("evidence"), [{"assessment": load("assessment"),

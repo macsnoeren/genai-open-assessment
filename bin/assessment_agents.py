@@ -688,14 +688,20 @@ Wees kritisch. Voer deze zeven controles uit, elk precies één keer, met ok (tr
 kort commentaar (comment):
 - evidence_present: staat elk gebruikt citaat echt letterlijk in <studentantwoord>? Controleer dat zelf.
 - interpretation: zijn de interpretaties redelijk, niet te welwillend en niet te streng?
-- rubric_applied: is elk criterium met de rubric beoordeeld, zonder nieuwe criteria of eisen?
+- rubric_applied: is elk criterium met de rubric beoordeeld, zonder nieuwe criteria of eisen? Een
+  toelichting tussen haakjes in het modelantwoord (zoals een motief of voorbeeld) is geen extra eis
+  bij een criterium, tenzij de beschrijving van dat criterium erom vraagt.
 - consistent: passen de statussen, de score en de feedback bij elkaar en bij de puntentoekenning?
-- alternative_reading: is er een andere redelijke lezing van het antwoord die tot een ander oordeel leidt?
+- alternative_reading: is er een andere redelijke lezing van het antwoord die tot een andere status
+  leidt? Vind je die lezing beter, neem haar dan op in corrections (de controle is dan niet ok). Vind
+  je de beoordeling beter, dan is de controle ok en noem je de andere lezing alleen in comment.
 - missing_or_conflicting: is er bewijs over het hoofd gezien, of is er tegenstrijdig bewijs?
 - confidence: zijn de confidences eerlijk ingeschat?
 
 LEVER:
-- validated: true als de beoordeling zonder correcties standhoudt, anders false.
+- validated: true als de beoordeling zonder correcties standhoudt, anders false. validated is dus
+  false als en alleen als corrections niet leeg is. Twijfel zonder correctie is geen reden voor
+  false: kies, en corrigeer of bevestig.
 - issues: de problemen die je ziet (0 tot {MAX_ISSUES}); nr is het criterium, of 0 als het over de
   beoordeling als geheel gaat.
 - corrections: alleen met een duidelijke reden (0 tot {MAX_CORRECTIONS}): nr, from (de status in de
@@ -866,9 +872,10 @@ def decide(rubric: Dict, answer: str, evidence: Dict, rounds: List[Dict], inject
 
     Bij scale "levels" is het niveau level_from_statuses() op de statussen van de
     laatste validatie (B3); het niveau dat de agents noemen, telt niet. Wijkt dat
-    af, dan komt er een reden bij. Een essentieel criterium op "deels" is een
-    grensgeval voldoende/onvoldoende (menselijke beoordeling). decision krijgt
-    "level" en score None.
+    af, dan komt er een reden bij. Een conflict, een essentieel criterium op
+    "deels" (grensgeval voldoende/onvoldoende) en een validatie die de beoordeling
+    niet bevestigt, zijn alleen een reden als het niveau ervan afhangt
+    (level_range()). decision krijgt "level" en score None.
     """
     last = rounds[-1]
     evidence_by_nr = {c["nr"]: c for c in evidence["criteria"]}
@@ -879,44 +886,52 @@ def decide(rubric: Dict, answer: str, evidence: Dict, rounds: List[Dict], inject
 
     for c in rubric["criteria"]:
         nr = c["nr"]
-        label = f"criterium {nr} ({c['name']})"
         ev = evidence_by_nr[nr]
         assessed = assessment_by_nr[nr]
         final = final_by_nr[nr]
-        agreement = _agreement(c["weight"], EVIDENCE_AS_STATUS[ev["evidence_found"]], assessed["status"], final)
-
         quotes = list(dict.fromkeys(ev["evidence"] + assessed["evidence_used"]))
-        unverified = sum(1 for ok in verify_quotes(answer, quotes) if not ok)
-
-        if agreement == "conflict":
-            if c["weight"] == "essentieel" and assessed["status"] != final:
-                reasons.append(f"Assessment en Validation verschillen bij essentieel {label}: "
-                               f"{assessed['status']} tegenover {final}.")
-            else:
-                reasons.append(f"De oordelen bij {label} liggen ver uiteen: Evidence {ev['evidence_found']}, "
-                               f"Assessment {assessed['status']}, Validation {final}.")
-        if unverified and (final in ("voldaan", "deels") or assessed["status"] in ("voldaan", "deels")):
-            reasons.append(f"Bij {label} staat {unverified} citaat dat het oordeel onderbouwt niet letterlijk "
-                           "in het antwoord." if unverified == 1 else
-                           f"Bij {label} staan {unverified} citaten die het oordeel onderbouwen niet letterlijk "
-                           "in het antwoord.")
         criteria.append({
             "nr": nr,
             "evidence_found": ev["evidence_found"],
             "assessment_status": assessed["status"],
             "final_status": final,
-            "agreement": agreement,
-            "unverified_quotes": unverified,
+            "agreement": _agreement(c["weight"], EVIDENCE_AS_STATUS[ev["evidence_found"]], assessed["status"], final),
+            "unverified_quotes": sum(1 for ok in verify_quotes(answer, quotes) if not ok),
         })
 
-    if len(rounds) > 1 and any(c["agreement"] == "conflict" for c in criteria):
+    # Hangt de uitkomst af van de punten waarover de agents het oneens zijn? Bij points
+    # is dat niet uit te rekenen (0, 1 en 5 kiest het model), dus daar altijd.
+    if scale == SCALE_LEVELS:
+        lowest, highest = level_range(rubric, criteria)
+        outcome_open = lowest != highest
+    else:
+        outcome_open = True
+
+    for c, d in zip(rubric["criteria"], criteria):
+        label = f"criterium {d['nr']} ({c['name']})"
+        if d["agreement"] == "conflict" and outcome_open:
+            if c["weight"] == "essentieel" and d["assessment_status"] != d["final_status"]:
+                reasons.append(f"Assessment en Validation verschillen bij essentieel {label}: "
+                               f"{d['assessment_status']} tegenover {d['final_status']}.")
+            else:
+                reasons.append(f"De oordelen bij {label} liggen ver uiteen: Evidence {d['evidence_found']}, "
+                               f"Assessment {d['assessment_status']}, Validation {d['final_status']}.")
+        unverified = d["unverified_quotes"]
+        if unverified and (d["final_status"] in ("voldaan", "deels")
+                           or d["assessment_status"] in ("voldaan", "deels")):
+            reasons.append(f"Bij {label} staat {unverified} citaat dat het oordeel onderbouwt niet letterlijk "
+                           "in het antwoord." if unverified == 1 else
+                           f"Bij {label} staan {unverified} citaten die het oordeel onderbouwen niet letterlijk "
+                           "in het antwoord.")
+
+    if len(rounds) > 1 and outcome_open and any(c["agreement"] == "conflict" for c in criteria):
         reasons.append(f"Het conflict bleef bestaan na {len(rounds) - 1} extra ronde(s).")
 
     essential = [final_by_nr[c["nr"]] for c in rubric["criteria"] if c["weight"] == "essentieel"]
     if scale == SCALE_LEVELS:
-        level = _decide_level(rubric, final_by_nr, last, reasons)
+        level = _decide_level(rubric, final_by_nr, last, reasons, outcome_open)
         return _decision(criteria, None, False, level, rubric, evidence_by_nr, assessment_by_nr, last,
-                         injection_suspected, reasons, rounds)
+                         injection_suspected, reasons, rounds, outcome_open)
 
     # Score van de laatste validatie, met dezelfde cap als de rubric-beoordeling:
     # 10 vereist alle essentiële criteria volledig voldaan.
@@ -941,14 +956,48 @@ def decide(rubric: Dict, answer: str, evidence: Dict, rounds: List[Dict], inject
                        f"{last['validation']['final_assessment']['score']}.")
 
     return _decision(criteria, score, score_capped, None, rubric, evidence_by_nr, assessment_by_nr, last,
-                     injection_suspected, reasons, rounds)
+                     injection_suspected, reasons, rounds, outcome_open)
 
 
-def _decide_level(rubric: Dict, final_by_nr: Dict[int, str], last: Dict, reasons: List[str]) -> str:
+def level_range(rubric: Dict, criteria: List[Dict]) -> tuple:
+    """
+    Het laagste en het hoogste niveau dat uit de oordelen van de agents kan volgen
+    (alleen bij levels). Per criterium telt de laagste en de hoogste status van
+    Evidence, Assessment en Validation (criteria uit decision["criteria"]); een
+    essentieel criterium op "deels" kan ook "voldaan" zijn. level_from_statuses()
+    stijgt mee met elke status, dus twee berekeningen volstaan, en verschillen bij
+    meerdere criteria tellen samen. Zijn beide niveaus gelijk, dan verandert geen
+    van de verschillen de uitkomst.
+    """
+    lowest, highest = [], []
+    for c, d in zip(rubric["criteria"], criteria):
+        statuses = [EVIDENCE_AS_STATUS[d["evidence_found"]], d["assessment_status"], d["final_status"]]
+        if c["weight"] == "essentieel" and d["final_status"] == "deels":
+            statuses.append("voldaan")
+        ranked = sorted(statuses, key=STATUS_RANK.get)
+        lowest.append({"weight": c["weight"], "status": ranked[0]})
+        highest.append({"weight": c["weight"], "status": ranked[-1]})
+    return level_from_statuses(lowest), level_from_statuses(highest)
+
+
+def validation_changes(last: Dict) -> bool:
+    """Wijkt de validatie inhoudelijk af van de beoordeling: correcties, een andere status of score?"""
+    validation = last["validation"]
+    if validation["corrections"]:
+        return True
+    assessed = {c["nr"]: c["status"] for c in last["assessment"]["criteria"]}
+    final = validation["final_assessment"]
+    return (final["score"] != last["assessment"]["score"]
+            or any(assessed[c["nr"]] != c["status"] for c in final["criteria"]))
+
+
+def _decide_level(rubric: Dict, final_by_nr: Dict[int, str], last: Dict, reasons: List[str],
+                  outcome_open: bool) -> str:
     """Het niveau bij scale "levels" (B3) en de redenen die daarbij horen (zie decide())."""
     level = level_from_statuses([{"weight": c["weight"], "status": final_by_nr[c["nr"]]} for c in rubric["criteria"]])
     for c in rubric["criteria"]:
-        if c["weight"] == "essentieel" and final_by_nr[c["nr"]] == "deels":
+        # Alleen een grensgeval als de andere criteria het niveau niet al vastleggen
+        if c["weight"] == "essentieel" and final_by_nr[c["nr"]] == "deels" and outcome_open:
             reasons.append(f"Grensgeval voldoende/onvoldoende: essentieel criterium {c['nr']} ({c['name']}) "
                            "is deels voldaan.")
     validation_level = last["validation"]["final_assessment"]["score"]
@@ -964,7 +1013,7 @@ def _decide_level(rubric: Dict, final_by_nr: Dict[int, str], last: Dict, reasons
 
 def _decision(criteria: List[Dict], score: Optional[int], score_capped: bool, level: Optional[str], rubric: Dict,
               evidence_by_nr: Dict, assessment_by_nr: Dict, last: Dict, injection_suspected: bool,
-              reasons: List[str], rounds: List[Dict]) -> Dict:
+              reasons: List[str], rounds: List[Dict], outcome_open: bool) -> Dict:
     """De gemeenschappelijke rest van decide(): confidence, overige redenen en de beslissing."""
     # Confidence: de laagste van de validatie en van de essentiële criteria
     confidences = [last["validation"]["confidence"]]
@@ -975,7 +1024,9 @@ def _decision(criteria: List[Dict], score: Optional[int], score_capped: bool, le
     confidence = min(confidences, key=lambda value: CONFIDENCE_RANK[value])
     if confidence == "laag":
         reasons.append("De confidence is laag.")
-    if not last["validation"]["validated"]:
+    # validated = false telt alleen als de validatie ook echt iets verandert (twijfel
+    # zonder correctie niet) en, bij levels, als het niveau ervan afhangt.
+    if not last["validation"]["validated"] and validation_changes(last) and outcome_open:
         reasons.append("De Validation Agent bevestigt de voorlopige beoordeling niet.")
     if injection_suspected:
         reasons.append("Het antwoord bevat mogelijk instructies aan de AI (prompt injection).")
@@ -994,8 +1045,14 @@ def _decision(criteria: List[Dict], score: Optional[int], score_capped: bool, le
     return decision
 
 
-def has_conflict(decision: Dict) -> bool:
-    return any(c["agreement"] == "conflict" for c in decision["criteria"])
+def has_conflict(decision: Dict, rubric: Dict) -> bool:
+    """Een conflict waarvoor een extra ronde zin heeft: bij levels alleen als het niveau ervan afhangt."""
+    if not any(c["agreement"] == "conflict" for c in decision["criteria"]):
+        return False
+    if "level" in decision:
+        lowest, highest = level_range(rubric, decision["criteria"])
+        return lowest != highest
+    return True
 
 # =========================
 # ORCHESTRATOR
@@ -1073,7 +1130,7 @@ class AssessmentOrchestrator:
                                         "validation": round(self.validation_agent.last_duration, 1)})
 
             decision = decide(rubric, answer, evidence, rounds, injection_suspected, scale)
-            if not has_conflict(decision) or len(rounds) > self.max_extra_rounds:
+            if not has_conflict(decision, rubric) or len(rounds) > self.max_extra_rounds:
                 break
             print(f"Beoordeling {job_id}: conflict tussen de agents, extra ronde {len(rounds)}.")
             previous = rounds[-1]

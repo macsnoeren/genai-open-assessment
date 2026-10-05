@@ -18,7 +18,13 @@
 ?>
 <p>
     <span class="badge <?= $validation['validated'] ? 'badge-soft-success' : 'badge-soft-warning' ?>">
-        <?= $validation['validated'] ? 'Beoordeling bevestigd' : 'Beoordeling niet bevestigd' ?>
+        <?php if ($validation['validated']): ?>
+            Beoordeling bevestigd
+        <?php elseif ($validation['corrections'] === []): ?>
+            Twijfel, maar geen correcties
+        <?php else: ?>
+            Beoordeling niet bevestigd
+        <?php endif; ?>
     </span>
     <span class="badge <?= e(AnswerAssessment::confidenceClass($validation['confidence'])) ?>">confidence <?= e($validation['confidence']) ?></span>
     <span class="badge badge-soft-secondary">eindoordeel validatie: <?= e(AnswerAssessment::resultText($validation['final_assessment']['score'])) ?></span>
