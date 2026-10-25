@@ -45,6 +45,9 @@ cd bin && python3 -m unittest test_assessment_agents -v
 cd bin && python process_ai_feedback.py
 cd bin && python process_design_jobs.py   # ontwerp-worker, tweede proces
 cd bin && python process_assessment_jobs.py   # assessment-worker, derde proces
+
+# Alle drie de workers in één container (docker/Dockerfile.worker, mount bin/config.py of WORKER_CONFIG)
+cd docker && docker compose --profile worker up --build worker
 ```
 
 Er is **geen geautomatiseerde testsuite** voor de webapp (alleen de mocktests van `bin/design_agents.py`, `bin/assessment_agents.py` en de rubric-beoordeling). Controleer wijzigingen met de syntaxchecks hierboven en een handmatige rooktest in de Docker-omgeving (inloggen, de gewijzigde flow doorlopen, en voor muterende acties ook controleren dat een GET een 405 geeft).

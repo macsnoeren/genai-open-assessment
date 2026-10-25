@@ -14,5 +14,27 @@ services:
     environment:
       INTEGRATION_ALLOW_HTTP: "1"
 
+  # De drie AI-workers in één container (Dockerfile.worker). Alleen met
+  # "--profile worker", want zonder config.py kan deze container niet starten
+  # en dan moet de webapp alleen ook blijven werken. Zie README.md in deze map.
+  worker:
+    profiles: ["worker"]
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.worker
+    volumes:
+      # Standaard bin/config.py; een andere config met WORKER_CONFIG=/pad/naar/config.py.
+      - type: bind
+        source: ${WORKER_CONFIG:-../bin/config.py}
+        target: /config/config.py
+        read_only: true
+        # Zonder deze regel maakt Docker van een ontbrekend config.py een lege map.
+        bind:
+          create_host_path: false
+    # Ollama op de host bereiken via host.docker.internal (zie README.md).
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
 volumes:
   db_data:

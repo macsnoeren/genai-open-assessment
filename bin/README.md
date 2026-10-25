@@ -57,6 +57,8 @@ Start de feedback processor met het volgende commando:
 python process_ai_feedback.py
 ```
 
+All three workers (this one, `process_design_jobs.py` and `process_assessment_jobs.py`) can also run together in one Docker container, with the same `config.py` mounted: `docker/Dockerfile.worker`, see [../docker/README.md](../docker/README.md#ai-workers). Inside the container `localhost` is the container itself, so `OLLAMA_URL` (and a local `BASE_URL`) must point elsewhere.
+
 ## AI-vraagontwerper (`process_design_jobs.py`)
 
 A second, separate worker supports teachers who design a new open question. The teacher enters a question and the desired answer in the web app; this worker lets three agents work it out and sends the result back. It runs as its own process so a teacher who is waiting interactively does not queue behind student answers, and it can be started and stopped independently.

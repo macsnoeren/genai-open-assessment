@@ -1,0 +1,34 @@
+# AI-workers in één container: process_ai_feedback.py, process_design_jobs.py
+# en process_assessment_jobs.py (zie bin/README.md). worker-entrypoint.sh start
+# ze alle drie en stopt de container zodra er één stopt, zodat de
+# restart-policy van Docker ze samen opnieuw start.
+#
+# Build-context is de repo-root, net als bij de webapp-image:
+#   docker build -t genai-open-assessment-worker -f docker/Dockerfile.worker .
+FROM python:3.12-slim
+
+# requests is de enige afhankelijkheid van de workers. dataset_import.py (met
+# "datasets") draait niet in deze container en hoort hier dus niet bij.
+RUN pip install --no-cache-dir requests==2.32.3
+
+# Ongebufferde output, anders verschijnen de print()-regels pas in
+# "docker logs" als de buffer vol is. Geen .pyc: /app/bin is niet schrijfbaar
+# voor de worker-gebruiker.
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
+
+# De workers draaien niet als root. De entrypoint zelf wel: die moet de
+# config.py van de host kunnen lezen, ongeacht de eigenaar en rechten op de
+# host, en geeft die daarna leesbaar door aan deze gebruiker.
+RUN useradd --system --uid 10001 --no-create-home --shell /usr/sbin/nologin worker
+
+WORKDIR /app/bin
+
+# bin/config.py zit NIET in de image (.dockerignore): daar staat de API-key in.
+# Die wordt bij het starten gemount op /config/config.py.
+COPY bin/ /app/bin/
+
+COPY docker/worker-entrypoint.sh /usr/local/bin/worker-entrypoint.sh
+RUN chmod +x /usr/local/bin/worker-entrypoint.sh
+
+ENTRYPOINT ["worker-entrypoint.sh"]
