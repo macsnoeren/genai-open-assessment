@@ -1,3 +1,3 @@
 - [ ] Een cijfer lijst maken voor studenten en een feed-forward maken per element waar ze aan moeten werken.
 - [ ] De toetsen in een mappen structuur kunnen zetten. Dus ICT / Jaar 1 / Module A / ... De diepte van de mappen mogen ze zelf bepalen.
-- [ ] De toets maken per vraag en niet scrollen. En dan kan je ook terug. Bij volgende tussentijds opslaan. En een voortgang ergens bijhouden. Je kan ook een vraag overslaan. Bij het overzicht zie je dan dat die nog open staat.
+- [ ] De toets maken per vraag en niet scrollen. En dan kan je ook terug. Bij volgende tussentijds opslaan. En een voortgang ergens bijhouden. Je kan ook een vraag overslaan. Bij het overzicht zie je dan dat die nog open staat. Ook bij beoordelen op deze manier er doorheen waarbij ook de criteria en AI antwoord staan. Hierbij misschien de optie om het AI antwoord over te nemen.
